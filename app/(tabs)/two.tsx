@@ -1,31 +1,57 @@
-import { StyleSheet } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { StyleSheet, Text, View } from 'react-native';
 
-import EditScreenInfo from '@/src/components/EditScreenInfo';
-import { Text, View } from '@/src/components/Themed';
+import { palette, spacing, typography } from '@/src/theme';
 
-export default function TabTwoScreen() {
+export default function GarageScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Tab Two</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/two.tsx" />
+    <View style={styles.screen}>
+      <View style={styles.panel}>
+        <View style={styles.iconWrap}>
+          <SymbolView
+            name={{ ios: 'wrench.and.screwdriver.fill', android: 'build', web: 'build' }}
+            tintColor={palette.accentOrange}
+            size={30}
+          />
+        </View>
+        <Text style={styles.title}>Garage</Text>
+        <Text style={styles.caption}>Manage motorcycles</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+    justifyContent: 'center',
+    padding: spacing.xl,
+    backgroundColor: palette.darkBackground,
+  },
+  panel: {
+    alignItems: 'center',
+    padding: spacing.xxl,
+    borderRadius: 24,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(249, 115, 22, 0.12)',
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...typography.heading,
+    color: palette.text,
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  caption: {
+    ...typography.body,
+    color: palette.textMuted,
+    marginTop: spacing.sm,
   },
 });
