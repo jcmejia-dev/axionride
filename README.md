@@ -80,11 +80,12 @@ npm run web
 
 ## Roadmap
 
-The high-level roadmap is documented in [docs/ROADMAP.md](docs/ROADMAP.md). Planned areas include authentication, garage management, motorcycle profiles, ride tracking, GPS, speedometer, fuel logs, maintenance logs, service history, notifications, offline-first persistence, cloud sync, AI assistance, OBD-II integration, weather, maps, community, and marketplace.
+The high-level roadmap is documented in [docs/ROADMAP.md](docs/ROADMAP.md). The detailed product and implementation blueprint is documented in [docs/PROJECT_BLUEPRINT.md](docs/PROJECT_BLUEPRINT.md). Planned areas include authentication, garage management, motorcycle profiles, ride tracking, GPS, speedometer, fuel logs, maintenance logs, service history, notifications, offline-first persistence, cloud sync, AI assistance, OBD-II integration, weather, maps, community, and marketplace.
 
 ## Documentation
 
 - [Project Bible](docs/PROJECT_BIBLE.md)
+- [Project Blueprint](docs/PROJECT_BLUEPRINT.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Database](docs/DATABASE.md)
