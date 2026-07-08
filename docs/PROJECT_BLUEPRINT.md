@@ -25,6 +25,7 @@ The MVP should not include AI, marketplace, community, OBD-II, complex analytics
 ### Phase 0: Foundation
 
 - Branding, documentation, architecture boundaries, theme tokens, and route structure.
+- App bootstrap shell with a branded startup/loading state before the main tabs render.
 - No production business logic beyond placeholders.
 
 ### Phase 1: Garage MVP
@@ -130,6 +131,24 @@ Implementation rules:
 - Route files should compose feature screens from `src/features/`.
 - Business logic, persistence, validation, and service calls should not live directly in route files.
 - Modal routes may be used for add/edit flows when they improve mobile ergonomics.
+
+## App Bootstrap Plan
+
+The root layout may coordinate startup readiness, but reusable bootstrap logic and loading UI belong under `src/features/app-shell/`.
+
+Current bootstrap behavior:
+
+- Keep the native splash active until bundled assets such as fonts are ready.
+- Show a branded AxionRide loading screen briefly.
+- Render the main Expo Router tabs after bootstrap completes.
+
+Future bootstrap responsibilities:
+
+- Load persisted local settings.
+- Initialize SQLite.
+- Restore an auth session after authentication exists.
+- Prepare Supabase sync after sync exists.
+- Resume or report pending offline work.
 
 ## Database Plan
 
