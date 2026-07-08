@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/src/components/useColorScheme';
+import { AppLoadingScreen, useAppBootstrap } from '@/src/features/app-shell';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -23,6 +24,7 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+  const { isReady } = useAppBootstrap(loaded);
 
   useEffect(() => {
     if (error) throw error;
@@ -36,6 +38,10 @@ export default function RootLayout() {
 
   if (!loaded) {
     return null;
+  }
+
+  if (!isReady) {
+    return <AppLoadingScreen />;
   }
 
   return <RootLayoutNav />;
