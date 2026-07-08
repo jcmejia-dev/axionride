@@ -39,3 +39,7 @@ AxionRide is a modern motorcycle companion application built with Expo React Nat
 ## Current Foundation
 
 The project currently uses Expo SDK 57, Expo Router, React Native, TypeScript, Git, and GitHub. This foundation intentionally avoids business logic until product requirements and data contracts are defined.
+
+## Product Blueprint
+
+The detailed product scope, feature phases, screen plan, data plan, sync strategy, and future Codex prompt rules are documented in [PROJECT_BLUEPRINT.md](PROJECT_BLUEPRINT.md).
