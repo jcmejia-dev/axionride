@@ -6,7 +6,9 @@ AxionRide is an Expo React Native application using Expo SDK 57, Expo Router, an
 
 ## Routing
 
-Expo Router owns navigation through the existing `app/` directory. The `app/` directory should contain route files and route layouts only. Future routing changes should be made deliberately and documented before implementation. The router should not be replaced.
+Expo Router owns navigation through the existing `app/` directory. The `app/` directory is only for Expo Router route files and route layouts. It must not become a home for business logic, services, database access, validation schemas, API clients, shared hooks, or reusable components.
+
+Route files should stay thin. They may compose feature screens, providers, and layout primitives from `src/`, but business logic should not live directly inside app route files. Future routing changes should be made deliberately and documented before implementation. The router should not be replaced.
 
 ## Source Organization
 
@@ -38,11 +40,13 @@ Supporting project folders:
 
 ## Feature Boundaries
 
-Each future feature should own its UI, local state, validation, and feature-specific types where practical. Cross-feature behavior should move into `src/services`, `src/store`, or `src/lib` only when reuse is proven.
+Features are grouped by domain under `src/features/`. Each feature should own its UI, local state, validation, and feature-specific types where practical. Cross-feature behavior should move into `src/services`, `src/store`, or `src/lib` only when reuse is proven.
+
+Screens should stay thin. Feature screens should coordinate rendering and user interaction, while business rules, data access, persistence, sync, and validation should live in the appropriate `src/` boundary.
 
 ## Data Direction
 
-The intended long-term data direction is offline-first:
+The intended long-term data direction is offline-first. SQLite is planned for local storage, and Supabase is planned for cloud sync and backend services.
 
 - Local writes should feel immediate.
 - Sync should be explicit, observable, and resilient.
