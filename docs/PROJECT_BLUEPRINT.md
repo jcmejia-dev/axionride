@@ -52,6 +52,7 @@ The MVP should not include AI, marketplace, community, OBD-II, complex analytics
 
 ### Phase 4: Accounts And Sync
 
+- Authentication UI before Supabase authentication.
 - Authentication.
 - Supabase project setup.
 - User-owned rows and policies.
@@ -218,6 +219,8 @@ Sync approach:
 ## Authentication Plan
 
 Authentication is planned after the local MVP shape is clear.
+
+Auth UI may be built before backend authentication so the app can validate screens, copy, and navigation without introducing Supabase, database logic, or session handling.
 
 Initial auth requirements:
 
