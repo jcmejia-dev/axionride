@@ -1,42 +1,79 @@
-import { SymbolView } from 'expo-symbols';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
+import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Body, EmptyState, GlassCard, SecondaryButton, SectionHeader, StatCard, Title } from '@/src/components';
 import { layout, palette, spacing } from '@/src/theme';
+
+import { EmptyRidesState } from './components/EmptyRidesState';
+import { RecentRideList } from './components/RecentRideList';
+import { RideHeader } from './components/RideHeader';
+import { RideModeCard } from './components/RideModeCard';
+import { RideQuickActions } from './components/RideQuickActions';
+import { RideStatsGrid } from './components/RideStatsGrid';
+import { mockRides } from './data/mockRides';
 
 export function RideScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.backgroundGlowTop} />
+      <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <Title>Rides</Title>
-          <Body muted>Track rides later with route history, speed insights, and summaries.</Body>
-        </View>
+        <RideHeader />
 
-        <View style={styles.stats}>
-          <StatCard label="Distance" value="0 km" detail="No rides yet" accent="cyan" />
-          <StatCard label="Rides" value="0" detail="Ready when you are" accent="orange" />
-        </View>
+        <AnimatedEntrance delay={80}>
+          <RideModeCard />
+        </AnimatedEntrance>
 
-        <GlassCard style={styles.card}>
-          <SectionHeader title="Ride History" subtitle="Placeholder until ride tracking is added" />
-          <EmptyState
-            icon={
-              <SymbolView
-                name={{ ios: 'road.lanes', android: 'route', web: 'route' }}
-                tintColor={palette.accentBlue}
-                size={34}
-              />
-            }
-            title="No rides recorded"
-            description="Completed rides will appear here after ride tracking is implemented."
-          />
-        </GlassCard>
+        <AnimatedEntrance delay={180}>
+          <RideStatsGrid currentRide={mockRides.currentRide} insights={mockRides.insights} />
+        </AnimatedEntrance>
 
-        <SecondaryButton title="Start Ride" onPress={() => undefined} />
+        <AnimatedEntrance delay={280}>
+          {mockRides.recentRides.length > 0 ? <RecentRideList rides={mockRides.recentRides} /> : <EmptyRidesState />}
+        </AnimatedEntrance>
+
+        <AnimatedEntrance delay={380}>
+          <RideQuickActions />
+        </AnimatedEntrance>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+type AnimatedEntranceProps = {
+  children: ReactNode;
+  delay: number;
+};
+
+function AnimatedEntrance({ children, delay }: AnimatedEntranceProps) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(progress, {
+      toValue: 1,
+      delay,
+      friction: 8,
+      tension: 48,
+      useNativeDriver: true,
+    }).start();
+  }, [delay, progress]);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: progress,
+        transform: [
+          {
+            translateY: progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [24, 0],
+            }),
+          },
+        ],
+      }}>
+      {children}
+    </Animated.View>
   );
 }
 
@@ -45,23 +82,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.darkBackground,
   },
+  backgroundGlowTop: {
+    position: 'absolute',
+    top: -130,
+    right: -120,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  backgroundGlowBottom: {
+    position: 'absolute',
+    bottom: 120,
+    left: -150,
+    width: 330,
+    height: 330,
+    borderRadius: 165,
+    backgroundColor: 'rgba(34, 211, 238, 0.08)',
+  },
   screen: {
     flex: 1,
-    backgroundColor: palette.darkBackground,
+    backgroundColor: 'transparent',
   },
   content: {
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: layout.floatingTabBarContentInset,
-    gap: spacing.xl,
-  },
-  hero: {
-    gap: spacing.sm,
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  card: {
-    gap: spacing.lg,
+    gap: spacing.xxl,
   },
 });
