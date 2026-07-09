@@ -1,4 +1,5 @@
 import { SymbolView } from 'expo-symbols';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { palette, radius, spacing, typography } from '@/src/theme';
@@ -22,6 +23,14 @@ const quickActions = [
 ] as const;
 
 export function GarageQuickActions() {
+  const router = useRouter();
+
+  function handleActionPress(label: (typeof quickActions)[number]['label']) {
+    if (label === 'Add Motorcycle') {
+      router.push('/motorcycle-management');
+    }
+  }
+
   return (
     <View style={styles.section}>
       <View>
@@ -33,7 +42,7 @@ export function GarageQuickActions() {
           <Pressable
             key={action.label}
             accessibilityRole="button"
-            onPress={() => undefined}
+            onPress={() => handleActionPress(action.label)}
             style={({ pressed }) => [
               styles.action,
               action.primary ? styles.primaryAction : null,
