@@ -2,7 +2,9 @@ export { BaseService } from './BaseService';
 export { ServiceContext } from './ServiceContext';
 export {
   createMaintenanceService,
+  createProfileService,
   createRideService,
+  createSettingsService,
   createServiceContext,
   createServiceContextWithRepositories,
   createStatisticsService,
@@ -23,6 +25,10 @@ export type {
   RideStatisticsSummary,
   StatisticsDashboardSummary,
 } from './statistics';
+export { ProfileService } from './profile';
+export type { LocalProfile, ProfileOverview } from './profile';
+export { SettingsService } from './settings';
+export type { SettingsItem, SettingsOverview, SettingsSection, SettingsUnits } from './settings';
 export type {
   ServiceDependencies,
   ServiceError,
