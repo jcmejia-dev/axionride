@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/src/components';
+import { createStatisticsService, type StatisticsDashboardSummary } from '@/src/services';
 import { layout, palette, spacing } from '@/src/theme';
 
 import { CurrentMotorcycleCard } from './components/CurrentMotorcycleCard';
@@ -12,11 +13,28 @@ import { MonthlyStatsGrid } from './components/MonthlyStatsGrid';
 import { NextMaintenanceCard } from './components/NextMaintenanceCard';
 import { QuickActions } from './components/QuickActions';
 import { RecentRideCard } from './components/RecentRideCard';
+import { StatisticsSummary } from './components/StatisticsSummary';
 import { WeatherRideCard } from './components/WeatherRideCard';
 import { mockDashboardData } from './data/mockDashboardData';
 
 export function DashboardScreen() {
   const greeting = getGreeting(new Date());
+  const statisticsService = useMemo(() => createStatisticsService(), []);
+  const [statisticsSummary, setStatisticsSummary] = useState<StatisticsDashboardSummary | null>(null);
+  const [statisticsLoading, setStatisticsLoading] = useState(true);
+  const loadStatistics = useCallback(async () => {
+    const result = await statisticsService.getDashboardStatistics();
+
+    if (result.ok) {
+      setStatisticsSummary(result.value);
+    }
+
+    setStatisticsLoading(false);
+  }, [statisticsService]);
+
+  useEffect(() => {
+    void loadStatistics();
+  }, [loadStatistics]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -43,6 +61,14 @@ export function DashboardScreen() {
           </AnimatedEntrance>
 
           <AnimatedEntrance delay={280}>
+            <QuickActions actions={mockDashboardData.quickActions} />
+          </AnimatedEntrance>
+
+          <AnimatedEntrance delay={380}>
+            <StatisticsSummary summary={statisticsSummary} loading={statisticsLoading} />
+          </AnimatedEntrance>
+
+          <AnimatedEntrance delay={480}>
             {mockDashboardData.maintenance ? (
               <NextMaintenanceCard maintenance={mockDashboardData.maintenance} />
             ) : (
@@ -50,20 +76,16 @@ export function DashboardScreen() {
             )}
           </AnimatedEntrance>
 
-          <AnimatedEntrance delay={380}>
+          <AnimatedEntrance delay={580}>
             <MonthlyStatsGrid stats={mockDashboardData.monthlyStats} />
           </AnimatedEntrance>
 
-          <AnimatedEntrance delay={480}>
+          <AnimatedEntrance delay={680}>
             {mockDashboardData.recentRide ? (
               <RecentRideCard ride={mockDashboardData.recentRide} />
             ) : (
               <EmptyState title="No recent ride" description="Recent ride summaries will appear here once ride tracking is available." />
             )}
-          </AnimatedEntrance>
-
-          <AnimatedEntrance delay={580}>
-            <QuickActions actions={mockDashboardData.quickActions} />
           </AnimatedEntrance>
         </View>
       </ScrollView>

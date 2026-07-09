@@ -4,6 +4,7 @@ import { MaintenanceService } from './maintenance';
 import { RideService } from './ride';
 import { ServiceContext } from './ServiceContext';
 import type { ServiceDependencies } from './ServiceTypes';
+import { StatisticsService } from './statistics';
 
 /**
  * Create a service context with default app dependencies.
@@ -40,4 +41,11 @@ export function createRideService(overrides: Partial<ServiceDependencies> = {}) 
  */
 export function createMaintenanceService(overrides: Partial<ServiceDependencies> = {}) {
   return new MaintenanceService(createServiceContext(overrides));
+}
+
+/**
+ * Create the statistics application service with default dependencies.
+ */
+export function createStatisticsService(overrides: Partial<ServiceDependencies> = {}) {
+  return new StatisticsService(createServiceContext(overrides));
 }
