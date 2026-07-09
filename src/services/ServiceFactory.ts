@@ -3,6 +3,7 @@ import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/sr
 import { MaintenanceService } from './maintenance';
 import { ProfileService } from './profile';
 import { RideService } from './ride';
+import { SearchService } from './search';
 import { ServiceContext } from './ServiceContext';
 import type { ServiceDependencies } from './ServiceTypes';
 import { SettingsService } from './settings';
@@ -64,4 +65,11 @@ export function createProfileService(overrides: Partial<ServiceDependencies> = {
  */
 export function createSettingsService(overrides: Partial<ServiceDependencies> = {}) {
   return new SettingsService(createServiceContext(overrides));
+}
+
+/**
+ * Create the local universal search service with default dependencies.
+ */
+export function createSearchService(overrides: Partial<ServiceDependencies> = {}) {
+  return new SearchService(createServiceContext(overrides));
 }
