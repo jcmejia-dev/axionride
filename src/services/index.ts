@@ -5,6 +5,7 @@ export {
   createRideService,
   createServiceContext,
   createServiceContextWithRepositories,
+  createStatisticsService,
 } from './ServiceFactory';
 export { RideService } from './ride';
 export type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './ride';
@@ -15,6 +16,13 @@ export type {
   MaintenanceListItem,
   UpdateMaintenanceInput,
 } from './maintenance';
+export { StatisticsService } from './statistics';
+export type {
+  MaintenanceStatisticsSummary,
+  MotorcycleStatisticsSummary,
+  RideStatisticsSummary,
+  StatisticsDashboardSummary,
+} from './statistics';
 export type {
   ServiceDependencies,
   ServiceError,
