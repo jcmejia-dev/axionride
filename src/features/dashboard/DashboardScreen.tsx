@@ -13,6 +13,7 @@ import { MonthlyStatsGrid } from './components/MonthlyStatsGrid';
 import { NextMaintenanceCard } from './components/NextMaintenanceCard';
 import { QuickActions } from './components/QuickActions';
 import { RecentRideCard } from './components/RecentRideCard';
+import { SearchSheet } from './components/SearchSheet';
 import { StatisticsSummary } from './components/StatisticsSummary';
 import { WeatherRideCard } from './components/WeatherRideCard';
 import { mockDashboardData } from './data/mockDashboardData';
@@ -22,6 +23,7 @@ export function DashboardScreen() {
   const statisticsService = useMemo(() => createStatisticsService(), []);
   const [statisticsSummary, setStatisticsSummary] = useState<StatisticsDashboardSummary | null>(null);
   const [statisticsLoading, setStatisticsLoading] = useState(true);
+  const [searchVisible, setSearchVisible] = useState(false);
   const loadStatistics = useCallback(async () => {
     const result = await statisticsService.getDashboardStatistics();
 
@@ -41,7 +43,7 @@ export function DashboardScreen() {
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <DashboardHeader greeting={greeting} />
+        <DashboardHeader greeting={greeting} onOpenSearch={() => setSearchVisible(true)} />
 
         <View style={styles.stack}>
           <AnimatedEntrance delay={80}>
@@ -89,6 +91,7 @@ export function DashboardScreen() {
           </AnimatedEntrance>
         </View>
       </ScrollView>
+      <SearchSheet visible={searchVisible} onClose={() => setSearchVisible(false)} />
     </SafeAreaView>
   );
 }

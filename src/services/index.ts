@@ -4,6 +4,7 @@ export {
   createMaintenanceService,
   createProfileService,
   createRideService,
+  createSearchService,
   createSettingsService,
   createServiceContext,
   createServiceContextWithRepositories,
@@ -29,6 +30,8 @@ export { ProfileService } from './profile';
 export type { LocalProfile, ProfileOverview } from './profile';
 export { SettingsService } from './settings';
 export type { SettingsItem, SettingsOverview, SettingsSection, SettingsUnits } from './settings';
+export { SearchService } from './search';
+export type { SearchInput, SearchResponse, SearchResult, SearchResultType } from './search';
 export type {
   ServiceDependencies,
   ServiceError,

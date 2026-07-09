@@ -6,9 +6,10 @@ import { palette, radius, spacing, typography } from '@/src/theme';
 
 type DashboardHeaderProps = {
   greeting: string;
+  readonly onOpenSearch?: () => void;
 };
 
-export function DashboardHeader({ greeting }: DashboardHeaderProps) {
+export function DashboardHeader({ greeting, onOpenSearch }: DashboardHeaderProps) {
   return (
     <View style={styles.container}>
       <View style={styles.copy}>
@@ -16,17 +17,30 @@ export function DashboardHeader({ greeting }: DashboardHeaderProps) {
         <Title style={styles.greeting}>{greeting}</Title>
         <Body style={styles.subtitle}>Ride Smarter.</Body>
       </View>
-      <Pressable
-        accessibilityLabel="Open settings"
-        accessibilityRole="button"
-        onPress={() => undefined}
-        style={({ pressed }) => [styles.settingsButton, pressed ? styles.pressed : null]}>
-        <SymbolView
-          name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
-          tintColor={palette.text}
-          size={21}
-        />
-      </Pressable>
+      <View style={styles.actions}>
+        <Pressable
+          accessibilityLabel="Open search"
+          accessibilityRole="button"
+          onPress={onOpenSearch}
+          style={({ pressed }) => [styles.settingsButton, pressed ? styles.pressed : null]}>
+          <SymbolView
+            name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
+            tintColor={palette.text}
+            size={21}
+          />
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Open settings"
+          accessibilityRole="button"
+          onPress={() => undefined}
+          style={({ pressed }) => [styles.settingsButton, pressed ? styles.pressed : null]}>
+          <SymbolView
+            name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
+            tintColor={palette.text}
+            size={21}
+          />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -41,6 +55,10 @@ const styles = StyleSheet.create({
   copy: {
     flex: 1,
     gap: spacing.xs,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   eyebrow: {
     color: 'rgba(248, 250, 252, 0.62)',
