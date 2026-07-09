@@ -1,4 +1,4 @@
-export type MaintenanceStatus = 'Due Soon' | 'Good' | 'Overdue' | 'Completed';
+export type MaintenanceStatus = 'Due Soon' | 'Good' | 'Overdue' | 'Completed' | 'Unknown';
 
 export type MaintenanceOverallStatus = {
   readonly status: MaintenanceStatus;

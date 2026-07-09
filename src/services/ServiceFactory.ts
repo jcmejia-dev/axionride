@@ -1,5 +1,7 @@
 import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/src/repositories';
 
+import { MaintenanceService } from './maintenance';
+import { RideService } from './ride';
 import { ServiceContext } from './ServiceContext';
 import type { ServiceDependencies } from './ServiceTypes';
 
@@ -24,4 +26,18 @@ export function createServiceContextWithRepositories(
     repositories: createRepositoryProvider(repositoryOverrides),
     logger: dependencies.logger,
   });
+}
+
+/**
+ * Create the ride application service with default dependencies.
+ */
+export function createRideService(overrides: Partial<ServiceDependencies> = {}) {
+  return new RideService(createServiceContext(overrides));
+}
+
+/**
+ * Create the maintenance application service with default dependencies.
+ */
+export function createMaintenanceService(overrides: Partial<ServiceDependencies> = {}) {
+  return new MaintenanceService(createServiceContext(overrides));
 }
