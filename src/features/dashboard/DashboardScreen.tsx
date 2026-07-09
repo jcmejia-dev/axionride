@@ -1,65 +1,134 @@
-import { SymbolView } from 'expo-symbols';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
+import { Animated, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  Body,
-  GlassCard,
-  PrimaryButton,
-  SecondaryButton,
-  SectionHeader,
-  Title,
-} from '@/src/components';
-import { layout, palette, semanticColors, spacing } from '@/src/theme';
+import { EmptyState } from '@/src/components';
+import { layout, palette, spacing } from '@/src/theme';
 
-const dashboardCards = [
-  {
-    title: 'Next Maintenance',
-    description: 'No maintenance scheduled.',
-    icon: { ios: 'wrench.and.screwdriver.fill', android: 'build', web: 'build' },
-  },
-  {
-    title: 'Garage',
-    description: 'No motorcycles added yet.',
-    icon: { ios: 'motorcycle.fill', android: 'two_wheeler', web: 'two_wheeler' },
-  },
-  {
-    title: 'Recent Ride',
-    description: 'No rides recorded.',
-    icon: { ios: 'road.lanes', android: 'route', web: 'route' },
-  },
-] as const;
+import { CurrentMotorcycleCard } from './components/CurrentMotorcycleCard';
+import { DashboardHeader } from './components/DashboardHeader';
+import { MonthlyStatsGrid } from './components/MonthlyStatsGrid';
+import { NextMaintenanceCard } from './components/NextMaintenanceCard';
+import { QuickActions } from './components/QuickActions';
+import { RecentRideCard } from './components/RecentRideCard';
+import { WeatherRideCard } from './components/WeatherRideCard';
+import { mockDashboardData } from './data/mockDashboardData';
 
 export function DashboardScreen() {
+  const greeting = getGreeting(new Date());
+
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.backgroundGlowTop} />
+      <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <Title>Good to see you.</Title>
-          <Body muted>Ride Smarter.</Body>
-        </View>
+        <DashboardHeader greeting={greeting} />
 
-        <View style={styles.grid}>
-          {dashboardCards.map((card) => (
-            <GlassCard key={card.title} style={styles.card}>
-              <View style={styles.cardIcon}>
-                <SymbolView name={card.icon} tintColor={palette.accentOrange} size={24} />
-              </View>
-              <Title style={styles.cardTitle}>{card.title}</Title>
-              <Body muted>{card.description}</Body>
-            </GlassCard>
-          ))}
-        </View>
+        <View style={styles.stack}>
+          <AnimatedEntrance delay={80}>
+            {mockDashboardData.motorcycle ? (
+              <CurrentMotorcycleCard motorcycle={mockDashboardData.motorcycle} />
+            ) : (
+              <EmptyState title="No motorcycle selected" description="Your current motorcycle will appear here once one is available." />
+            )}
+          </AnimatedEntrance>
 
-        <SectionHeader title="Quick Actions" subtitle="Placeholder actions for future workflows" />
-        <View style={styles.actions}>
-          <PrimaryButton title="Add Motorcycle" onPress={() => undefined} />
-          <SecondaryButton title="Start Ride" onPress={() => undefined} />
-          <SecondaryButton title="View Garage" onPress={() => undefined} />
+          <AnimatedEntrance delay={180}>
+            {mockDashboardData.weather ? (
+              <WeatherRideCard weather={mockDashboardData.weather} />
+            ) : (
+              <EmptyState title="No ride conditions" description="Weather and ride condition summaries will appear here later." />
+            )}
+          </AnimatedEntrance>
+
+          <AnimatedEntrance delay={280}>
+            {mockDashboardData.maintenance ? (
+              <NextMaintenanceCard maintenance={mockDashboardData.maintenance} />
+            ) : (
+              <EmptyState title="No maintenance due" description="Upcoming service reminders will appear here." />
+            )}
+          </AnimatedEntrance>
+
+          <AnimatedEntrance delay={380}>
+            <MonthlyStatsGrid stats={mockDashboardData.monthlyStats} />
+          </AnimatedEntrance>
+
+          <AnimatedEntrance delay={480}>
+            {mockDashboardData.recentRide ? (
+              <RecentRideCard ride={mockDashboardData.recentRide} />
+            ) : (
+              <EmptyState title="No recent ride" description="Recent ride summaries will appear here once ride tracking is available." />
+            )}
+          </AnimatedEntrance>
+
+          <AnimatedEntrance delay={580}>
+            <QuickActions actions={mockDashboardData.quickActions} />
+          </AnimatedEntrance>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+type AnimatedEntranceProps = {
+  children: ReactNode;
+  delay: number;
+  style?: ViewStyle;
+};
+
+function AnimatedEntrance({ children, delay, style }: AnimatedEntranceProps) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(progress, {
+      toValue: 1,
+      delay,
+      friction: 8,
+      tension: 48,
+      useNativeDriver: true,
+    }).start();
+  }, [delay, progress]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity: progress,
+          transform: [
+            {
+              translateY: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [28, 0],
+              }),
+            },
+            {
+              scale: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.98, 1],
+              }),
+            },
+          ],
+        },
+      ]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+function getGreeting(date: Date) {
+  const hour = date.getHours();
+
+  if (hour >= 5 && hour < 12) {
+    return 'Good Morning';
+  }
+
+  if (hour < 18) {
+    return 'Good Afternoon';
+  }
+
+  return 'Good Evening';
 }
 
 const styles = StyleSheet.create({
@@ -67,37 +136,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.darkBackground,
   },
+  backgroundGlowTop: {
+    position: 'absolute',
+    top: -130,
+    right: -120,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  backgroundGlowBottom: {
+    position: 'absolute',
+    bottom: 120,
+    left: -150,
+    width: 330,
+    height: 330,
+    borderRadius: 165,
+    backgroundColor: 'rgba(249, 115, 22, 0.08)',
+  },
   screen: {
     flex: 1,
-    backgroundColor: palette.darkBackground,
+    backgroundColor: 'transparent',
   },
   content: {
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: layout.floatingTabBarContentInset,
-    gap: spacing.xl,
+    gap: spacing.xxl,
   },
-  hero: {
-    gap: spacing.sm,
-  },
-  grid: {
-    gap: spacing.lg,
-  },
-  card: {
-    gap: spacing.md,
-  },
-  cardIcon: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: semanticColors.dark.accentSoft,
-  },
-  cardTitle: {
-    fontSize: 22,
-    lineHeight: 28,
-  },
-  actions: {
-    gap: spacing.md,
+  stack: {
+    gap: spacing.xxl,
   },
 });
