@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Badge, GlassCard } from '@/src/components';
 import { palette, radius, spacing, typography } from '@/src/theme';
@@ -8,9 +8,10 @@ import type { MaintenanceTask } from '../types';
 
 type MaintenanceTaskCardProps = {
   task: MaintenanceTask;
+  readonly onComplete?: () => void;
 };
 
-export function MaintenanceTaskCard({ task }: MaintenanceTaskCardProps) {
+export function MaintenanceTaskCard({ task, onComplete }: MaintenanceTaskCardProps) {
   return (
     <GlassCard style={styles.card}>
       <View style={styles.iconShell}>
@@ -20,9 +21,31 @@ export function MaintenanceTaskCard({ task }: MaintenanceTaskCardProps) {
         <Text style={styles.title}>{task.title}</Text>
         <Text style={styles.subtitle}>{task.remainingDistance}</Text>
       </View>
-      <Badge variant={task.status === 'Due Soon' ? 'warning' : 'success'}>{task.status}</Badge>
+      <View style={styles.trailing}>
+        <Badge variant={getBadgeVariant(task.status)}>{task.status}</Badge>
+        {onComplete ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onComplete}
+            style={({ pressed }) => [styles.completeButton, pressed ? styles.pressed : null]}>
+            <Text style={styles.completeText}>Complete</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </GlassCard>
   );
+}
+
+function getBadgeVariant(status: MaintenanceTask['status']) {
+  if (status === 'Overdue') {
+    return 'danger';
+  }
+
+  if (status === 'Due Soon') {
+    return 'warning';
+  }
+
+  return 'success';
 }
 
 const styles = StyleSheet.create({
@@ -55,5 +78,27 @@ const styles = StyleSheet.create({
     ...typography.caption,
     marginTop: spacing.xs,
     color: 'rgba(248, 250, 252, 0.58)',
+  },
+  trailing: {
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+  },
+  completeButton: {
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  completeText: {
+    ...typography.label,
+    color: palette.text,
+    textTransform: 'uppercase',
+  },
+  pressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.98 }],
   },
 });

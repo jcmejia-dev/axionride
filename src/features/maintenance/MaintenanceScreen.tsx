@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { createMaintenanceService, type CreateMaintenanceInput, type MaintenanceListItem } from '@/src/services';
 import { layout, palette, spacing } from '@/src/theme';
 
+import { MaintenanceCreateSheet } from './components/MaintenanceCreateSheet';
 import { EmptyMaintenanceState } from './components/EmptyMaintenanceState';
 import { MaintenanceHeader } from './components/MaintenanceHeader';
 import { MaintenanceQuickActions } from './components/MaintenanceQuickActions';
@@ -12,9 +14,85 @@ import { MaintenanceStatusCard } from './components/MaintenanceStatusCard';
 import { MaintenanceSummaryGrid } from './components/MaintenanceSummaryGrid';
 import { MaintenanceTaskCard } from './components/MaintenanceTaskCard';
 import { MaintenanceTimeline } from './components/MaintenanceTimeline';
-import { mockMaintenance } from './data/mockMaintenance';
+import type { MaintenanceData, MaintenanceStatus } from './types';
 
 export function MaintenanceScreen() {
+  const maintenanceService = useMemo(() => createMaintenanceService(), []);
+  const [upcomingMaintenance, setUpcomingMaintenance] = useState<readonly MaintenanceListItem[]>([]);
+  const [maintenanceHistory, setMaintenanceHistory] = useState<readonly MaintenanceListItem[]>([]);
+  const [createSheetVisible, setCreateSheetVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const maintenanceData = useMemo(
+    () => createMaintenanceData(upcomingMaintenance, maintenanceHistory),
+    [upcomingMaintenance, maintenanceHistory],
+  );
+  const refreshMaintenance = useCallback(async () => {
+    const [upcomingResult, historyResult] = await Promise.all([
+      maintenanceService.getUpcomingMaintenance(),
+      maintenanceService.getMaintenanceHistory(),
+    ]);
+
+    if (upcomingResult.ok) {
+      setUpcomingMaintenance(upcomingResult.value);
+    } else {
+      Alert.alert('Maintenance unavailable', upcomingResult.error.message);
+    }
+
+    if (historyResult.ok) {
+      setMaintenanceHistory(historyResult.value);
+    } else {
+      Alert.alert('Maintenance history unavailable', historyResult.error.message);
+    }
+  }, [maintenanceService]);
+
+  useEffect(() => {
+    void refreshMaintenance();
+  }, [refreshMaintenance]);
+
+  async function handleCreateMaintenance(input: CreateMaintenanceInput) {
+    setSaving(true);
+    const result = await maintenanceService.createMaintenance(input);
+    setSaving(false);
+
+    if (!result.ok) {
+      Alert.alert('Maintenance not saved', result.error.message);
+      return;
+    }
+
+    setCreateSheetVisible(false);
+    await refreshMaintenance();
+  }
+
+  async function handleCompleteMaintenance(id: string) {
+    const result = await maintenanceService.completeMaintenance({ id });
+
+    if (!result.ok) {
+      Alert.alert('Maintenance not completed', result.error.message);
+      return;
+    }
+
+    await refreshMaintenance();
+  }
+
+  function handleLogService() {
+    const firstMaintenance = upcomingMaintenance[0];
+
+    if (!firstMaintenance) {
+      setCreateSheetVisible(true);
+      return;
+    }
+
+    Alert.alert('Complete service?', `Mark ${firstMaintenance.maintenance.title} as completed?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Complete',
+        onPress: () => {
+          void handleCompleteMaintenance(firstMaintenance.maintenance.id);
+        },
+      },
+    ]);
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
@@ -23,11 +101,11 @@ export function MaintenanceScreen() {
         <MaintenanceHeader />
 
         <AnimatedEntrance delay={80}>
-          <MaintenanceStatusCard status={mockMaintenance.overallStatus} />
+          <MaintenanceStatusCard status={maintenanceData.overallStatus} />
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={180}>
-          <MaintenanceSummaryGrid summary={mockMaintenance.summary} />
+          <MaintenanceSummaryGrid summary={maintenanceData.summary} />
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={280}>
@@ -36,10 +114,16 @@ export function MaintenanceScreen() {
               <Text style={styles.sectionTitle}>Upcoming Maintenance</Text>
               <Text style={styles.sectionSubtitle}>Service tasks staged for this motorcycle</Text>
             </View>
-            {mockMaintenance.upcomingTasks.length > 0 ? (
+            {maintenanceData.upcomingTasks.length > 0 ? (
               <View style={styles.taskStack}>
-                {mockMaintenance.upcomingTasks.map((task) => (
-                  <MaintenanceTaskCard key={task.id} task={task} />
+                {maintenanceData.upcomingTasks.map((task) => (
+                  <MaintenanceTaskCard
+                    key={task.id}
+                    task={task}
+                    onComplete={() => {
+                      void handleCompleteMaintenance(task.id);
+                    }}
+                  />
                 ))}
               </View>
             ) : (
@@ -49,15 +133,123 @@ export function MaintenanceScreen() {
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={380}>
-          <MaintenanceTimeline items={mockMaintenance.timeline} />
+          <MaintenanceTimeline items={maintenanceData.timeline} />
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={480}>
-          <MaintenanceQuickActions />
+          <MaintenanceQuickActions
+            onAddMaintenance={() => setCreateSheetVisible(true)}
+            onLogService={handleLogService}
+            onViewHistory={() => Alert.alert('Maintenance History', `${maintenanceHistory.length} completed service records.`)}
+          />
         </AnimatedEntrance>
       </ScrollView>
+      <MaintenanceCreateSheet
+        visible={createSheetVisible}
+        loading={saving}
+        onClose={() => setCreateSheetVisible(false)}
+        onCreate={(input) => {
+          void handleCreateMaintenance(input);
+        }}
+      />
     </SafeAreaView>
   );
+}
+
+function createMaintenanceData(
+  upcomingMaintenance: readonly MaintenanceListItem[],
+  maintenanceHistory: readonly MaintenanceListItem[],
+): MaintenanceData {
+  const nextMaintenance = upcomingMaintenance[0];
+  const completedCost = maintenanceHistory.reduce(
+    (total, item) => total + (item.maintenance.cost ?? 0),
+    0,
+  );
+
+  return {
+    overallStatus: nextMaintenance
+      ? {
+          status: toDisplayStatus(nextMaintenance.statusLabel),
+          nextService: nextMaintenance.maintenance.title,
+          remainingDistance: formatRemaining(nextMaintenance),
+          progress: nextMaintenance.progress,
+        }
+      : {
+          status: 'Good',
+          nextService: 'No service queued',
+          remainingDistance: 'Add maintenance to begin tracking',
+          progress: 0,
+        },
+    summary: [
+      {
+        label: 'Upcoming',
+        value: String(upcomingMaintenance.length),
+        detail: 'Active service tasks',
+        accent: 'orange',
+      },
+      {
+        label: 'Overdue',
+        value: String(upcomingMaintenance.filter((item) => item.statusLabel === 'Overdue').length),
+        detail: 'Needs attention',
+        accent: 'danger',
+      },
+      {
+        label: 'Completed',
+        value: String(maintenanceHistory.length),
+        detail: 'Logged services',
+        accent: 'success',
+      },
+      {
+        label: 'Total Cost',
+        value: `PHP ${completedCost.toLocaleString()}`,
+        detail: 'Completed spend',
+        accent: 'warning',
+      },
+    ],
+    upcomingTasks: upcomingMaintenance.map((item) => ({
+      id: item.maintenance.id,
+      title: item.maintenance.title,
+      remainingDistance: formatRemaining(item),
+      status: toDisplayStatus(item.statusLabel),
+    })),
+    timeline: maintenanceHistory.map((item) => ({
+      id: item.maintenance.id,
+      title: item.maintenance.title,
+      description: item.maintenance.description ?? item.maintenance.notes ?? 'Service completed.',
+      completedAt: formatDate(item.maintenance.updatedAt),
+    })),
+  };
+}
+
+function toDisplayStatus(statusLabel: string): MaintenanceStatus {
+  if (statusLabel === 'Due Soon' || statusLabel === 'Overdue' || statusLabel === 'Completed') {
+    return statusLabel;
+  }
+
+  if (statusLabel === 'Unknown') {
+    return 'Unknown';
+  }
+
+  return 'Good';
+}
+
+function formatRemaining(item: MaintenanceListItem) {
+  if (item.remainingKm !== null) {
+    return `${Math.round(item.remainingKm).toLocaleString()} km remaining`;
+  }
+
+  if (item.remainingDays !== null) {
+    return `${Math.round(item.remainingDays).toLocaleString()} days remaining`;
+  }
+
+  return 'Waiting for service baseline';
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(value));
 }
 
 type AnimatedEntranceProps = {

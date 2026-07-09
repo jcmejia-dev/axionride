@@ -21,7 +21,19 @@ const quickActions = [
   },
 ] as const;
 
-export function MaintenanceQuickActions() {
+type MaintenanceQuickActionsProps = {
+  readonly onAddMaintenance: () => void;
+  readonly onLogService: () => void;
+  readonly onViewHistory: () => void;
+};
+
+export function MaintenanceQuickActions({
+  onAddMaintenance,
+  onLogService,
+  onViewHistory,
+}: MaintenanceQuickActionsProps) {
+  const handlers = [onAddMaintenance, onLogService, onViewHistory];
+
   return (
     <View style={styles.section}>
       <View>
@@ -29,11 +41,11 @@ export function MaintenanceQuickActions() {
         <Text style={styles.subtitle}>Placeholder commands for future service workflows</Text>
       </View>
       <View style={styles.actions}>
-        {quickActions.map((action) => (
+        {quickActions.map((action, index) => (
           <Pressable
             key={action.label}
             accessibilityRole="button"
-            onPress={() => undefined}
+            onPress={handlers[index]}
             style={({ pressed }) => [
               styles.action,
               action.primary ? styles.primaryAction : null,
