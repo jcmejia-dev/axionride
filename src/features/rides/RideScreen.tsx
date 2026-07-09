@@ -1,8 +1,16 @@
 import type { ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
-import { Animated, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GlassCard } from '@/src/components';
+import {
+  createLocationService,
+  createRideService,
+  type CompletedRideResult,
+  type ForegroundLocationPermissionState,
+  type RideSessionSnapshot,
+} from '@/src/services';
 import { layout, palette, spacing } from '@/src/theme';
 
 import { EmptyRidesState } from './components/EmptyRidesState';
@@ -12,8 +20,146 @@ import { RideModeCard } from './components/RideModeCard';
 import { RideQuickActions } from './components/RideQuickActions';
 import { RideStatsGrid } from './components/RideStatsGrid';
 import { mockRides } from './data/mockRides';
+import type { CurrentRidePreview, RecentRide } from './types';
 
 export function RideScreen() {
+  const rideService = useMemo(() => createRideService(), []);
+  const locationService = useMemo(() => createLocationService(), []);
+  const [currentRide, setCurrentRide] = useState<RideSessionSnapshot>(idleRideSnapshot);
+  const [permissionState, setPermissionState] = useState<ForegroundLocationPermissionState>('unknown');
+  const [gpsActive, setGpsActive] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [completedRide, setCompletedRide] = useState<CompletedRideResult | null>(null);
+  const [rideHistory, setRideHistory] = useState<readonly RecentRide[]>(mockRides.recentRides);
+  const currentRidePreview = toCurrentRidePreview(currentRide);
+
+  useEffect(() => {
+    refreshRideHistory(rideService, setRideHistory);
+  }, [rideService]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const result = rideService.getCurrentRide();
+
+      if (result.ok) {
+        setCurrentRide(result.value);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [rideService]);
+
+  useEffect(() => () => {
+    void locationService.stopWatchingLocation();
+  }, [locationService]);
+
+  async function startForegroundTracking() {
+    const currentLocation = await locationService.getCurrentLocation();
+
+    if (currentLocation.ok) {
+      const snapshot = rideService.addRidePoint(currentLocation.value);
+
+      if (snapshot.ok) {
+        setCurrentRide(snapshot.value);
+      }
+    }
+
+    const watchResult = await locationService.watchLocation((point) => {
+      const snapshot = rideService.addRidePoint(point);
+
+      if (snapshot.ok) {
+        setCurrentRide(snapshot.value);
+      }
+    });
+
+    if (watchResult.ok) {
+      setPermissionState(watchResult.value.state);
+      setGpsActive(watchResult.value.state === 'granted');
+    }
+  }
+
+  async function handleStartRide() {
+    setCompletedRide(null);
+    const permissionResult = await locationService.requestForegroundPermission();
+    const rideResult = rideService.startRide();
+
+    if (rideResult.ok) {
+      setCurrentRide(rideResult.value);
+    }
+
+    if (permissionResult.ok) {
+      setPermissionState(permissionResult.value.state);
+
+      if (permissionResult.value.state === 'granted') {
+        await startForegroundTracking();
+        return;
+      }
+    }
+
+    setGpsActive(false);
+  }
+
+  async function handlePauseRide() {
+    const result = rideService.pauseRide();
+    await locationService.stopWatchingLocation();
+    setGpsActive(false);
+
+    if (result.ok) {
+      setCurrentRide(result.value);
+    }
+  }
+
+  async function handleResumeRide() {
+    const result = rideService.resumeRide();
+
+    if (result.ok) {
+      setCurrentRide(result.value);
+    }
+
+    if (permissionState === 'granted') {
+      await startForegroundTracking();
+    }
+  }
+
+  async function handleCancelRide() {
+    await locationService.stopWatchingLocation();
+    setGpsActive(false);
+    const result = rideService.cancelRide();
+
+    if (result.ok) {
+      setCurrentRide(result.value);
+    }
+  }
+
+  function handleFinishRide() {
+    Alert.alert('Finish ride?', 'Save this ride to local storage?', [
+      { text: 'Keep Riding', style: 'cancel' },
+      {
+        text: 'Finish',
+        onPress: () => {
+          void finishRide();
+        },
+      },
+    ]);
+  }
+
+  async function finishRide() {
+    setIsSaving(true);
+    await locationService.stopWatchingLocation();
+    setGpsActive(false);
+    const result = await rideService.finishRide();
+    setIsSaving(false);
+
+    if (!result.ok) {
+      Alert.alert('Ride not saved', result.error.message);
+      return;
+    }
+
+    setCompletedRide(result.value);
+    setCurrentRide(idleRideSnapshot);
+    await refreshRideHistory(rideService, setRideHistory);
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
@@ -22,15 +168,39 @@ export function RideScreen() {
         <RideHeader />
 
         <AnimatedEntrance delay={80}>
-          <RideModeCard />
+          <RideModeCard
+            speedKmh={currentRide.averageSpeedKmh}
+            status={currentRide.status}
+            permissionLabel={getPermissionLabel(permissionState, gpsActive)}
+            gpsActive={gpsActive || currentRide.hasGpsSignal}
+            elapsedTime={formatDuration(currentRide.elapsedSeconds)}
+            disabled={isSaving}
+            onStart={handleStartRide}
+            onPause={() => {
+              void handlePauseRide();
+            }}
+            onResume={() => {
+              void handleResumeRide();
+            }}
+            onFinish={handleFinishRide}
+            onCancel={() => {
+              void handleCancelRide();
+            }}
+          />
         </AnimatedEntrance>
 
+        {completedRide ? (
+          <AnimatedEntrance delay={120}>
+            <RideCompletionSummary completedRide={completedRide} />
+          </AnimatedEntrance>
+        ) : null}
+
         <AnimatedEntrance delay={180}>
-          <RideStatsGrid currentRide={mockRides.currentRide} insights={mockRides.insights} />
+          <RideStatsGrid currentRide={currentRidePreview} insights={mockRides.insights} />
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={280}>
-          {mockRides.recentRides.length > 0 ? <RecentRideList rides={mockRides.recentRides} /> : <EmptyRidesState />}
+          {rideHistory.length > 0 ? <RecentRideList rides={rideHistory} /> : <EmptyRidesState />}
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={380}>
@@ -40,6 +210,114 @@ export function RideScreen() {
     </SafeAreaView>
   );
 }
+
+async function refreshRideHistory(
+  rideService: ReturnType<typeof createRideService>,
+  setRideHistory: (rides: readonly RecentRide[]) => void,
+) {
+  const result = await rideService.getRideHistory();
+
+  if (!result.ok || result.value.length === 0) {
+    setRideHistory(mockRides.recentRides);
+    return;
+  }
+
+  setRideHistory(result.value.map(({ ride }) => toRecentRide(ride)));
+}
+
+function toCurrentRidePreview(snapshot: RideSessionSnapshot): CurrentRidePreview {
+  return {
+    distance: `${snapshot.distanceKm.toFixed(1)} km`,
+    time: formatDuration(snapshot.elapsedSeconds),
+    averageSpeed: `${Math.round(snapshot.averageSpeedKmh)} km/h`,
+    maxSpeed: `${Math.round(snapshot.maximumSpeedKmh)} km/h`,
+  };
+}
+
+function toRecentRide(ride: CompletedRideResult['ride']): RecentRide {
+  return {
+    id: ride.id,
+    title: ride.title,
+    distance: `${ride.distanceKm.toFixed(1)} km`,
+    duration: formatDuration(ride.durationSeconds),
+    averageSpeed: `${Math.round(ride.averageSpeedKmh)} km/h`,
+    date: ride.endTime ? formatDate(ride.endTime) : 'Saved locally',
+  };
+}
+
+function RideCompletionSummary({ completedRide }: { readonly completedRide: CompletedRideResult }) {
+  return (
+    <GlassCard style={styles.summaryCard}>
+      <Text style={styles.summaryKicker}>Ride saved</Text>
+      <Text style={styles.summaryTitle}>{completedRide.ride.title}</Text>
+      <View style={styles.summaryGrid}>
+        <SummaryMetric label="Distance" value={`${completedRide.summary.distance.toFixed(2)} km`} />
+        <SummaryMetric label="Time" value={formatDuration(completedRide.summary.duration)} />
+        <SummaryMetric label="Avg Speed" value={`${Math.round(completedRide.summary.averageSpeed)} km/h`} />
+        <SummaryMetric label="Route Points" value={String(completedRide.ride.route.length)} />
+      </View>
+    </GlassCard>
+  );
+}
+
+function SummaryMetric({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <View style={styles.summaryMetric}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
+function getPermissionLabel(permissionState: ForegroundLocationPermissionState, gpsActive: boolean) {
+  if (gpsActive) {
+    return 'Foreground GPS active';
+  }
+
+  if (permissionState === 'denied') {
+    return 'GPS denied. Demo ride mode active.';
+  }
+
+  if (permissionState === 'granted') {
+    return 'GPS ready';
+  }
+
+  return 'GPS permission requested when ride starts';
+}
+
+function formatDuration(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const displayMinutes = minutes % 60;
+  const displaySeconds = seconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(displayMinutes).padStart(2, '0')}:${String(displaySeconds).padStart(2, '0')}`;
+  }
+
+  return `${String(displayMinutes).padStart(2, '0')}:${String(displaySeconds).padStart(2, '0')}`;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(value));
+}
+
+const idleRideSnapshot: RideSessionSnapshot = {
+  id: null,
+  status: 'idle',
+  startedAt: null,
+  pausedAt: null,
+  elapsedSeconds: 0,
+  distanceKm: 0,
+  averageSpeedKmh: 0,
+  maximumSpeedKmh: 0,
+  hasGpsSignal: false,
+  ridePointCount: 0,
+};
 
 type AnimatedEntranceProps = {
   children: ReactNode;
@@ -109,5 +387,47 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: layout.floatingTabBarContentInset,
     gap: spacing.xxl,
+  },
+  summaryCard: {
+    gap: spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.075)',
+    borderColor: 'rgba(255, 255, 255, 0.13)',
+  },
+  summaryKicker: {
+    color: 'rgba(248, 250, 252, 0.52)',
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  summaryTitle: {
+    color: palette.text,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '800',
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  summaryMetric: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 0,
+  },
+  summaryLabel: {
+    color: 'rgba(248, 250, 252, 0.52)',
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  summaryValue: {
+    marginTop: spacing.xs,
+    color: palette.text,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '900',
   },
 });

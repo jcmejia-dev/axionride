@@ -30,6 +30,7 @@ type ActiveRideSession = {
   pausedAt: Date | null;
   totalPausedSeconds: number;
   status: Exclude<RideRecordingStatus, 'idle' | 'completed'>;
+  ridePoints: RidePoint[];
 };
 
 export class RideService extends BaseService {
@@ -56,9 +57,22 @@ export class RideService extends BaseService {
       pausedAt: null,
       totalPausedSeconds: 0,
       status: 'active',
+      ridePoints: [],
     };
 
     return this.success(this.createSnapshot(now));
+  }
+
+  addRidePoint(point: RidePoint): ServiceResult<RideSessionSnapshot> {
+    if (!this.currentSession || this.currentSession.status !== 'active') {
+      return this.failure({
+        code: 'conflict',
+        message: 'No active ride is available for GPS updates.',
+      });
+    }
+
+    this.currentSession.ridePoints.push(point);
+    return this.success(this.createSnapshot(new Date(point.timestamp)));
   }
 
   pauseRide(): ServiceResult<RideSessionSnapshot> {
@@ -103,7 +117,9 @@ export class RideService extends BaseService {
     const elapsedSeconds = this.getElapsedSeconds(finishedAt);
     const durationSeconds = Math.max(elapsedSeconds, 1);
     const completedAt = new Date(this.currentSession.startedAt.getTime() + durationSeconds * 1000);
-    const route = createDemoRoute(this.currentSession.startedAt, durationSeconds);
+    const route = this.currentSession.ridePoints.length >= 2
+      ? [...this.currentSession.ridePoints]
+      : createDemoRoute(this.currentSession.startedAt, durationSeconds);
     const distanceKm = calculateRideDistance({ route });
     const maximumSpeedKmh = calculateMaximumSpeed(route);
     const summary = calculateRideSummary({
@@ -119,7 +135,9 @@ export class RideService extends BaseService {
       id: this.currentSession.id,
       motorcycleId: this.currentSession.motorcycleId,
       title: this.currentSession.title,
-      description: 'Recorded with demo ride mode. GPS is not connected yet.',
+      description: this.currentSession.ridePoints.length >= 2
+        ? 'Recorded with foreground GPS tracking.'
+        : 'Recorded with demo ride mode. GPS is not connected yet.',
       status: RideStatus.Completed,
       type: RideType.City,
       startTime: this.currentSession.startedAt.toISOString(),
@@ -134,7 +152,9 @@ export class RideService extends BaseService {
       weather: {
         condition: 'Demo clear',
       },
-      notes: 'Demo ride recording without GPS.',
+      notes: this.currentSession.ridePoints.length >= 2
+        ? 'Foreground GPS ride recording.'
+        : 'Demo ride recording without GPS.',
       route,
       createdAt: this.currentSession.startedAt.toISOString(),
       updatedAt: completedAt.toISOString(),
@@ -190,7 +210,14 @@ export class RideService extends BaseService {
     }
 
     const elapsedSeconds = this.getElapsedSeconds(now);
-    const distanceKm = roundTo((elapsedSeconds / 3600) * DEMO_SPEED_KMH, 2);
+    const hasGpsSignal = this.currentSession.ridePoints.length > 0;
+    const distanceKm = hasGpsSignal
+      ? calculateRideDistance({ route: this.currentSession.ridePoints })
+      : roundTo((elapsedSeconds / 3600) * DEMO_SPEED_KMH, 2);
+    const maximumSpeedKmh = hasGpsSignal
+      ? calculateMaximumSpeed(this.currentSession.ridePoints)
+      : elapsedSeconds > 0 ? DEMO_SPEED_KMH : 0;
+    const latestGpsSpeedKmh = getLatestRidePointSpeed(this.currentSession.ridePoints);
 
     return {
       id: this.currentSession.id,
@@ -199,8 +226,10 @@ export class RideService extends BaseService {
       pausedAt: this.currentSession.pausedAt?.toISOString() ?? null,
       elapsedSeconds,
       distanceKm,
-      averageSpeedKmh: elapsedSeconds > 0 ? DEMO_SPEED_KMH : 0,
-      maximumSpeedKmh: elapsedSeconds > 0 ? DEMO_SPEED_KMH : 0,
+      averageSpeedKmh: latestGpsSpeedKmh ?? (elapsedSeconds > 0 ? DEMO_SPEED_KMH : 0),
+      maximumSpeedKmh,
+      hasGpsSignal,
+      ridePointCount: this.currentSession.ridePoints.length,
     };
   }
 
@@ -262,7 +291,21 @@ function createIdleSnapshot(): RideSessionSnapshot {
     distanceKm: 0,
     averageSpeedKmh: 0,
     maximumSpeedKmh: 0,
+    hasGpsSignal: false,
+    ridePointCount: 0,
   };
+}
+
+function getLatestRidePointSpeed(route: readonly RidePoint[]) {
+  for (let index = route.length - 1; index >= 0; index -= 1) {
+    const speed = route[index].speed;
+
+    if (typeof speed === 'number' && Number.isFinite(speed) && speed >= 0) {
+      return roundTo(speed, 1);
+    }
+  }
+
+  return null;
 }
 
 function createDemoRoute(startedAt: Date, durationSeconds: number): readonly RidePoint[] {

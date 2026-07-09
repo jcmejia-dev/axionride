@@ -1,6 +1,7 @@
 export { BaseService } from './BaseService';
 export { ServiceContext } from './ServiceContext';
 export {
+  createLocationService,
   createMaintenanceService,
   createProfileService,
   createRideService,
@@ -32,6 +33,13 @@ export { SettingsService } from './settings';
 export type { SettingsItem, SettingsOverview, SettingsSection, SettingsUnits } from './settings';
 export { SearchService } from './search';
 export type { SearchInput, SearchResponse, SearchResult, SearchResultType } from './search';
+export { LocationService } from './location';
+export type {
+  ForegroundLocationPermissionResult,
+  ForegroundLocationPermissionState,
+  LocationRidePoint,
+  LocationUpdateHandler,
+} from './location';
 export type {
   ServiceDependencies,
   ServiceError,

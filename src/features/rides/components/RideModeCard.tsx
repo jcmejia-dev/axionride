@@ -4,10 +4,24 @@ import { StyleSheet } from 'react-native';
 
 import { SpeedometerPreview } from './SpeedometerPreview';
 
-export function RideModeCard() {
+type RideModeCardProps = {
+  readonly speedKmh: number;
+  readonly status: 'idle' | 'active' | 'paused' | 'completed';
+  readonly permissionLabel: string;
+  readonly gpsActive: boolean;
+  readonly elapsedTime: string;
+  readonly disabled?: boolean;
+  readonly onStart: () => void;
+  readonly onPause: () => void;
+  readonly onResume: () => void;
+  readonly onFinish: () => void;
+  readonly onCancel: () => void;
+};
+
+export function RideModeCard(props: RideModeCardProps) {
   return (
     <GlassCard style={styles.card}>
-      <SpeedometerPreview />
+      <SpeedometerPreview {...props} />
     </GlassCard>
   );
 }
