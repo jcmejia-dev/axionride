@@ -1,5 +1,6 @@
 import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/src/repositories';
 
+import { LocationService } from './location';
 import { MaintenanceService } from './maintenance';
 import { ProfileService } from './profile';
 import { RideService } from './ride';
@@ -72,4 +73,11 @@ export function createSettingsService(overrides: Partial<ServiceDependencies> = 
  */
 export function createSearchService(overrides: Partial<ServiceDependencies> = {}) {
   return new SearchService(createServiceContext(overrides));
+}
+
+/**
+ * Create the foreground location service with default dependencies.
+ */
+export function createLocationService(overrides: Partial<ServiceDependencies> = {}) {
+  return new LocationService(createServiceContext(overrides));
 }

@@ -20,7 +20,7 @@ export function RideStatsGrid({ currentRide, insights }: RideStatsGridProps) {
 
   return (
     <View style={styles.section}>
-      <SectionTitle title="Current Ride Preview" subtitle="No GPS yet. Cockpit mock only." />
+      <SectionTitle title="Current Ride Preview" subtitle="Foreground GPS when available, demo fallback otherwise." />
       <View style={styles.grid}>
         {currentStats.map((stat, index) => (
           <RideStatCard key={stat.label} stat={stat} index={index} />

@@ -3,8 +3,35 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 
 import { palette, radius, spacing, typography } from '@/src/theme';
 
-export function SpeedometerPreview() {
+type SpeedometerPreviewProps = {
+  readonly speedKmh: number;
+  readonly status: 'idle' | 'active' | 'paused' | 'completed';
+  readonly permissionLabel: string;
+  readonly gpsActive: boolean;
+  readonly elapsedTime: string;
+  readonly disabled?: boolean;
+  readonly onStart: () => void;
+  readonly onPause: () => void;
+  readonly onResume: () => void;
+  readonly onFinish: () => void;
+  readonly onCancel: () => void;
+};
+
+export function SpeedometerPreview({
+  speedKmh,
+  status,
+  permissionLabel,
+  gpsActive,
+  elapsedTime,
+  disabled = false,
+  onStart,
+  onPause,
+  onResume,
+  onFinish,
+  onCancel,
+}: SpeedometerPreviewProps) {
   const pulse = useRef(new Animated.Value(0)).current;
+  const statusText = getStatusText(status, gpsActive);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -50,21 +77,67 @@ export function SpeedometerPreview() {
         ]}
       />
       <View style={styles.dial}>
-        <Text style={styles.speed}>0</Text>
+        <Text style={styles.speed}>{Math.round(speedKmh)}</Text>
         <Text style={styles.unit}>km/h</Text>
         <View style={styles.statusPill}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Ready to ride</Text>
+          <View style={[styles.statusDot, gpsActive ? styles.gpsDot : null]} />
+          <Text style={styles.statusText}>{statusText}</Text>
         </View>
+        <Text style={styles.elapsed}>{elapsedTime}</Text>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => undefined}
-        style={({ pressed }) => [styles.startButton, pressed ? styles.pressed : null]}>
-        <Text style={styles.startButtonText}>Start Ride</Text>
-      </Pressable>
+      <Text style={styles.permissionText}>{permissionLabel}</Text>
+      {status === 'idle' ? (
+        <CockpitButton label="Start Ride" onPress={onStart} disabled={disabled} primary />
+      ) : status === 'active' ? (
+        <View style={styles.buttonRow}>
+          <CockpitButton label="Pause" onPress={onPause} disabled={disabled} />
+          <CockpitButton label="Finish" onPress={onFinish} disabled={disabled} primary />
+        </View>
+      ) : (
+        <View style={styles.buttonRow}>
+          <CockpitButton label="Resume" onPress={onResume} disabled={disabled} primary />
+          <CockpitButton label="Cancel" onPress={onCancel} disabled={disabled} />
+          <CockpitButton label="Finish" onPress={onFinish} disabled={disabled} />
+        </View>
+      )}
     </View>
   );
+}
+
+type CockpitButtonProps = {
+  readonly label: string;
+  readonly onPress: () => void;
+  readonly disabled?: boolean;
+  readonly primary?: boolean;
+};
+
+function CockpitButton({ label, onPress, disabled = false, primary = false }: CockpitButtonProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.startButton,
+        primary ? styles.primaryButton : null,
+        disabled ? styles.disabled : null,
+        pressed && !disabled ? styles.pressed : null,
+      ]}>
+      <Text style={[styles.startButtonText, primary ? styles.primaryButtonText : null]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function getStatusText(status: SpeedometerPreviewProps['status'], gpsActive: boolean) {
+  if (status === 'active') {
+    return gpsActive ? 'GPS tracking' : 'Demo tracking';
+  }
+
+  if (status === 'paused') {
+    return 'Paused';
+  }
+
+  return 'Ready to ride';
 }
 
 const styles = StyleSheet.create({
@@ -131,17 +204,50 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontWeight: '800',
   },
+  gpsDot: {
+    backgroundColor: palette.accentBlue,
+  },
+  elapsed: {
+    ...typography.caption,
+    marginTop: spacing.md,
+    color: 'rgba(248, 250, 252, 0.5)',
+    fontWeight: '800',
+  },
+  permissionText: {
+    ...typography.caption,
+    color: 'rgba(248, 250, 252, 0.58)',
+    textAlign: 'center',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
   startButton: {
     minHeight: 52,
-    minWidth: 168,
+    minWidth: 132,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     borderRadius: radius.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  primaryButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderColor: 'rgba(255, 255, 255, 0.9)',
   },
   startButtonText: {
     ...typography.button,
+    color: palette.text,
+  },
+  primaryButtonText: {
     color: palette.darkBackground,
+  },
+  disabled: {
+    opacity: 0.46,
   },
   pressed: {
     opacity: 0.82,

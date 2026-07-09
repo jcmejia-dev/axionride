@@ -12,6 +12,8 @@ export type RideSessionSnapshot = {
   readonly distanceKm: number;
   readonly averageSpeedKmh: number;
   readonly maximumSpeedKmh: number;
+  readonly hasGpsSignal: boolean;
+  readonly ridePointCount: number;
 };
 
 export type CompletedRideResult = {
