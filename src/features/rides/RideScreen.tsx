@@ -4,6 +4,8 @@ import { Alert, Animated, ScrollView, StyleSheet, Text, View } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GlassCard } from '@/src/components';
+import type { RidePoint } from '@/src/domain/ride';
+import { RideMap } from '@/src/features/maps';
 import {
   createLocationService,
   createRideService,
@@ -30,8 +32,11 @@ export function RideScreen() {
   const [gpsActive, setGpsActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [completedRide, setCompletedRide] = useState<CompletedRideResult | null>(null);
+  const [liveRidePoints, setLiveRidePoints] = useState<readonly RidePoint[]>([]);
   const [rideHistory, setRideHistory] = useState<readonly RecentRide[]>(mockRides.recentRides);
   const currentRidePreview = toCurrentRidePreview(currentRide);
+  const activeMapPoints = completedRide ? completedRide.ride.route : liveRidePoints;
+  const currentMapPoint = completedRide ? null : liveRidePoints[liveRidePoints.length - 1] ?? null;
 
   useEffect(() => {
     refreshRideHistory(rideService, setRideHistory);
@@ -57,6 +62,7 @@ export function RideScreen() {
     const currentLocation = await locationService.getCurrentLocation();
 
     if (currentLocation.ok) {
+      appendLiveRidePoint(setLiveRidePoints, currentLocation.value);
       const snapshot = rideService.addRidePoint(currentLocation.value);
 
       if (snapshot.ok) {
@@ -65,6 +71,7 @@ export function RideScreen() {
     }
 
     const watchResult = await locationService.watchLocation((point) => {
+      appendLiveRidePoint(setLiveRidePoints, point);
       const snapshot = rideService.addRidePoint(point);
 
       if (snapshot.ok) {
@@ -80,6 +87,7 @@ export function RideScreen() {
 
   async function handleStartRide() {
     setCompletedRide(null);
+    setLiveRidePoints([]);
     const permissionResult = await locationService.requestForegroundPermission();
     const rideResult = rideService.startRide();
 
@@ -124,6 +132,7 @@ export function RideScreen() {
   async function handleCancelRide() {
     await locationService.stopWatchingLocation();
     setGpsActive(false);
+    setLiveRidePoints([]);
     const result = rideService.cancelRide();
 
     if (result.ok) {
@@ -156,6 +165,7 @@ export function RideScreen() {
     }
 
     setCompletedRide(result.value);
+    setLiveRidePoints([]);
     setCurrentRide(idleRideSnapshot);
     await refreshRideHistory(rideService, setRideHistory);
   }
@@ -195,6 +205,18 @@ export function RideScreen() {
           </AnimatedEntrance>
         ) : null}
 
+        <AnimatedEntrance delay={160}>
+          <RideMap
+            title={completedRide ? 'Completed Route' : 'Live Ride Map'}
+            subtitle={completedRide ? 'Saved route overview' : getMapSubtitle(permissionState, gpsActive)}
+            points={activeMapPoints}
+            currentPoint={currentMapPoint}
+            completed={Boolean(completedRide)}
+            distanceLabel={completedRide ? `${completedRide.summary.distance.toFixed(2)} km` : currentRidePreview.distance}
+            durationLabel={completedRide ? formatDuration(completedRide.summary.duration) : currentRidePreview.time}
+          />
+        </AnimatedEntrance>
+
         <AnimatedEntrance delay={180}>
           <RideStatsGrid currentRide={currentRidePreview} insights={mockRides.insights} />
         </AnimatedEntrance>
@@ -209,6 +231,21 @@ export function RideScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function appendLiveRidePoint(
+  setLiveRidePoints: (updater: (points: readonly RidePoint[]) => readonly RidePoint[]) => void,
+  point: RidePoint,
+) {
+  setLiveRidePoints((points) => {
+    const latestPoint = points[points.length - 1];
+
+    if (latestPoint?.timestamp === point.timestamp) {
+      return points;
+    }
+
+    return [...points, point];
+  });
 }
 
 async function refreshRideHistory(
@@ -283,6 +320,18 @@ function getPermissionLabel(permissionState: ForegroundLocationPermissionState, 
   }
 
   return 'GPS permission requested when ride starts';
+}
+
+function getMapSubtitle(permissionState: ForegroundLocationPermissionState, gpsActive: boolean) {
+  if (gpsActive) {
+    return 'Following foreground GPS updates';
+  }
+
+  if (permissionState === 'denied') {
+    return 'GPS denied. Map will show saved demo route after finish.';
+  }
+
+  return 'Start a ride to request GPS and draw the live route.';
 }
 
 function formatDuration(totalSeconds: number) {
