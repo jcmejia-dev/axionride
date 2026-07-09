@@ -1,9 +1,11 @@
 import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/src/repositories';
 
 import { MaintenanceService } from './maintenance';
+import { ProfileService } from './profile';
 import { RideService } from './ride';
 import { ServiceContext } from './ServiceContext';
 import type { ServiceDependencies } from './ServiceTypes';
+import { SettingsService } from './settings';
 import { StatisticsService } from './statistics';
 
 /**
@@ -48,4 +50,18 @@ export function createMaintenanceService(overrides: Partial<ServiceDependencies>
  */
 export function createStatisticsService(overrides: Partial<ServiceDependencies> = {}) {
   return new StatisticsService(createServiceContext(overrides));
+}
+
+/**
+ * Create the local profile application service with default dependencies.
+ */
+export function createProfileService(overrides: Partial<ServiceDependencies> = {}) {
+  return new ProfileService(createServiceContext(overrides));
+}
+
+/**
+ * Create the local settings application service with default dependencies.
+ */
+export function createSettingsService(overrides: Partial<ServiceDependencies> = {}) {
+  return new SettingsService(createServiceContext(overrides));
 }
