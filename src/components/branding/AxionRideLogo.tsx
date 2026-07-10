@@ -1,20 +1,36 @@
-import { StyleSheet, Text, View, type ViewProps } from 'react-native';
+import { Image, StyleSheet, Text, View, type ImageStyle, type ViewProps } from 'react-native';
 
-import { palette, radius, semanticColors, spacing, typography } from '@/src/theme';
+import { palette, premiumColors, radius, semanticColors, spacing, typography } from '@/src/theme';
 
 type AxionRideLogoProps = ViewProps & {
   compact?: boolean;
+  variant?: 'full' | 'symbol' | 'wordmark';
+  imageStyle?: ImageStyle;
 };
 
-/** Branded AxionRide wordmark placeholder used until final logo assets exist. */
-export function AxionRideLogo({ compact = false, style, ...props }: AxionRideLogoProps) {
+/** Branded AxionRide mark using the shared logo asset. */
+export function AxionRideLogo({
+  compact = false,
+  variant = 'full',
+  imageStyle,
+  style,
+  ...props
+}: AxionRideLogoProps) {
+  const showSymbol = variant === 'full' || variant === 'symbol';
+  const showWordmark = variant === 'full' || variant === 'wordmark';
+
   return (
     <View style={[styles.container, style]} {...props}>
-      <View style={[styles.mark, compact ? styles.compactMark : null]}>
-        <Text style={[styles.markText, compact ? styles.compactMarkText : null]}>AR</Text>
-      </View>
-      <Text style={[styles.name, compact ? styles.compactName : null]}>AxionRide</Text>
-      <Text style={[styles.tagline, compact ? styles.compactTagline : null]}>Ride Smarter.</Text>
+      {showSymbol ? (
+        <Image
+          accessibilityIgnoresInvertColors
+          resizeMode="contain"
+          source={require('../../../assets/images/logo.png')}
+          style={[styles.logoAsset, compact ? styles.compactLogoAsset : null, imageStyle]}
+        />
+      ) : null}
+      {showWordmark ? <Text style={[styles.name, compact ? styles.compactName : null]}>AxionRide</Text> : null}
+      {variant === 'full' ? <Text style={[styles.tagline, compact ? styles.compactTagline : null]}>Ride Smarter.</Text> : null}
     </View>
   );
 }
@@ -23,28 +39,17 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
   },
-  mark: {
-    width: 88,
-    height: 88,
+  logoAsset: {
+    width: 118,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: semanticColors.dark.border,
-    backgroundColor: semanticColors.dark.surfaceStrong,
     marginBottom: spacing.lg,
   },
-  compactMark: {
-    width: 76,
-    height: 76,
-  },
-  markText: {
-    ...typography.title,
-    color: palette.accentOrange,
-  },
-  compactMarkText: {
-    fontSize: 24,
-    lineHeight: 30,
+  compactLogoAsset: {
+    width: 82,
+    height: 50,
+    marginBottom: spacing.sm,
   },
   name: {
     ...typography.heading,
@@ -56,7 +61,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     ...typography.subheading,
-    color: palette.accentOrange,
+    color: premiumColors.primary,
     marginTop: spacing.xs,
     textAlign: 'center',
   },

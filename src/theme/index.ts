@@ -1,7 +1,10 @@
-export { colorScheme, palette, semanticColors } from './colors';
+export { colorScheme, palette, premiumColors, semanticColors } from './colors';
 export { elevation } from './elevation';
 export { layout } from './layout';
+export { motion } from './motion';
+export { opacity } from './opacity';
 export { radius } from './radius';
+export { iconSizes, touchSizes } from './sizes';
 export { spacing } from './spacing';
 export { typography } from './typography';
 export type { ThemeName } from './colors';

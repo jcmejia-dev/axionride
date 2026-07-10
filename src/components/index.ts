@@ -8,4 +8,5 @@ export { LoadingSpinner } from './feedback/LoadingSpinner';
 export { Toast } from './feedback/Toast';
 export type { ToastVariant } from './feedback/Toast';
 export { SectionHeader } from './layout/SectionHeader';
+export * as PremiumComponents from './premium';
 export { Body, Caption, Display, Label, Subtitle, Title } from './typography/Typography';

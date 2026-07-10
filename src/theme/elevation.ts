@@ -19,4 +19,18 @@ export const elevation = {
     shadowRadius: 26,
     elevation: 8,
   } satisfies ViewStyle,
+  glowOrange: {
+    shadowColor: '#FF6A00',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.24,
+    shadowRadius: 24,
+    elevation: 8,
+  } satisfies ViewStyle,
+  metallic: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.32,
+    shadowRadius: 30,
+    elevation: 10,
+  } satisfies ViewStyle,
 };
