@@ -1,6 +1,7 @@
 export { BaseService } from './BaseService';
 export { ServiceContext } from './ServiceContext';
 export {
+  createBackupService,
   createLocationService,
   createMaintenanceService,
   createNotificationService,
@@ -12,6 +13,21 @@ export {
   createServiceContextWithRepositories,
   createStatisticsService,
 } from './ServiceFactory';
+export { BackupService } from './backup';
+export {
+  AXIONRIDE_BACKUP_APPLICATION_ID,
+  AXIONRIDE_BACKUP_SCHEMA_VERSION,
+} from './backup';
+export type {
+  AxionRideBackup,
+  AxionRideBackupRidePoint,
+  BackupExportResult,
+  BackupImportConfirmation,
+  BackupImportOptions,
+  BackupImportSummary,
+  BackupOperationStatus,
+  BackupRestoreAtomicity,
+} from './backup';
 export { RideService } from './ride';
 export type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './ride';
 export { MaintenanceService } from './maintenance';

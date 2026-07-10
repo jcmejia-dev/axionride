@@ -1,5 +1,6 @@
 import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/src/repositories';
 
+import { BackupService } from './backup';
 import { LocationService } from './location';
 import { MaintenanceService } from './maintenance';
 import { NotificationService } from './notifications';
@@ -89,4 +90,11 @@ export function createSearchService(overrides: Partial<ServiceDependencies> = {}
  */
 export function createLocationService(overrides: Partial<ServiceDependencies> = {}) {
   return new LocationService(createServiceContext(overrides));
+}
+
+/**
+ * Create the local backup export/import service with default dependencies.
+ */
+export function createBackupService(overrides: Partial<ServiceDependencies> = {}) {
+  return new BackupService(createServiceContext(overrides));
 }

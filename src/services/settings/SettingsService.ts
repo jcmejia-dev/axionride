@@ -67,6 +67,8 @@ export class SettingsService extends BaseService {
           subtitle: 'Offline-first local foundation',
           items: [
             { id: 'local-data', label: 'Local data', value: 'Stored on device' },
+            { id: 'export-backup', label: 'Export Backup', value: 'Share JSON file', action: 'export-backup' },
+            { id: 'import-backup', label: 'Import Backup', value: 'Replaces local data', action: 'import-backup' },
             { id: 'sync-status', label: 'Cloud sync', value: 'Not connected', disabled: true },
           ],
         },
