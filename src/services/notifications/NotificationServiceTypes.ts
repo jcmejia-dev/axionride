@@ -1,11 +1,12 @@
 import type { Maintenance, MaintenanceId } from '@/src/domain/maintenance';
 
-export type NotificationPermissionState = 'granted' | 'denied' | 'undetermined';
+export type NotificationPermissionState = 'granted' | 'denied' | 'undetermined' | 'unavailable';
 
 export type NotificationPermissionStatus = {
   readonly state: NotificationPermissionState;
   readonly canAskAgain: boolean;
   readonly granted: boolean;
+  readonly message?: string;
 };
 
 export type MaintenanceReminderInput = {

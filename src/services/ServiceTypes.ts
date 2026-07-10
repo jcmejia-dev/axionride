@@ -7,6 +7,7 @@ export type ServiceErrorCode =
   | 'validation_failed'
   | 'not_found'
   | 'conflict'
+  | 'unavailable'
   | 'repository_error'
   | 'unknown_error';
 
