@@ -12,6 +12,11 @@
     },
     "android": {
       "package": "com.axionride.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDf9ULDIjVoZilHIuqrul8JlsZ7P9cqRm0"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#070A0F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -45,6 +50,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "27bd5882-845a-4bd4-8b44-05a1e8da1a18"
+      }
     }
   }
 }

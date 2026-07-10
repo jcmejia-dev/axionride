@@ -2,17 +2,25 @@ import * as SQLite from 'expo-sqlite';
 
 import { CURRENT_DATABASE_VERSION, DATABASE_MIGRATIONS } from './DatabaseMigrations';
 import { BASE_SCHEMA_SQL, DATABASE_NAME, SQLITE_TABLES } from './DatabaseSchema';
-import type { AxionRideDatabase, SchemaVersionRow, SQLiteBindParams, SQLiteBindValue } from './SQLiteTypes';
+import type { AxionRideDatabase, SchemaVersionRow, SQLiteBindParams } from './SQLiteTypes';
 
 let databasePromise: Promise<AxionRideDatabase> | null = null;
+let initializationPromise: Promise<AxionRideDatabase> | null = null;
 
 /**
  * Open the AxionRide SQLite database and apply pending schema migrations.
  */
 export async function initializeDatabase() {
-  const database = await getDatabase();
-  await runMigrations(database);
-  return database;
+  if (initializationPromise) {
+    logDatabaseDiagnostic('database initialization reused existing promise');
+    return initializationPromise;
+  }
+
+  initializationPromise = initializeDatabaseOnce().catch((error: unknown) => {
+    initializationPromise = null;
+    throw error;
+  });
+  return initializationPromise;
 }
 
 /**
@@ -82,9 +90,11 @@ async function runMigrations(database: AxionRideDatabase) {
   const pendingMigrations = DATABASE_MIGRATIONS.filter((migration) => migration.version > currentVersion);
 
   for (const migration of pendingMigrations) {
-    await database.withTransactionAsync(async () => {
-      await database.execAsync(migration.statements.join('\n'));
-      await database.runAsync(
+    logDatabaseDiagnostic(`applying database migration ${migration.version}: ${migration.name}`);
+
+    await database.withExclusiveTransactionAsync(async (transaction) => {
+      await transaction.execAsync(migration.statements.join('\n'));
+      await transaction.runAsync(
         `INSERT INTO ${SQLITE_TABLES.schemaMigrations} (version, name, applied_at)
          VALUES (?, ?, ?);`,
         migration.version,
@@ -92,6 +102,19 @@ async function runMigrations(database: AxionRideDatabase) {
         new Date().toISOString(),
       );
     });
+  }
+}
+
+async function initializeDatabaseOnce() {
+  logDatabaseDiagnostic('database initialization started');
+  const database = await getDatabase();
+  await runMigrations(database);
+  return database;
+}
+
+function logDatabaseDiagnostic(message: string) {
+  if (__DEV__) {
+    console.debug(`[sqlite] ${message}`);
   }
 }
 

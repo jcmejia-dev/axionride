@@ -84,14 +84,14 @@ export class SQLiteRideRepository implements RideRepository {
     }
 
     await withDatabase((database) =>
-      database.withTransactionAsync(async () => {
-        await database.runAsync(
+      database.withExclusiveTransactionAsync(async (transaction) => {
+        await transaction.runAsync(
           `INSERT INTO ${SQLITE_TABLES.rides}
            (id, motorcycle_id, payload_json, created_at, updated_at, deleted_at)
            VALUES (?, ?, ?, ?, ?, NULL);`,
           [ride.id, ride.motorcycleId, payloadJson, ride.createdAt, ride.updatedAt],
         );
-        await replaceRidePoints(database, ride);
+        await replaceRidePoints(transaction, ride);
       }),
     );
 
@@ -116,14 +116,14 @@ export class SQLiteRideRepository implements RideRepository {
     }
 
     await withDatabase((database) =>
-      database.withTransactionAsync(async () => {
-        await database.runAsync(
+      database.withExclusiveTransactionAsync(async (transaction) => {
+        await transaction.runAsync(
           `UPDATE ${SQLITE_TABLES.rides}
            SET motorcycle_id = ?, payload_json = ?, updated_at = ?, deleted_at = NULL
            WHERE id = ?;`,
           [ride.motorcycleId, payloadJson, ride.updatedAt, ride.id],
         );
-        await replaceRidePoints(database, ride);
+        await replaceRidePoints(transaction, ride);
       }),
     );
 
@@ -136,14 +136,14 @@ export class SQLiteRideRepository implements RideRepository {
     }
 
     await withDatabase((database) =>
-      database.withTransactionAsync(async () => {
-        await database.runAsync(
+      database.withExclusiveTransactionAsync(async (transaction) => {
+        await transaction.runAsync(
           `UPDATE ${SQLITE_TABLES.rides}
            SET deleted_at = ?
            WHERE id = ?;`,
           [new Date().toISOString(), id],
         );
-        await database.runAsync(
+        await transaction.runAsync(
           `DELETE FROM ${SQLITE_TABLES.ridePoints}
            WHERE ride_id = ?;`,
           [id],
@@ -168,9 +168,9 @@ export class SQLiteRideRepository implements RideRepository {
 
   async clear(): Promise<void> {
     await withDatabase((database) =>
-      database.withTransactionAsync(async () => {
-        await database.runAsync(`DELETE FROM ${SQLITE_TABLES.ridePoints};`);
-        await database.runAsync(`DELETE FROM ${SQLITE_TABLES.rides};`);
+      database.withExclusiveTransactionAsync(async (transaction) => {
+        await transaction.runAsync(`DELETE FROM ${SQLITE_TABLES.ridePoints};`);
+        await transaction.runAsync(`DELETE FROM ${SQLITE_TABLES.rides};`);
       }),
     );
   }
