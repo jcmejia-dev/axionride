@@ -13,6 +13,7 @@ export type SettingsItem = {
   readonly id: string;
   readonly label: string;
   readonly value: string;
+  readonly action?: 'toggle-local-notifications' | 'request-notification-permission' | 'test-notification';
   readonly disabled?: boolean;
 };
 
@@ -31,5 +32,6 @@ export type SettingsSection = {
  */
 export type SettingsOverview = {
   readonly units: SettingsUnits;
+  readonly localNotificationsEnabled: boolean;
   readonly sections: readonly SettingsSection[];
 };

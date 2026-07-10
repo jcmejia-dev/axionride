@@ -1,13 +1,16 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge, GlassCard, LoadingSpinner } from '@/src/components';
 import {
+  createNotificationService,
   createProfileService,
   createSettingsService,
+  type NotificationPermissionStatus,
   type ProfileOverview,
+  type SettingsItem,
   type SettingsOverview,
   type SettingsSection,
 } from '@/src/services';
@@ -16,8 +19,10 @@ import { layout, palette, radius, spacing, typography } from '@/src/theme';
 export function ProfileScreen() {
   const profileService = useMemo(() => createProfileService(), []);
   const settingsService = useMemo(() => createSettingsService(), []);
+  const notificationService = useMemo(() => createNotificationService(), []);
   const [profileOverview, setProfileOverview] = useState<ProfileOverview | null>(null);
   const [settingsOverview, setSettingsOverview] = useState<SettingsOverview | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermissionStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,6 +33,7 @@ export function ProfileScreen() {
         profileService.getProfileOverview(),
         Promise.resolve(settingsService.getSettingsOverview()),
       ]);
+      const permissionResult = await notificationService.getPermissionStatus();
 
       if (!active) {
         return;
@@ -41,6 +47,10 @@ export function ProfileScreen() {
         setSettingsOverview(settingsResult.value);
       }
 
+      if (permissionResult.ok) {
+        setNotificationPermission(permissionResult.value);
+      }
+
       setLoading(false);
     }
 
@@ -49,7 +59,67 @@ export function ProfileScreen() {
     return () => {
       active = false;
     };
-  }, [profileService, settingsService]);
+  }, [notificationService, profileService, settingsService]);
+
+  async function handleToggleLocalNotifications() {
+    if (!settingsOverview) {
+      return;
+    }
+
+    const result = settingsService.setLocalNotificationsEnabled(!settingsOverview.localNotificationsEnabled);
+
+    if (!result.ok) {
+      Alert.alert('Notification setting unavailable', result.error.message);
+      return;
+    }
+
+    if (!result.value) {
+      await notificationService.cancelAllNotifications();
+    }
+
+    const overviewResult = settingsService.getSettingsOverview();
+
+    if (overviewResult.ok) {
+      setSettingsOverview(overviewResult.value);
+    }
+  }
+
+  async function handleRequestNotificationPermission() {
+    const result = await notificationService.requestPermission();
+
+    if (!result.ok) {
+      Alert.alert('Notification permission unavailable', result.error.message);
+      return;
+    }
+
+    setNotificationPermission(result.value);
+
+    if (!result.value.granted) {
+      Alert.alert('Notifications not enabled', 'Local reminders will stay quiet until notification permission is granted.');
+    }
+  }
+
+  async function handleSendTestNotification() {
+    const permissionResult = await notificationService.requestPermission();
+
+    if (!permissionResult.ok) {
+      Alert.alert('Test notification unavailable', permissionResult.error.message);
+      return;
+    }
+
+    setNotificationPermission(permissionResult.value);
+
+    const testResult = await notificationService.showImmediateLocalNotification();
+
+    if (!testResult.ok) {
+      Alert.alert('Test notification unavailable', testResult.error.message);
+      return;
+    }
+
+    if (!testResult.value) {
+      Alert.alert('Test notification skipped', 'Enable local notifications and grant permission before sending a test.');
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -68,7 +138,13 @@ export function ProfileScreen() {
           <>
             <ProfileHero overview={profileOverview} />
             <ProfileStats overview={profileOverview} />
-            <SettingsPanel overview={settingsOverview} />
+            <SettingsPanel
+              notificationPermission={notificationPermission}
+              overview={settingsOverview}
+              onRequestNotificationPermission={handleRequestNotificationPermission}
+              onSendTestNotification={handleSendTestNotification}
+              onToggleLocalNotifications={handleToggleLocalNotifications}
+            />
           </>
         ) : (
           <GlassCard style={styles.card}>
@@ -172,7 +248,22 @@ function ProfileStats({ overview }: { readonly overview: ProfileOverview }) {
   );
 }
 
-function SettingsPanel({ overview }: { readonly overview: SettingsOverview }) {
+type SettingsActions = {
+  readonly onRequestNotificationPermission: () => void;
+  readonly onSendTestNotification: () => void;
+  readonly onToggleLocalNotifications: () => void;
+};
+
+function SettingsPanel({
+  notificationPermission,
+  overview,
+  onRequestNotificationPermission,
+  onSendTestNotification,
+  onToggleLocalNotifications,
+}: SettingsActions & {
+  readonly notificationPermission: NotificationPermissionStatus | null;
+  readonly overview: SettingsOverview;
+}) {
   return (
     <View style={styles.section}>
       <View>
@@ -181,14 +272,30 @@ function SettingsPanel({ overview }: { readonly overview: SettingsOverview }) {
       </View>
       <View style={styles.settingsStack}>
         {overview.sections.map((section) => (
-          <SettingsSectionCard key={section.id} section={section} />
+          <SettingsSectionCard
+            key={section.id}
+            notificationPermission={notificationPermission}
+            section={section}
+            onRequestNotificationPermission={onRequestNotificationPermission}
+            onSendTestNotification={onSendTestNotification}
+            onToggleLocalNotifications={onToggleLocalNotifications}
+          />
         ))}
       </View>
     </View>
   );
 }
 
-function SettingsSectionCard({ section }: { readonly section: SettingsSection }) {
+function SettingsSectionCard({
+  notificationPermission,
+  section,
+  onRequestNotificationPermission,
+  onSendTestNotification,
+  onToggleLocalNotifications,
+}: SettingsActions & {
+  readonly notificationPermission: NotificationPermissionStatus | null;
+  readonly section: SettingsSection;
+}) {
   return (
     <GlassCard style={styles.settingsCard}>
       <View>
@@ -196,15 +303,63 @@ function SettingsSectionCard({ section }: { readonly section: SettingsSection })
         <Text style={styles.mutedText}>{section.subtitle}</Text>
       </View>
       <View style={styles.settingsRows}>
-        {section.items.map((item) => (
-          <View key={item.id} style={styles.settingsRow}>
-            <Text style={[styles.settingsLabel, item.disabled ? styles.disabledText : null]}>{item.label}</Text>
-            <Text style={[styles.settingsValue, item.disabled ? styles.disabledText : null]}>{item.value}</Text>
-          </View>
-        ))}
+        {section.items.map((item) => {
+          const value = getSettingsItemValue(item, notificationPermission);
+          const onPress = getSettingsItemAction(item, {
+            onRequestNotificationPermission,
+            onSendTestNotification,
+            onToggleLocalNotifications,
+          });
+          const disabled = item.disabled || !onPress;
+
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole={onPress ? 'button' : undefined}
+              disabled={disabled}
+              onPress={onPress}
+              style={({ pressed }) => [
+                styles.settingsRow,
+                onPress ? styles.actionRow : null,
+                pressed && !disabled ? styles.pressed : null,
+              ]}>
+              <Text style={[styles.settingsLabel, item.disabled ? styles.disabledText : null]}>{item.label}</Text>
+              <Text style={[styles.settingsValue, item.disabled ? styles.disabledText : null]}>{value}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </GlassCard>
   );
+}
+
+function getSettingsItemValue(item: SettingsItem, notificationPermission: NotificationPermissionStatus | null) {
+  if (item.id !== 'notification-permission') {
+    return item.value;
+  }
+
+  if (!notificationPermission) {
+    return 'Unknown';
+  }
+
+  if (notificationPermission.granted) {
+    return 'Granted';
+  }
+
+  return notificationPermission.state === 'denied' ? 'Denied' : 'Not requested';
+}
+
+function getSettingsItemAction(item: SettingsItem, actions: SettingsActions) {
+  switch (item.action) {
+    case 'toggle-local-notifications':
+      return actions.onToggleLocalNotifications;
+    case 'request-notification-permission':
+      return actions.onRequestNotificationPermission;
+    case 'test-notification':
+      return actions.onSendTestNotification;
+    case undefined:
+      return undefined;
+  }
 }
 
 function formatNumber(value: number) {
@@ -430,6 +585,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
+  actionRow: {
+    minHeight: 48,
+  },
   settingsLabel: {
     ...typography.body,
     flex: 1,
@@ -445,5 +603,9 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: 'rgba(248, 250, 252, 0.36)',
+  },
+  pressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.99 }],
   },
 });

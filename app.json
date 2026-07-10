@@ -34,7 +34,13 @@
           "backgroundColor": "#070A0F"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "maintenance-reminders"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

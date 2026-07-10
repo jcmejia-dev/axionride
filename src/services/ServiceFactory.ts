@@ -2,6 +2,7 @@ import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/sr
 
 import { LocationService } from './location';
 import { MaintenanceService } from './maintenance';
+import { NotificationService } from './notifications';
 import { ProfileService } from './profile';
 import { RideService } from './ride';
 import { SearchService } from './search';
@@ -44,7 +45,8 @@ export function createRideService(overrides: Partial<ServiceDependencies> = {}) 
  * Create the maintenance application service with default dependencies.
  */
 export function createMaintenanceService(overrides: Partial<ServiceDependencies> = {}) {
-  return new MaintenanceService(createServiceContext(overrides));
+  const context = createServiceContext(overrides);
+  return new MaintenanceService(context, new NotificationService(context));
 }
 
 /**
@@ -66,6 +68,13 @@ export function createProfileService(overrides: Partial<ServiceDependencies> = {
  */
 export function createSettingsService(overrides: Partial<ServiceDependencies> = {}) {
   return new SettingsService(createServiceContext(overrides));
+}
+
+/**
+ * Create the local notification service with default dependencies.
+ */
+export function createNotificationService(overrides: Partial<ServiceDependencies> = {}) {
+  return new NotificationService(createServiceContext(overrides));
 }
 
 /**

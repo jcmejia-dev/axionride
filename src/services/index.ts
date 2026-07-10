@@ -3,6 +3,7 @@ export { ServiceContext } from './ServiceContext';
 export {
   createLocationService,
   createMaintenanceService,
+  createNotificationService,
   createProfileService,
   createRideService,
   createSearchService,
@@ -20,6 +21,14 @@ export type {
   MaintenanceListItem,
   UpdateMaintenanceInput,
 } from './maintenance';
+export { NotificationService } from './notifications';
+export type {
+  ImmediateLocalNotificationInput,
+  MaintenanceReminderInput,
+  NotificationPermissionState,
+  NotificationPermissionStatus,
+  ScheduledNotificationItem,
+} from './notifications';
 export { StatisticsService } from './statistics';
 export type {
   MaintenanceStatisticsSummary,
