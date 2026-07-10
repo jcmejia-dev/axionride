@@ -4,11 +4,13 @@ import type { ServiceResult } from '@/src/services/ServiceTypes';
 
 import type { SettingsOverview } from './SettingsServiceTypes';
 
+let localNotificationsEnabled = true;
+
 /**
  * Local settings application service.
  *
- * Preferences are read-only placeholders until local persistence and account
- * sync settings are introduced in later branches.
+ * Preferences are kept local. Durable persistence will move behind this service
+ * when the planned local storage settings boundary is introduced.
  */
 export class SettingsService extends BaseService {
   constructor(context: ServiceContext) {
@@ -21,6 +23,7 @@ export class SettingsService extends BaseService {
         speed: 'km/h',
         distance: 'km',
       },
+      localNotificationsEnabled,
       sections: [
         {
           id: 'preferences',
@@ -30,6 +33,32 @@ export class SettingsService extends BaseService {
             { id: 'speed-unit', label: 'Speed', value: 'km/h' },
             { id: 'distance-unit', label: 'Distance', value: 'km' },
             { id: 'theme', label: 'Theme', value: 'Dark placeholder' },
+          ],
+        },
+        {
+          id: 'notifications',
+          title: 'Notifications',
+          subtitle: 'Local reminders and ride alerts',
+          items: [
+            {
+              id: 'local-notifications',
+              label: 'Local notifications',
+              value: localNotificationsEnabled ? 'Enabled' : 'Disabled',
+              action: 'toggle-local-notifications',
+            },
+            {
+              id: 'notification-permission',
+              label: 'Permission',
+              value: 'Loading...',
+              action: 'request-notification-permission',
+            },
+            {
+              id: 'test-notification',
+              label: 'Test notification',
+              value: 'Send local test',
+              action: 'test-notification',
+              disabled: !localNotificationsEnabled,
+            },
           ],
         },
         {
@@ -61,5 +90,14 @@ export class SettingsService extends BaseService {
         },
       ],
     });
+  }
+
+  areLocalNotificationsEnabled(): ServiceResult<boolean> {
+    return this.success(localNotificationsEnabled);
+  }
+
+  setLocalNotificationsEnabled(enabled: boolean): ServiceResult<boolean> {
+    localNotificationsEnabled = enabled;
+    return this.success(localNotificationsEnabled);
   }
 }

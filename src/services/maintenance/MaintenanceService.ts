@@ -19,6 +19,7 @@ import {
   getMaintenanceStatusLabel,
 } from '@/src/features/maintenance-engine';
 import { BaseService } from '@/src/services/BaseService';
+import type { NotificationService } from '@/src/services/notifications';
 import type { ServiceContext } from '@/src/services/ServiceContext';
 import type { ServiceResult } from '@/src/services/ServiceTypes';
 
@@ -40,8 +41,11 @@ const DEFAULT_CURRENT_ODOMETER_KM = 12430;
  * repository persistence.
  */
 export class MaintenanceService extends BaseService {
-  constructor(context: ServiceContext) {
+  private readonly notificationService?: NotificationService;
+
+  constructor(context: ServiceContext, notificationService?: NotificationService) {
     super(context);
+    this.notificationService = notificationService;
   }
 
   async createMaintenance(input: CreateMaintenanceInput): Promise<ServiceResult<Maintenance>> {
@@ -66,6 +70,8 @@ export class MaintenanceService extends BaseService {
         cause: saveResult.error,
       });
     }
+
+    await this.scheduleMaintenanceReminder(saveResult.value);
 
     return this.success(saveResult.value);
   }
@@ -107,6 +113,8 @@ export class MaintenanceService extends BaseService {
       });
     }
 
+    await this.scheduleMaintenanceReminder(updateResult.value);
+
     return this.success(updateResult.value);
   }
 
@@ -120,6 +128,8 @@ export class MaintenanceService extends BaseService {
         cause: deleteResult.error,
       });
     }
+
+    await this.cancelMaintenanceReminder(id);
 
     return this.success(deleteResult.value);
   }
@@ -155,6 +165,8 @@ export class MaintenanceService extends BaseService {
         cause: updateResult.error,
       });
     }
+
+    await this.cancelMaintenanceReminder(updateResult.value.id);
 
     return this.success(updateResult.value);
   }
@@ -305,6 +317,28 @@ export class MaintenanceService extends BaseService {
     }
 
     return this.success(result.value);
+  }
+
+  private async scheduleMaintenanceReminder(maintenance: Maintenance) {
+    const result = await this.notificationService?.scheduleMaintenanceReminder({ maintenance });
+
+    if (result && !result.ok) {
+      this.context.logger?.warn?.('Maintenance was saved, but its notification reminder could not be scheduled.', {
+        maintenanceId: maintenance.id,
+        error: result.error,
+      });
+    }
+  }
+
+  private async cancelMaintenanceReminder(id: MaintenanceId) {
+    const result = await this.notificationService?.cancelMaintenanceReminder(id);
+
+    if (result && !result.ok) {
+      this.context.logger?.warn?.('Maintenance was changed, but its notification reminder could not be cancelled.', {
+        maintenanceId: id,
+        error: result.error,
+      });
+    }
   }
 }
 
