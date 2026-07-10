@@ -1,4 +1,4 @@
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { MaintenanceStatus, type Maintenance, type MaintenanceId } from '@/src/domain/maintenance';
@@ -17,15 +17,12 @@ import type {
 const MAINTENANCE_CHANNEL_ID = 'maintenance-reminders';
 const TEST_CHANNEL_ID = 'local-notification-tests';
 const MAINTENANCE_IDENTIFIER_PREFIX = 'maintenance-reminder:';
+const EXPO_GO_UNAVAILABLE_MESSAGE = 'Local notification testing requires a development build. Expo Go cannot load AxionRide notification APIs safely on this SDK.';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+type ExpoNotificationsModule = typeof import('expo-notifications');
+
+let notificationsModulePromise: Promise<ExpoNotificationsModule> | null = null;
+let notificationHandlerConfigured = false;
 
 export class NotificationService extends BaseService {
   private readonly settingsService: SettingsService;
@@ -36,6 +33,12 @@ export class NotificationService extends BaseService {
   }
 
   async requestPermission(): Promise<ServiceResult<NotificationPermissionStatus>> {
+    const notifications = await this.loadNotifications();
+
+    if (!notifications.ok) {
+      return this.success(createUnavailablePermissionStatus());
+    }
+
     const channelResult = await this.ensureAndroidChannels();
 
     if (!channelResult.ok) {
@@ -43,17 +46,23 @@ export class NotificationService extends BaseService {
     }
 
     try {
-      const status = await Notifications.requestPermissionsAsync();
-      return this.success(toPermissionStatus(status));
+      const status = await notifications.value.requestPermissionsAsync();
+      return this.success(toPermissionStatus(status, notifications.value));
     } catch (error) {
       return this.notificationFailure('Notification permission could not be requested.', error);
     }
   }
 
   async getPermissionStatus(): Promise<ServiceResult<NotificationPermissionStatus>> {
+    const notifications = await this.loadNotifications();
+
+    if (!notifications.ok) {
+      return this.success(createUnavailablePermissionStatus());
+    }
+
     try {
-      const status = await Notifications.getPermissionsAsync();
-      return this.success(toPermissionStatus(status));
+      const status = await notifications.value.getPermissionsAsync();
+      return this.success(toPermissionStatus(status, notifications.value));
     } catch (error) {
       return this.notificationFailure('Notification permission status could not be loaded.', error);
     }
@@ -61,6 +70,12 @@ export class NotificationService extends BaseService {
 
   async scheduleMaintenanceReminder(input: MaintenanceReminderInput): Promise<ServiceResult<ScheduledNotificationItem | null>> {
     const settingsResult = this.settingsService.areLocalNotificationsEnabled();
+    const notifications = await this.loadNotifications();
+
+    if (!notifications.ok) {
+      await this.cancelMaintenanceReminder(input.maintenance.id);
+      return this.success(null);
+    }
 
     if (!settingsResult.ok) {
       return this.failure(settingsResult.error);
@@ -101,7 +116,7 @@ export class NotificationService extends BaseService {
     const identifier = createMaintenanceReminderIdentifier(input.maintenance.id);
 
     try {
-      const scheduledIdentifier = await Notifications.scheduleNotificationAsync({
+      const scheduledIdentifier = await notifications.value.scheduleNotificationAsync({
         identifier,
         content: {
           title: 'Maintenance reminder',
@@ -112,7 +127,7 @@ export class NotificationService extends BaseService {
           },
         },
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          type: notifications.value.SchedulableTriggerInputTypes.DATE,
           date: reminderDate,
           channelId: MAINTENANCE_CHANNEL_ID,
         },
@@ -131,9 +146,14 @@ export class NotificationService extends BaseService {
 
   async cancelMaintenanceReminder(id: MaintenanceId): Promise<ServiceResult<{ readonly identifier: string }>> {
     const identifier = createMaintenanceReminderIdentifier(id);
+    const notifications = await this.loadNotifications();
+
+    if (!notifications.ok) {
+      return this.success({ identifier });
+    }
 
     try {
-      await Notifications.cancelScheduledNotificationAsync(identifier);
+      await notifications.value.cancelScheduledNotificationAsync(identifier);
       return this.success({ identifier });
     } catch (error) {
       return this.notificationFailure('Maintenance reminder could not be cancelled.', error);
@@ -141,8 +161,14 @@ export class NotificationService extends BaseService {
   }
 
   async cancelAllNotifications(): Promise<ServiceResult<void>> {
+    const notifications = await this.loadNotifications();
+
+    if (!notifications.ok) {
+      return this.success(undefined);
+    }
+
     try {
-      await Notifications.cancelAllScheduledNotificationsAsync();
+      await notifications.value.cancelAllScheduledNotificationsAsync();
       return this.success(undefined);
     } catch (error) {
       return this.notificationFailure('Scheduled notifications could not be cancelled.', error);
@@ -150,10 +176,16 @@ export class NotificationService extends BaseService {
   }
 
   async getScheduledNotifications(): Promise<ServiceResult<readonly ScheduledNotificationItem[]>> {
+    const notifications = await this.loadNotifications();
+
+    if (!notifications.ok) {
+      return this.success([]);
+    }
+
     try {
-      const notifications = await Notifications.getAllScheduledNotificationsAsync();
+      const scheduledNotifications = await notifications.value.getAllScheduledNotificationsAsync();
       return this.success(
-        notifications.map((notification) => ({
+        scheduledNotifications.map((notification) => ({
           identifier: notification.identifier,
           title: notification.content.title ?? null,
           body: notification.content.body ?? null,
@@ -169,6 +201,11 @@ export class NotificationService extends BaseService {
     input: ImmediateLocalNotificationInput = {},
   ): Promise<ServiceResult<ScheduledNotificationItem | null>> {
     const settingsResult = this.settingsService.areLocalNotificationsEnabled();
+    const notifications = await this.loadNotifications();
+
+    if (!notifications.ok) {
+      return this.unavailableFailure(EXPO_GO_UNAVAILABLE_MESSAGE);
+    }
 
     if (!settingsResult.ok) {
       return this.failure(settingsResult.error);
@@ -198,7 +235,7 @@ export class NotificationService extends BaseService {
     const body = input.body ?? 'Local notification scheduling is working on this device.';
 
     try {
-      const identifier = await Notifications.scheduleNotificationAsync({
+      const identifier = await notifications.value.scheduleNotificationAsync({
         content: {
           title,
           body,
@@ -207,7 +244,7 @@ export class NotificationService extends BaseService {
           },
         },
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          type: notifications.value.SchedulableTriggerInputTypes.TIME_INTERVAL,
           seconds: 2,
           channelId: TEST_CHANNEL_ID,
         },
@@ -224,21 +261,63 @@ export class NotificationService extends BaseService {
       return this.success(undefined);
     }
 
+    const notifications = await this.loadNotifications();
+
+    if (!notifications.ok) {
+      return this.success(undefined);
+    }
+
     try {
-      await Notifications.setNotificationChannelAsync(MAINTENANCE_CHANNEL_ID, {
+      await notifications.value.setNotificationChannelAsync(MAINTENANCE_CHANNEL_ID, {
         name: 'Maintenance reminders',
-        importance: Notifications.AndroidImportance.DEFAULT,
+        importance: notifications.value.AndroidImportance.DEFAULT,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#F97316',
       });
-      await Notifications.setNotificationChannelAsync(TEST_CHANNEL_ID, {
+      await notifications.value.setNotificationChannelAsync(TEST_CHANNEL_ID, {
         name: 'Local notification tests',
-        importance: Notifications.AndroidImportance.DEFAULT,
+        importance: notifications.value.AndroidImportance.DEFAULT,
       });
       return this.success(undefined);
     } catch (error) {
       return this.notificationFailure('Android notification channels could not be prepared.', error);
     }
+  }
+
+  private async loadNotifications(): Promise<ServiceResult<ExpoNotificationsModule>> {
+    if (isExpoGo()) {
+      return this.unavailableFailure(EXPO_GO_UNAVAILABLE_MESSAGE);
+    }
+
+    try {
+      notificationsModulePromise ??= import('expo-notifications');
+      const notifications = await notificationsModulePromise;
+
+      if (!notificationHandlerConfigured) {
+        notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+            shouldShowBanner: true,
+            shouldShowList: true,
+          }),
+        });
+        notificationHandlerConfigured = true;
+      }
+
+      return this.success(notifications);
+    } catch (error) {
+      return this.notificationFailure(EXPO_GO_UNAVAILABLE_MESSAGE, error);
+    }
+  }
+
+  private unavailableFailure<T = never>(message: string): ServiceResult<T> {
+    this.context.logger?.warn?.(message);
+
+    return this.failure({
+      code: 'unavailable',
+      message,
+    });
   }
 
   private notificationFailure<T = never>(message: string, cause: unknown): ServiceResult<T> {
@@ -252,7 +331,27 @@ export class NotificationService extends BaseService {
   }
 }
 
-function toPermissionStatus(status: Notifications.NotificationPermissionsStatus): NotificationPermissionStatus {
+function isExpoGo() {
+  return Constants.appOwnership === 'expo'
+    || (
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+      && Constants.expoGoConfig !== null
+    );
+}
+
+function createUnavailablePermissionStatus(): NotificationPermissionStatus {
+  return {
+    state: 'unavailable',
+    granted: false,
+    canAskAgain: false,
+    message: EXPO_GO_UNAVAILABLE_MESSAGE,
+  };
+}
+
+function toPermissionStatus(
+  status: Awaited<ReturnType<ExpoNotificationsModule['getPermissionsAsync']>>,
+  notifications: ExpoNotificationsModule,
+): NotificationPermissionStatus {
   if (status.granted) {
     return {
       state: 'granted',
@@ -262,7 +361,7 @@ function toPermissionStatus(status: Notifications.NotificationPermissionsStatus)
   }
 
   return {
-    state: status.status === Notifications.PermissionStatus.DENIED ? 'denied' : 'undetermined',
+    state: status.status === notifications.PermissionStatus.DENIED ? 'denied' : 'undetermined',
     granted: false,
     canAskAgain: status.canAskAgain,
   };

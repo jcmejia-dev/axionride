@@ -95,7 +95,10 @@ export function ProfileScreen() {
     setNotificationPermission(result.value);
 
     if (!result.value.granted) {
-      Alert.alert('Notifications not enabled', 'Local reminders will stay quiet until notification permission is granted.');
+      Alert.alert(
+        'Notifications not enabled',
+        result.value.message ?? 'Local reminders will stay quiet until notification permission is granted.',
+      );
     }
   }
 
@@ -108,6 +111,14 @@ export function ProfileScreen() {
     }
 
     setNotificationPermission(permissionResult.value);
+
+    if (permissionResult.value.state === 'unavailable') {
+      Alert.alert(
+        'Test notification unavailable',
+        permissionResult.value.message ?? 'Notification testing requires a development build.',
+      );
+      return;
+    }
 
     const testResult = await notificationService.showImmediateLocalNotification();
 
@@ -344,6 +355,10 @@ function getSettingsItemValue(item: SettingsItem, notificationPermission: Notifi
 
   if (notificationPermission.granted) {
     return 'Granted';
+  }
+
+  if (notificationPermission.state === 'unavailable') {
+    return 'Dev build required';
   }
 
   return notificationPermission.state === 'denied' ? 'Denied' : 'Not requested';
