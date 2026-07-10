@@ -5,9 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge, GlassCard, LoadingSpinner } from '@/src/components';
 import {
+  createBackupService,
   createNotificationService,
   createProfileService,
   createSettingsService,
+  type BackupExportResult,
+  type BackupImportSummary,
+  type BackupImportConfirmation,
   type NotificationPermissionStatus,
   type ProfileOverview,
   type SettingsItem,
@@ -20,9 +24,12 @@ export function ProfileScreen() {
   const profileService = useMemo(() => createProfileService(), []);
   const settingsService = useMemo(() => createSettingsService(), []);
   const notificationService = useMemo(() => createNotificationService(), []);
+  const backupService = useMemo(() => createBackupService(), []);
   const [profileOverview, setProfileOverview] = useState<ProfileOverview | null>(null);
   const [settingsOverview, setSettingsOverview] = useState<SettingsOverview | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermissionStatus | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [lastBackupResult, setLastBackupResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -132,6 +139,46 @@ export function ProfileScreen() {
     }
   }
 
+  async function handleExportBackup() {
+    setBackupBusy(true);
+    const result = await backupService.exportBackup();
+    setBackupBusy(false);
+
+    if (!result.ok) {
+      setLastBackupResult(result.error.message);
+      Alert.alert('Export failed', result.error.message);
+      return;
+    }
+
+    const message = formatExportResult(result.value);
+    setLastBackupResult(message);
+    Alert.alert('Backup exported', message);
+  }
+
+  async function handleImportBackup() {
+    setBackupBusy(true);
+    const result = await backupService.importBackup({
+      confirmReplacement: confirmBackupReplacement,
+    });
+    setBackupBusy(false);
+
+    if (!result.ok) {
+      setLastBackupResult(result.error.message);
+      Alert.alert('Import failed', result.error.message);
+      return;
+    }
+
+    const message = formatImportResult(result.value);
+    setLastBackupResult(message);
+
+    if (result.value.status === 'cancelled') {
+      Alert.alert('Import cancelled', message);
+      return;
+    }
+
+    Alert.alert('Backup imported', message);
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
@@ -150,8 +197,12 @@ export function ProfileScreen() {
             <ProfileHero overview={profileOverview} />
             <ProfileStats overview={profileOverview} />
             <SettingsPanel
+              backupBusy={backupBusy}
+              lastBackupResult={lastBackupResult}
               notificationPermission={notificationPermission}
               overview={settingsOverview}
+              onExportBackup={handleExportBackup}
+              onImportBackup={handleImportBackup}
               onRequestNotificationPermission={handleRequestNotificationPermission}
               onSendTestNotification={handleSendTestNotification}
               onToggleLocalNotifications={handleToggleLocalNotifications}
@@ -260,18 +311,26 @@ function ProfileStats({ overview }: { readonly overview: ProfileOverview }) {
 }
 
 type SettingsActions = {
+  readonly onExportBackup: () => void;
+  readonly onImportBackup: () => void;
   readonly onRequestNotificationPermission: () => void;
   readonly onSendTestNotification: () => void;
   readonly onToggleLocalNotifications: () => void;
 };
 
 function SettingsPanel({
+  backupBusy,
+  lastBackupResult,
   notificationPermission,
   overview,
+  onExportBackup,
+  onImportBackup,
   onRequestNotificationPermission,
   onSendTestNotification,
   onToggleLocalNotifications,
 }: SettingsActions & {
+  readonly backupBusy: boolean;
+  readonly lastBackupResult: string | null;
   readonly notificationPermission: NotificationPermissionStatus | null;
   readonly overview: SettingsOverview;
 }) {
@@ -285,8 +344,12 @@ function SettingsPanel({
         {overview.sections.map((section) => (
           <SettingsSectionCard
             key={section.id}
+            backupBusy={backupBusy}
+            lastBackupResult={lastBackupResult}
             notificationPermission={notificationPermission}
             section={section}
+            onExportBackup={onExportBackup}
+            onImportBackup={onImportBackup}
             onRequestNotificationPermission={onRequestNotificationPermission}
             onSendTestNotification={onSendTestNotification}
             onToggleLocalNotifications={onToggleLocalNotifications}
@@ -298,12 +361,18 @@ function SettingsPanel({
 }
 
 function SettingsSectionCard({
+  backupBusy,
+  lastBackupResult,
   notificationPermission,
   section,
+  onExportBackup,
+  onImportBackup,
   onRequestNotificationPermission,
   onSendTestNotification,
   onToggleLocalNotifications,
 }: SettingsActions & {
+  readonly backupBusy: boolean;
+  readonly lastBackupResult: string | null;
   readonly notificationPermission: NotificationPermissionStatus | null;
   readonly section: SettingsSection;
 }) {
@@ -318,10 +387,12 @@ function SettingsSectionCard({
           const value = getSettingsItemValue(item, notificationPermission);
           const onPress = getSettingsItemAction(item, {
             onRequestNotificationPermission,
+            onExportBackup,
+            onImportBackup,
             onSendTestNotification,
             onToggleLocalNotifications,
           });
-          const disabled = item.disabled || !onPress;
+          const disabled = item.disabled || !onPress || (backupBusy && isBackupAction(item));
 
           return (
             <Pressable
@@ -335,11 +406,17 @@ function SettingsSectionCard({
                 pressed && !disabled ? styles.pressed : null,
               ]}>
               <Text style={[styles.settingsLabel, item.disabled ? styles.disabledText : null]}>{item.label}</Text>
-              <Text style={[styles.settingsValue, item.disabled ? styles.disabledText : null]}>{value}</Text>
+              <Text style={[styles.settingsValue, disabled ? styles.disabledText : null]}>{backupBusy && isBackupAction(item) ? 'Working...' : value}</Text>
             </Pressable>
           );
         })}
       </View>
+      {section.id === 'data-storage' ? (
+        <View style={styles.backupNotice}>
+          <Text style={styles.backupWarning}>Import replaces current local data after confirmation.</Text>
+          {lastBackupResult ? <Text style={styles.backupResult}>{lastBackupResult}</Text> : null}
+        </View>
+      ) : null}
     </GlassCard>
   );
 }
@@ -368,6 +445,10 @@ function getSettingsItemAction(item: SettingsItem, actions: SettingsActions) {
   switch (item.action) {
     case 'toggle-local-notifications':
       return actions.onToggleLocalNotifications;
+    case 'export-backup':
+      return actions.onExportBackup;
+    case 'import-backup':
+      return actions.onImportBackup;
     case 'request-notification-permission':
       return actions.onRequestNotificationPermission;
     case 'test-notification':
@@ -375,6 +456,34 @@ function getSettingsItemAction(item: SettingsItem, actions: SettingsActions) {
     case undefined:
       return undefined;
   }
+}
+
+function isBackupAction(item: SettingsItem) {
+  return item.action === 'export-backup' || item.action === 'import-backup';
+}
+
+function confirmBackupReplacement(confirmation: BackupImportConfirmation) {
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(
+      'Replace local data?',
+      [
+        `This backup contains ${confirmation.summary.motorcyclesRestored} motorcycles, ${confirmation.summary.maintenanceRecordsRestored} maintenance records, and ${confirmation.summary.ridesRestored} rides.`,
+        'Import will replace current local data on this device.',
+      ].join('\n\n'),
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Replace', style: 'destructive', onPress: () => resolve(true) },
+      ],
+    );
+  });
+}
+
+function formatExportResult(result: BackupExportResult) {
+  return `${result.message} ${result.motorcyclesExported} motorcycles, ${result.maintenanceRecordsExported} maintenance records, and ${result.ridesExported} rides exported.`;
+}
+
+function formatImportResult(result: BackupImportSummary) {
+  return `${result.message} ${result.motorcyclesRestored} motorcycles, ${result.maintenanceRecordsRestored} maintenance records, and ${result.ridesRestored} rides restored.`;
 }
 
 function formatNumber(value: number) {
@@ -589,6 +698,21 @@ const styles = StyleSheet.create({
   },
   settingsRows: {
     gap: spacing.sm,
+  },
+  backupNotice: {
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  backupWarning: {
+    ...typography.caption,
+    color: palette.warning,
+    fontWeight: '700',
+  },
+  backupResult: {
+    ...typography.caption,
+    color: 'rgba(248, 250, 252, 0.62)',
   },
   settingsRow: {
     minHeight: 44,

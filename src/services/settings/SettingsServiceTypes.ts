@@ -13,7 +13,12 @@ export type SettingsItem = {
   readonly id: string;
   readonly label: string;
   readonly value: string;
-  readonly action?: 'toggle-local-notifications' | 'request-notification-permission' | 'test-notification';
+  readonly action?:
+    | 'toggle-local-notifications'
+    | 'request-notification-permission'
+    | 'test-notification'
+    | 'export-backup'
+    | 'import-backup';
   readonly disabled?: boolean;
 };
 
