@@ -46,7 +46,8 @@
         {
           "defaultChannel": "maintenance-reminders"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

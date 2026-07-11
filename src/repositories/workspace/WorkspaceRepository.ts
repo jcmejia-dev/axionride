@@ -15,11 +15,16 @@ export type CreateAuthenticatedWorkspaceInput = {
   readonly externalUserId?: string;
 };
 
+export type CreateAnonymousWorkspaceInput = { readonly id: string; readonly displayName: string };
+
 export interface WorkspaceRepository {
   getActiveWorkspace(): Promise<LocalWorkspace>;
   getActiveWorkspaceId(): Promise<string>;
   listWorkspaces(): Promise<readonly LocalWorkspace[]>;
+  getWorkspaceByExternalUserId(externalUserId: string): Promise<LocalWorkspace | null>;
+  getClaimableAnonymousWorkspace(): Promise<LocalWorkspace | null>;
   createAuthenticatedWorkspace(input: CreateAuthenticatedWorkspaceInput): Promise<LocalWorkspace>;
+  createAnonymousWorkspace(input: CreateAnonymousWorkspaceInput): Promise<LocalWorkspace>;
   linkExternalUser(workspaceId: string, externalUserId: string): Promise<LocalWorkspace>;
   switchActiveWorkspace(workspaceId: string): Promise<LocalWorkspace>;
   hasAnonymousDataToClaim(): Promise<boolean>;

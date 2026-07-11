@@ -19,8 +19,10 @@ import {
   type SettingsSection,
 } from '@/src/services';
 import { layout, palette, radius, spacing, typography } from '@/src/theme';
+import { useAuth } from '@/src/providers';
 
 export function ProfileScreen() {
+  const { user, logout } = useAuth();
   const profileService = useMemo(() => createProfileService(), []);
   const settingsService = useMemo(() => createSettingsService(), []);
   const notificationService = useMemo(() => createNotificationService(), []);
@@ -37,7 +39,10 @@ export function ProfileScreen() {
 
     async function loadProfile() {
       const [profileResult, settingsResult] = await Promise.all([
-        profileService.getProfileOverview(),
+        profileService.getProfileOverview({
+          email: user?.email ?? '',
+          displayName: typeof user?.user_metadata.display_name === 'string' ? user.user_metadata.display_name : undefined,
+        }),
         Promise.resolve(settingsService.getSettingsOverview()),
       ]);
       const permissionResult = await notificationService.getPermissionStatus();
@@ -66,7 +71,14 @@ export function ProfileScreen() {
     return () => {
       active = false;
     };
-  }, [notificationService, profileService, settingsService]);
+  }, [notificationService, profileService, settingsService, user]);
+
+  function handleLogout() {
+    Alert.alert('Sign out?', 'Your local records stay on this device and will be isolated from the next account.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: () => { void logout().then((result) => { if (!result.ok) Alert.alert('Sign out failed', result.error.message); }); } },
+    ]);
+  }
 
   async function handleToggleLocalNotifications() {
     if (!settingsOverview) {
@@ -206,6 +218,7 @@ export function ProfileScreen() {
               onRequestNotificationPermission={handleRequestNotificationPermission}
               onSendTestNotification={handleSendTestNotification}
               onToggleLocalNotifications={handleToggleLocalNotifications}
+              onSignOut={handleLogout}
             />
           </>
         ) : (
@@ -239,7 +252,7 @@ function ProfileHero({ overview }: { readonly overview: ProfileOverview }) {
       <View>
         <Text style={styles.heroName}>{overview.profile.riderName}</Text>
         <Text style={styles.heroSubtitle}>
-          {motorcycle ? `${motorcycle.nickname} • ${motorcycle.brand} ${motorcycle.model}` : 'No motorcycle selected yet'}
+          {motorcycle ? `${overview.profile.email} • ${motorcycle.nickname}` : overview.profile.email}
         </Text>
       </View>
 
@@ -316,6 +329,7 @@ type SettingsActions = {
   readonly onRequestNotificationPermission: () => void;
   readonly onSendTestNotification: () => void;
   readonly onToggleLocalNotifications: () => void;
+  readonly onSignOut: () => void;
 };
 
 function SettingsPanel({
@@ -328,6 +342,7 @@ function SettingsPanel({
   onRequestNotificationPermission,
   onSendTestNotification,
   onToggleLocalNotifications,
+  onSignOut,
 }: SettingsActions & {
   readonly backupBusy: boolean;
   readonly lastBackupResult: string | null;
@@ -338,7 +353,7 @@ function SettingsPanel({
     <View style={styles.section}>
       <View>
         <Text style={styles.sectionTitle}>Settings</Text>
-        <Text style={styles.sectionSubtitle}>Foundations only. Sync and sign-in are disabled.</Text>
+        <Text style={styles.sectionSubtitle}>Authenticated account with offline-first local data.</Text>
       </View>
       <View style={styles.settingsStack}>
         {overview.sections.map((section) => (
@@ -353,6 +368,7 @@ function SettingsPanel({
             onRequestNotificationPermission={onRequestNotificationPermission}
             onSendTestNotification={onSendTestNotification}
             onToggleLocalNotifications={onToggleLocalNotifications}
+            onSignOut={onSignOut}
           />
         ))}
       </View>
@@ -370,6 +386,7 @@ function SettingsSectionCard({
   onRequestNotificationPermission,
   onSendTestNotification,
   onToggleLocalNotifications,
+  onSignOut,
 }: SettingsActions & {
   readonly backupBusy: boolean;
   readonly lastBackupResult: string | null;
@@ -391,6 +408,7 @@ function SettingsSectionCard({
             onImportBackup,
             onSendTestNotification,
             onToggleLocalNotifications,
+            onSignOut,
           });
           const disabled = item.disabled || !onPress || (backupBusy && isBackupAction(item));
 
@@ -453,6 +471,8 @@ function getSettingsItemAction(item: SettingsItem, actions: SettingsActions) {
       return actions.onRequestNotificationPermission;
     case 'test-notification':
       return actions.onSendTestNotification;
+    case 'sign-out':
+      return actions.onSignOut;
     case undefined:
       return undefined;
   }

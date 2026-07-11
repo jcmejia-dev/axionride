@@ -1,2 +1,2 @@
 export { ProfileService } from './ProfileService';
-export type { LocalProfile, ProfileOverview } from './ProfileServiceTypes';
+export type { LocalProfile, ProfileIdentity, ProfileOverview } from './ProfileServiceTypes';

@@ -1,14 +1,17 @@
 import type { StatisticsDashboardSummary } from '@/src/services/statistics';
 
 /**
- * Local-only rider profile shown before authentication and cloud sync exist.
+ * Authenticated rider identity combined with local workspace state.
  */
 export type LocalProfile = {
   readonly riderName: string;
+  readonly email: string;
   readonly membershipStatus: string;
-  readonly accountMode: 'local_demo';
+  readonly accountMode: 'authenticated';
   readonly notice: string;
 };
+
+export type ProfileIdentity = { readonly displayName?: string; readonly email: string };
 
 /**
  * Profile screen read model composed by ProfileService.

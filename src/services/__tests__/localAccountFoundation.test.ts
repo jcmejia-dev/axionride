@@ -16,6 +16,22 @@ export async function runLocalAccountFoundationContractTests() {
   await testWorkspaceIsolationAndPrimarySelection();
   await testSearchStatisticsBackupAndGarageReadModel();
   await testRideAndMaintenanceUsePrimaryMotorcycle();
+  await testAttachStartFreshAndRetryContracts();
+}
+
+async function testAttachStartFreshAndRetryContracts() {
+  const fixture = createFixture();
+  await fixture.motorcycles.saveMotorcycle(makeMotorcycle('anonymous-bike', 'Anonymous bike'));
+  const claimable = await fixture.workspaces.getClaimableAnonymousWorkspace();
+  assert(claimable?.id === 'workspace-anonymous', 'anonymous workspace is available for an explicit claim');
+  const attached = await fixture.workspaces.linkExternalUser(claimable!.id, 'user-a');
+  const attachedRetry = await fixture.workspaces.linkExternalUser(claimable!.id, 'user-a');
+  assert(attached.externalUserId === 'user-a' && attachedRetry.id === attached.id, 'attach is safe to retry after interruption');
+  await fixture.workspaces.createAuthenticatedWorkspace({ id: 'workspace-user-b', displayName: 'User B', externalUserId: 'user-b' });
+  await fixture.workspaces.switchActiveWorkspace('workspace-user-b');
+  assert((await fixture.motorcycles.getAllMotorcycles()).length === 0, 'start fresh activates an isolated empty workspace');
+  await fixture.workspaces.switchActiveWorkspace(attached.id);
+  assert((await fixture.motorcycles.getAllMotorcycles())[0]?.id === 'anonymous-bike', 'attached anonymous data remains intact');
 }
 
 function testMigrationContract() {
@@ -88,7 +104,10 @@ class FakeWorkspaceRepository implements WorkspaceRepository {
   async getActiveWorkspace() { return this.items.get(this.activeId)!; }
   async getActiveWorkspaceId() { return this.activeId; }
   async listWorkspaces() { return [...this.items.values()]; }
+  async getWorkspaceByExternalUserId(externalUserId: string) { return [...this.items.values()].find((item) => item.externalUserId === externalUserId) ?? null; }
+  async getClaimableAnonymousWorkspace() { return [...this.items.values()].find((item) => item.kind === 'anonymous' && item.externalUserId === null) ?? null; }
   async createAuthenticatedWorkspace(input: { readonly id: string; readonly displayName: string; readonly externalUserId?: string }) { const value = workspace(input.id, 'authenticated', input.displayName, input.externalUserId ?? null); this.items.set(input.id, value); return value; }
+  async createAnonymousWorkspace(input: { readonly id: string; readonly displayName: string }) { const value = workspace(input.id, 'anonymous', input.displayName); this.items.set(input.id, value); return value; }
   async linkExternalUser(id: string, externalUserId: string) { const value = { ...this.items.get(id)!, kind: 'authenticated' as const, externalUserId }; this.items.set(id, value); return value; }
   async switchActiveWorkspace(id: string) { if (!this.items.has(id)) throw new Error('missing'); this.activeId = id; return this.items.get(id)!; }
   async hasAnonymousDataToClaim() { return true; }

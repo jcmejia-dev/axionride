@@ -18,7 +18,8 @@ export type SettingsItem = {
     | 'request-notification-permission'
     | 'test-notification'
     | 'export-backup'
-    | 'import-backup';
+    | 'import-backup'
+    | 'sign-out';
   readonly disabled?: boolean;
 };
 

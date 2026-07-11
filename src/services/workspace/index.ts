@@ -1,2 +1,2 @@
 export { WorkspaceService } from './WorkspaceService';
-export type { CreateAuthenticatedWorkspaceInput, LocalWorkspace, WorkspaceKind } from '@/src/repositories';
+export type { CreateAnonymousWorkspaceInput, CreateAuthenticatedWorkspaceInput, LocalWorkspace, WorkspaceKind } from '@/src/repositories';

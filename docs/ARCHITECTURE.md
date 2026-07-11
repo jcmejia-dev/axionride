@@ -59,6 +59,10 @@ SQLite is the current application source of truth. Every owned repository is sco
 
 The runtime direction is `screen -> service -> repository -> SQLite`. Future sync may extend this to `SQLite -> sync engine -> remote service`, but remote state must not replace workspace-scoped local reads and writes.
 
+## Authentication
+
+Supabase Auth supplies identity and sessions without becoming the application data source. `AuthProvider` restores the secure session, protects Expo Router groups, handles confirmation/recovery links, and activates the local workspace linked to the Auth user ID. Account-data claiming is explicit and retry-safe. See `docs/AUTHENTICATION.md` for setup and redirect configuration.
+
 ## Quality Standards
 
 - TypeScript should be strict enough to protect domain contracts.
