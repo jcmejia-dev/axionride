@@ -1,30 +1,33 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Animated, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
-import { EmptyState } from '@/src/components';
 import { createStatisticsService, type StatisticsDashboardSummary } from '@/src/services';
-import { layout, palette, spacing } from '@/src/theme';
+import { layout, premiumColors, spacing } from '@/src/theme';
 
-import { CurrentMotorcycleCard } from './components/CurrentMotorcycleCard';
-import { DashboardHeader } from './components/DashboardHeader';
-import { MonthlyStatsGrid } from './components/MonthlyStatsGrid';
-import { NextMaintenanceCard } from './components/NextMaintenanceCard';
-import { QuickActions } from './components/QuickActions';
+import { DashboardMetricStrip } from './components/DashboardMetricStrip';
+import { DashboardTopHeader } from './components/DashboardTopHeader';
+import { MonthlyStatsCard } from './components/MonthlyStatsCard';
+import { MotorcycleHeroSection } from './components/MotorcycleHeroSection';
 import { RecentRideCard } from './components/RecentRideCard';
 import { SearchSheet } from './components/SearchSheet';
-import { StatisticsSummary } from './components/StatisticsSummary';
 import { WeatherRideCard } from './components/WeatherRideCard';
 import { mockDashboardData } from './data/mockDashboardData';
 
 export function DashboardScreen() {
   const greeting = getGreeting(new Date());
+  const router = useRouter();
+  const { width } = useWindowDimensions();
   const statisticsService = useMemo(() => createStatisticsService(), []);
   const [statisticsSummary, setStatisticsSummary] = useState<StatisticsDashboardSummary | null>(null);
   const [statisticsLoading, setStatisticsLoading] = useState(true);
   const [searchVisible, setSearchVisible] = useState(false);
+  const stackCards = width < 430;
+
   const loadStatistics = useCallback(async () => {
+    setStatisticsLoading(true);
     const result = await statisticsService.getDashboardStatistics();
 
     if (result.ok) {
@@ -42,52 +45,31 @@ export function DashboardScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <DashboardHeader greeting={greeting} onOpenSearch={() => setSearchVisible(true)} />
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <DashboardTopHeader greeting={greeting} riderName="Rider" onOpenSettings={() => setSearchVisible(true)} />
 
         <View style={styles.stack}>
           <AnimatedEntrance delay={80}>
-            {mockDashboardData.motorcycle ? (
-              <CurrentMotorcycleCard motorcycle={mockDashboardData.motorcycle} />
-            ) : (
-              <EmptyState title="No motorcycle selected" description="Your current motorcycle will appear here once one is available." />
-            )}
+            <MotorcycleHeroSection
+              loading={statisticsLoading}
+              motorcycle={statisticsSummary?.motorcycles.defaultMotorcycle ?? null}
+              onPress={() => router.push('/garage')}
+            />
           </AnimatedEntrance>
 
-          <AnimatedEntrance delay={180}>
-            {mockDashboardData.weather ? (
+          {mockDashboardData.weather ? (
+            <AnimatedEntrance delay={170}>
               <WeatherRideCard weather={mockDashboardData.weather} />
-            ) : (
-              <EmptyState title="No ride conditions" description="Weather and ride condition summaries will appear here later." />
-            )}
+            </AnimatedEntrance>
+          ) : null}
+
+          <AnimatedEntrance delay={230}>
+            <DashboardMetricStrip loading={statisticsLoading} summary={statisticsSummary} />
           </AnimatedEntrance>
 
-          <AnimatedEntrance delay={280}>
-            <QuickActions actions={mockDashboardData.quickActions} />
-          </AnimatedEntrance>
-
-          <AnimatedEntrance delay={380}>
-            <StatisticsSummary summary={statisticsSummary} loading={statisticsLoading} />
-          </AnimatedEntrance>
-
-          <AnimatedEntrance delay={480}>
-            {mockDashboardData.maintenance ? (
-              <NextMaintenanceCard maintenance={mockDashboardData.maintenance} />
-            ) : (
-              <EmptyState title="No maintenance due" description="Upcoming service reminders will appear here." />
-            )}
-          </AnimatedEntrance>
-
-          <AnimatedEntrance delay={580}>
-            <MonthlyStatsGrid stats={mockDashboardData.monthlyStats} />
-          </AnimatedEntrance>
-
-          <AnimatedEntrance delay={680}>
-            {mockDashboardData.recentRide ? (
-              <RecentRideCard ride={mockDashboardData.recentRide} />
-            ) : (
-              <EmptyState title="No recent ride" description="Recent ride summaries will appear here once ride tracking is available." />
-            )}
+          <AnimatedEntrance delay={310} style={[styles.cardGrid, stackCards ? styles.cardGridStacked : null]}>
+            <RecentRideCard loading={statisticsLoading} ride={statisticsSummary?.recentRide ?? null} onPress={() => router.push('/rides')} />
+            <MonthlyStatsCard loading={statisticsLoading} summary={statisticsSummary} />
           </AnimatedEntrance>
         </View>
       </ScrollView>
@@ -99,7 +81,7 @@ export function DashboardScreen() {
 type AnimatedEntranceProps = {
   children: ReactNode;
   delay: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
 function AnimatedEntrance({ children, delay, style }: AnimatedEntranceProps) {
@@ -146,50 +128,58 @@ function getGreeting(date: Date) {
   const hour = date.getHours();
 
   if (hour >= 5 && hour < 12) {
-    return 'Good Morning';
+    return 'Good morning';
   }
 
   if (hour < 18) {
-    return 'Good Afternoon';
+    return 'Good afternoon';
   }
 
-  return 'Good Evening';
+  return 'Good evening';
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: palette.darkBackground,
+    backgroundColor: premiumColors.background,
   },
   backgroundGlowTop: {
     position: 'absolute',
-    top: -130,
-    right: -120,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    top: -140,
+    right: -140,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   backgroundGlowBottom: {
     position: 'absolute',
-    bottom: 120,
-    left: -150,
-    width: 330,
-    height: 330,
-    borderRadius: 165,
-    backgroundColor: 'rgba(249, 115, 22, 0.08)',
+    bottom: 110,
+    left: -160,
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+    backgroundColor: 'rgba(255, 106, 0, 0.08)',
   },
   screen: {
     flex: 1,
     backgroundColor: 'transparent',
   },
   content: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingHorizontal: 22,
+    paddingTop: spacing.sm,
     paddingBottom: layout.floatingTabBarContentInset,
-    gap: spacing.xxl,
+    gap: 26,
   },
   stack: {
-    gap: spacing.xxl,
+    gap: 18,
+  },
+  cardGrid: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 14,
+  },
+  cardGridStacked: {
+    flexDirection: 'column',
   },
 });
