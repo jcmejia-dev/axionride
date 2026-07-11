@@ -1,6 +1,6 @@
-import { DEFAULT_ANONYMOUS_WORKSPACE_ID, getFirst, runStatement, SQLITE_TABLES } from '@/src/storage/sqlite';
+import { getFirst, runStatement, SQLITE_TABLES } from '@/src/storage/sqlite';
 
-import type { CreateAuthenticatedWorkspaceInput, LocalWorkspace, WorkspaceRepository } from './WorkspaceRepository';
+import type { CreateAnonymousWorkspaceInput, CreateAuthenticatedWorkspaceInput, LocalWorkspace, WorkspaceRepository } from './WorkspaceRepository';
 
 type WorkspaceRow = {
   readonly id: string;
@@ -44,6 +44,37 @@ export class SQLiteWorkspaceRepository implements WorkspaceRepository {
     return (await this.getWorkspace(input.id))!;
   }
 
+  async createAnonymousWorkspace(input: CreateAnonymousWorkspaceInput) {
+    const now = new Date().toISOString();
+    await runStatement(
+      `INSERT OR IGNORE INTO ${SQLITE_TABLES.workspaces}
+       (id, kind, display_name, external_user_id, created_at, updated_at) VALUES (?, 'anonymous', ?, NULL, ?, ?);`,
+      [input.id, input.displayName, now, now],
+    );
+    const workspace = await this.getWorkspace(input.id);
+    if (!workspace) throw new Error('Anonymous workspace could not be created.');
+    return workspace;
+  }
+
+  async getWorkspaceByExternalUserId(externalUserId: string) {
+    const row = await getFirst<WorkspaceRow>(
+      `SELECT id, kind, display_name, external_user_id, created_at, updated_at
+       FROM ${SQLITE_TABLES.workspaces} WHERE external_user_id = ? LIMIT 1;`, [externalUserId]);
+    return row ? toWorkspace(row) : null;
+  }
+
+  async getClaimableAnonymousWorkspace() {
+    const row = await getFirst<WorkspaceRow>(
+      `SELECT w.id, w.kind, w.display_name, w.external_user_id, w.created_at, w.updated_at
+       FROM ${SQLITE_TABLES.workspaces} w
+       WHERE w.kind = 'anonymous' AND w.external_user_id IS NULL AND (
+         EXISTS (SELECT 1 FROM ${SQLITE_TABLES.motorcycles} m WHERE m.workspace_id = w.id AND m.deleted_at IS NULL) OR
+         EXISTS (SELECT 1 FROM ${SQLITE_TABLES.maintenanceRecords} x WHERE x.workspace_id = w.id AND x.deleted_at IS NULL) OR
+         EXISTS (SELECT 1 FROM ${SQLITE_TABLES.rides} r WHERE r.workspace_id = w.id AND r.deleted_at IS NULL)
+       ) ORDER BY w.created_at ASC LIMIT 1;`);
+    return row ? toWorkspace(row) : null;
+  }
+
   async linkExternalUser(workspaceId: string, externalUserId: string) {
     await runStatement(
       `UPDATE ${SQLITE_TABLES.workspaces} SET kind = 'authenticated', external_user_id = ?, updated_at = ? WHERE id = ?;`,
@@ -62,15 +93,7 @@ export class SQLiteWorkspaceRepository implements WorkspaceRepository {
   }
 
   async hasAnonymousDataToClaim() {
-    const row = await getFirst<{ readonly count: number }>(
-      `SELECT (
-        (SELECT COUNT(*) FROM ${SQLITE_TABLES.motorcycles} WHERE workspace_id = ? AND deleted_at IS NULL) +
-        (SELECT COUNT(*) FROM ${SQLITE_TABLES.maintenanceRecords} WHERE workspace_id = ? AND deleted_at IS NULL) +
-        (SELECT COUNT(*) FROM ${SQLITE_TABLES.rides} WHERE workspace_id = ? AND deleted_at IS NULL)
-      ) AS count;`,
-      [DEFAULT_ANONYMOUS_WORKSPACE_ID, DEFAULT_ANONYMOUS_WORKSPACE_ID, DEFAULT_ANONYMOUS_WORKSPACE_ID],
-    );
-    return (row?.count ?? 0) > 0;
+    return (await this.getClaimableAnonymousWorkspace()) !== null;
   }
 
   private async getWorkspace(id: string) {

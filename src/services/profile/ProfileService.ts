@@ -3,14 +3,14 @@ import type { ServiceContext } from '@/src/services/ServiceContext';
 import type { ServiceResult } from '@/src/services/ServiceTypes';
 import { StatisticsService } from '@/src/services/statistics';
 
-import type { ProfileOverview } from './ProfileServiceTypes';
+import type { ProfileIdentity, ProfileOverview } from './ProfileServiceTypes';
 
 /**
  * Local profile application service.
  *
- * This service intentionally does not know about authentication, Supabase, or
- * cloud sync. It composes local/demo profile data with repository-backed
- * statistics for the Profile tab.
+ * This service accepts a provider-neutral authenticated identity and combines
+ * it with workspace-scoped local statistics. It does not query Supabase or
+ * implement cloud synchronization.
  */
 export class ProfileService extends BaseService {
   private readonly statisticsService: StatisticsService;
@@ -20,7 +20,7 @@ export class ProfileService extends BaseService {
     this.statisticsService = new StatisticsService(context);
   }
 
-  async getProfileOverview(): Promise<ServiceResult<ProfileOverview>> {
+  async getProfileOverview(identity: ProfileIdentity): Promise<ServiceResult<ProfileOverview>> {
     const statisticsResult = await this.statisticsService.getDashboardStatistics();
 
     if (!statisticsResult.ok) {
@@ -29,10 +29,11 @@ export class ProfileService extends BaseService {
 
     return this.success({
       profile: {
-        riderName: 'Axion Rider',
-        membershipStatus: 'Local Demo Rider',
-        accountMode: 'local_demo',
-        notice: 'Profile data is stored locally for now. Sign-in and sync are disabled in this build.',
+        riderName: identity.displayName?.trim() || identity.email.split('@')[0] || 'Axion Rider',
+        email: identity.email,
+        membershipStatus: 'Authenticated Rider',
+        accountMode: 'authenticated',
+        notice: 'Your account is authenticated. Motorcycle and ride data remain isolated in SQLite on this device; cloud sync is not enabled.',
       },
       statistics: statisticsResult.value,
     });

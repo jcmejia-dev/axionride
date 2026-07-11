@@ -1,14 +1,17 @@
 import { BaseService } from '@/src/services/BaseService';
 import type { ServiceContext } from '@/src/services/ServiceContext';
 import type { ServiceResult } from '@/src/services/ServiceTypes';
-import type { CreateAuthenticatedWorkspaceInput, LocalWorkspace } from '@/src/repositories';
+import type { CreateAnonymousWorkspaceInput, CreateAuthenticatedWorkspaceInput, LocalWorkspace } from '@/src/repositories';
 
 export class WorkspaceService extends BaseService {
   constructor(context: ServiceContext) { super(context); }
 
   async getActiveWorkspace(): Promise<ServiceResult<LocalWorkspace>> { return this.wrap(() => this.context.repositories.workspaces.getActiveWorkspace()); }
   async listLocalWorkspaces(): Promise<ServiceResult<readonly LocalWorkspace[]>> { return this.wrap(() => this.context.repositories.workspaces.listWorkspaces()); }
+  async findWorkspaceForExternalUser(externalUserId: string): Promise<ServiceResult<LocalWorkspace | null>> { return this.wrap(() => this.context.repositories.workspaces.getWorkspaceByExternalUserId(externalUserId)); }
+  async getClaimableAnonymousWorkspace(): Promise<ServiceResult<LocalWorkspace | null>> { return this.wrap(() => this.context.repositories.workspaces.getClaimableAnonymousWorkspace()); }
   async createAuthenticatedWorkspace(input: CreateAuthenticatedWorkspaceInput): Promise<ServiceResult<LocalWorkspace>> { return this.wrap(() => this.context.repositories.workspaces.createAuthenticatedWorkspace(input)); }
+  async createAnonymousWorkspace(input: CreateAnonymousWorkspaceInput): Promise<ServiceResult<LocalWorkspace>> { return this.wrap(() => this.context.repositories.workspaces.createAnonymousWorkspace(input)); }
   async linkAnonymousWorkspaceToExternalUser(input: { readonly workspaceId: string; readonly externalUserId: string; readonly explicitUserDecision: boolean }): Promise<ServiceResult<LocalWorkspace>> {
     if (!input.explicitUserDecision) return this.failure({ code: 'validation_failed', message: 'Claiming anonymous data requires an explicit user decision.' });
     return this.wrap(() => this.context.repositories.workspaces.linkExternalUser(input.workspaceId, input.externalUserId));

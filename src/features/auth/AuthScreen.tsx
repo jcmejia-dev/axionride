@@ -1,5 +1,5 @@
-import { Link, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { Link } from 'expo-router';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
@@ -16,6 +16,7 @@ import {
   type ToastVariant,
 } from '@/src/components';
 import { palette, semanticColors, spacing } from '@/src/theme';
+import { useAuth } from '@/src/providers';
 
 type AuthScreenMode = 'login' | 'register' | 'forgot-password';
 
@@ -106,7 +107,7 @@ const authContent: Record<AuthScreenMode, AuthScreenContent> = {
   'forgot-password': {
     eyebrow: 'Account recovery',
     title: 'Reset your password',
-    description: 'Enter your email and AxionRide will later send secure recovery instructions.',
+    description: 'Enter your email and AxionRide will send secure recovery instructions.',
     primaryAction: 'Send Reset Link',
     secondaryHref: '/login',
     secondaryLabel: 'Return to sign in',
@@ -122,32 +123,17 @@ const authContent: Record<AuthScreenMode, AuthScreenContent> = {
   },
 };
 
-/** UI-only authentication screen shell. It does not submit, validate, or connect to a backend yet. */
 export function AuthScreen({ mode }: AuthScreenProps) {
-  const router = useRouter();
+  const { login, register, requestPasswordReset, submitting } = useAuth();
   const content = authContent[mode];
-  const loginTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [values, setValues] = useState<AuthValues>({ name: '', email: '', password: '' });
   const [errors, setErrors] = useState<AuthErrors>({});
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastState>({
     visible: false,
     message: '',
     variant: 'info',
   });
-
-  useEffect(() => {
-    return () => {
-      if (loginTimer.current) {
-        clearTimeout(loginTimer.current);
-      }
-      if (navigationTimer.current) {
-        clearTimeout(navigationTimer.current);
-      }
-    };
-  }, []);
 
   function showToast(message: string, variant: ToastVariant) {
     setToast({ visible: true, message, variant });
@@ -177,20 +163,14 @@ export function AuthScreen({ mode }: AuthScreenProps) {
     return true;
   }
 
-  function handlePrimaryAction() {
+  async function handlePrimaryAction() {
     if (mode === 'login') {
       if (!validateRequired(['email', 'password'], 'Please enter your email and password.')) {
         return;
       }
 
-      setIsSubmitting(true);
-      loginTimer.current = setTimeout(() => {
-        setIsSubmitting(false);
-        showToast('Welcome back!', 'success');
-        navigationTimer.current = setTimeout(() => {
-          router.replace('/');
-        }, 650);
-      }, 1000);
+      const result = await login(values.email, values.password);
+      if (!result.ok) showToast(result.error.message, result.error.offline ? 'warning' : 'error');
       return;
     }
 
@@ -199,7 +179,10 @@ export function AuthScreen({ mode }: AuthScreenProps) {
         return;
       }
 
-      showToast('Registration is coming soon.', 'info');
+      if (values.password.length < 8) { setErrors({ password: 'Use at least 8 characters' }); showToast('Use a password with at least 8 characters.', 'warning'); return; }
+      const result = await register(values.name, values.email, values.password);
+      if (!result.ok) { showToast(result.error.message, result.error.offline ? 'warning' : 'error'); return; }
+      showToast(result.value.requiresEmailConfirmation ? 'Check your email to confirm your AxionRide account.' : 'Account created.', 'success');
       return;
     }
 
@@ -207,7 +190,8 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       return;
     }
 
-    showToast('Password recovery will be available after backend integration.', 'info');
+    const result = await requestPasswordReset(values.email);
+    showToast(result.ok ? 'If an account exists for that email, recovery instructions have been sent.' : result.error.message, result.ok ? 'success' : result.error.offline ? 'warning' : 'error');
   }
 
   return (
@@ -249,9 +233,9 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
           <PrimaryButton
             title={content.primaryAction}
-            loading={isSubmitting}
-            disabled={isSubmitting}
-            onPress={handlePrimaryAction}
+            loading={submitting}
+            disabled={submitting}
+            onPress={() => { void handlePrimaryAction(); }}
           />
 
           {mode === 'login' ? (

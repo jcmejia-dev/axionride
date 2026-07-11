@@ -16,6 +16,8 @@ Migration 2 creates `workspaces` and `app_state`, creates a stable `workspace-an
 
 The active workspace is the local isolation boundary. Repositories resolve it for every read and write; screens never query SQLite directly. A workspace may later hold an external authentication user ID, but the local schema does not depend on a specific authentication provider.
 
+Supabase Auth user IDs are stored only as `workspaces.external_user_id` mappings. They select local isolation boundaries; they do not make Supabase a storage source and do not upload local records.
+
 ## Existing Data Migration
 
 Migration 2 runs inside the database migration transaction. Existing motorcycles, maintenance records, rides, ride points, and sync metadata are assigned to the stable anonymous workspace. The oldest live motorcycle becomes primary. No record is uploaded or deleted.

@@ -74,10 +74,10 @@ export class SettingsService extends BaseService {
         },
         {
           id: 'account',
-          title: 'Sign-in & Sync',
-          subtitle: 'Disabled until authentication is added',
+          title: 'Account',
+          subtitle: 'Supabase authentication and local workspace',
           items: [
-            { id: 'sign-in', label: 'Sign in', value: 'Coming later', disabled: true },
+            { id: 'sign-out', label: 'Sign out', value: 'Keep local data isolated', action: 'sign-out' },
             { id: 'supabase-sync', label: 'Supabase sync', value: 'Disabled', disabled: true },
           ],
         },
@@ -87,7 +87,7 @@ export class SettingsService extends BaseService {
           subtitle: 'Motorcycle companion foundation',
           items: [
             { id: 'app', label: 'App', value: 'AxionRide' },
-            { id: 'mode', label: 'Build mode', value: 'Local demo' },
+            { id: 'mode', label: 'Data mode', value: 'Local SQLite' },
           ],
         },
       ],

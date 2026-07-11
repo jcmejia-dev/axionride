@@ -59,7 +59,7 @@ export type {
   StatisticsDashboardSummary,
 } from './statistics';
 export { ProfileService } from './profile';
-export type { LocalProfile, ProfileOverview } from './profile';
+export type { LocalProfile, ProfileIdentity, ProfileOverview } from './profile';
 export { SettingsService } from './settings';
 export type { SettingsItem, SettingsOverview, SettingsSection, SettingsUnits } from './settings';
 export { SearchService } from './search';

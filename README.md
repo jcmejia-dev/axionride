@@ -90,6 +90,7 @@ The high-level roadmap is documented in [docs/ROADMAP.md](docs/ROADMAP.md). The 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Database](docs/DATABASE.md)
 - [API](docs/API.md)
+- [Authentication](docs/AUTHENTICATION.md)
 - [UI Guidelines](docs/UI_GUIDELINES.md)
 - [Changelog](docs/CHANGELOG.md)
 - [Contributing](docs/CONTRIBUTING.md)

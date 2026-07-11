@@ -5,12 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Body, EmptyState, GlassCard, GhostButton, PrimaryButton, SectionHeader, Title } from '@/src/components';
 import { palette, spacing } from '@/src/theme';
+import { useAuth } from '@/src/providers';
 
 export function FirstMotorcycleScreen() {
   const router = useRouter();
+  const { completeOnboarding } = useAuth();
 
-  function continueToDashboard() {
-    router.replace('/');
+  async function continueToAuthentication() {
+    await completeOnboarding();
+    router.replace('/login');
   }
 
   return (
@@ -37,8 +40,8 @@ export function FirstMotorcycleScreen() {
         </GlassCard>
 
         <View style={styles.actions}>
-          <PrimaryButton title="Continue to Dashboard" onPress={continueToDashboard} />
-          <GhostButton title="Skip for now" onPress={continueToDashboard} />
+          <PrimaryButton title="Continue to Sign In" onPress={() => { void continueToAuthentication(); }} />
+          <GhostButton title="Skip for now" onPress={() => { void continueToAuthentication(); }} />
         </View>
       </ScrollView>
     </SafeAreaView>
