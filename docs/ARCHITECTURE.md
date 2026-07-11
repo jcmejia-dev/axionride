@@ -53,6 +53,12 @@ The intended long-term data direction is offline-first. SQLite is planned for lo
 - Conflicts should be modeled before cloud sync is shipped.
 - Platform permissions should be requested only when needed.
 
+## Local Workspace Isolation
+
+SQLite is the current application source of truth. Every owned repository is scoped through the active local workspace. Anonymous/offline use starts in a stable anonymous workspace; future authenticated accounts can receive separate local workspaces without coupling repositories to an authentication vendor.
+
+The runtime direction is `screen -> service -> repository -> SQLite`. Future sync may extend this to `SQLite -> sync engine -> remote service`, but remote state must not replace workspace-scoped local reads and writes.
+
 ## Quality Standards
 
 - TypeScript should be strict enough to protect domain contracts.

@@ -3,14 +3,16 @@ import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import type { Motorcycle } from '@/src/domain/motorcycle';
 import { spacing } from '@/src/theme';
 
-import { getGarageStatus } from '../data/mockGarage';
 import { MotorcycleHeroCard } from './MotorcycleHeroCard';
 
 type MotorcycleCarouselProps = {
   motorcycles: readonly Motorcycle[];
+  primaryMotorcycleId: string | null;
+  onEdit: (id: string) => void;
+  onSetPrimary: (id: string) => void;
 };
 
-export function MotorcycleCarousel({ motorcycles }: MotorcycleCarouselProps) {
+export function MotorcycleCarousel({ motorcycles, primaryMotorcycleId, onEdit, onSetPrimary }: MotorcycleCarouselProps) {
   const { width } = useWindowDimensions();
   const cardWidth = Math.min(width - spacing.xl * 2, 420);
 
@@ -27,7 +29,9 @@ export function MotorcycleCarousel({ motorcycles }: MotorcycleCarouselProps) {
           <MotorcycleHeroCard
             key={motorcycle.id}
             motorcycle={motorcycle}
-            status={getGarageStatus(motorcycle.id)}
+            primary={motorcycle.id === primaryMotorcycleId}
+            onPress={() => onEdit(motorcycle.id)}
+            onSetPrimary={() => onSetPrimary(motorcycle.id)}
             width={cardWidth}
           />
         ))}

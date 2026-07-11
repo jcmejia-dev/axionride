@@ -3,6 +3,7 @@ import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/sr
 import { BackupService } from './backup';
 import { LocationService } from './location';
 import { MaintenanceService } from './maintenance';
+import { MotorcycleService } from './motorcycle';
 import { NotificationService } from './notifications';
 import { ProfileService } from './profile';
 import { RideService } from './ride';
@@ -11,6 +12,7 @@ import { ServiceContext } from './ServiceContext';
 import type { ServiceDependencies } from './ServiceTypes';
 import { SettingsService } from './settings';
 import { StatisticsService } from './statistics';
+import { WorkspaceService } from './workspace';
 
 /**
  * Create a service context with default app dependencies.
@@ -49,6 +51,9 @@ export function createMaintenanceService(overrides: Partial<ServiceDependencies>
   const context = createServiceContext(overrides);
   return new MaintenanceService(context, new NotificationService(context));
 }
+
+export function createMotorcycleService(overrides: Partial<ServiceDependencies> = {}) { return new MotorcycleService(createServiceContext(overrides)); }
+export function createWorkspaceService(overrides: Partial<ServiceDependencies> = {}) { return new WorkspaceService(createServiceContext(overrides)); }
 
 /**
  * Create the statistics application service with default dependencies.

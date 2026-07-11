@@ -3,7 +3,7 @@ import type { Motorcycle } from '@/src/domain/motorcycle';
 import type { Ride, RideId, RidePoint } from '@/src/domain/ride';
 
 export const AXIONRIDE_BACKUP_APPLICATION_ID = 'com.axionride.local-backup';
-export const AXIONRIDE_BACKUP_SCHEMA_VERSION = 1;
+export const AXIONRIDE_BACKUP_SCHEMA_VERSION = 2;
 
 export type AxionRideBackupRidePoint = {
   readonly rideId: RideId;
@@ -11,7 +11,7 @@ export type AxionRideBackupRidePoint = {
   readonly point: RidePoint;
 };
 
-export type AxionRideBackupV1 = {
+export type AxionRideBackupV2 = {
   readonly schemaVersion: typeof AXIONRIDE_BACKUP_SCHEMA_VERSION;
   readonly source: {
     readonly application: typeof AXIONRIDE_BACKUP_APPLICATION_ID;
@@ -20,6 +20,11 @@ export type AxionRideBackupV1 = {
   readonly exportedAt: string;
   readonly metadata: {
     readonly format: 'full-local-replacement';
+    readonly workspace: {
+      readonly sourceWorkspaceId: string;
+      readonly sourceWorkspaceKind: 'anonymous' | 'authenticated';
+      readonly displayName: string;
+    };
     readonly notes?: string;
     readonly future?: Record<string, unknown>;
   };
@@ -31,4 +36,4 @@ export type AxionRideBackupV1 = {
   };
 };
 
-export type AxionRideBackup = AxionRideBackupV1;
+export type AxionRideBackup = AxionRideBackupV2;

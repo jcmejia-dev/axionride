@@ -1,6 +1,7 @@
 import type { MaintenanceRepository } from './maintenance';
 import type { MotorcycleRepository } from './motorcycle';
 import type { RideRepository } from './ride';
+import type { WorkspaceRepository } from './workspace';
 
 /**
  * Repository provider used by application services and future UI adapters.
@@ -12,6 +13,7 @@ export type RepositoryProvider = {
   readonly motorcycles: MotorcycleRepository;
   readonly maintenance: MaintenanceRepository;
   readonly rides: RideRepository;
+  readonly workspaces: WorkspaceRepository;
 };
 
 /**

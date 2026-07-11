@@ -89,10 +89,13 @@ export function RideScreen() {
     setCompletedRide(null);
     setLiveRidePoints([]);
     const permissionResult = await locationService.requestForegroundPermission();
-    const rideResult = rideService.startRide();
+    const rideResult = await rideService.startRide();
 
     if (rideResult.ok) {
       setCurrentRide(rideResult.value);
+    } else {
+      Alert.alert('Motorcycle required', rideResult.error.message);
+      return;
     }
 
     if (permissionResult.ok) {

@@ -1,5 +1,6 @@
 import { validateMotorcycle, type Motorcycle, type MotorcycleId } from '@/src/domain/motorcycle';
-import { getAll, getFirst, runStatement, SQLITE_TABLES } from '@/src/storage/sqlite';
+import { getAll, getFirst, runStatement, SQLITE_TABLES, withDatabase } from '@/src/storage/sqlite';
+import type { WorkspaceScope } from '../workspace';
 
 import type { MotorcycleRepository } from './MotorcycleRepository';
 import type {
@@ -16,30 +17,56 @@ import type {
  * Supabase, sync orchestration, or application screens.
  */
 export class SQLiteMotorcycleRepository implements MotorcycleRepository {
+  constructor(private readonly workspaceScope: WorkspaceScope) {}
+
   async getMotorcycle(id: MotorcycleId): Promise<Motorcycle | null> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const row = await getFirst<MotorcycleRow>(
       `SELECT id, payload_json, created_at, updated_at, deleted_at
        FROM ${SQLITE_TABLES.motorcycles}
-       WHERE id = ? AND deleted_at IS NULL
+       WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
        LIMIT 1;`,
-      [id],
+      [id, workspaceId],
     );
 
     return row ? deserializeMotorcycle(row) : null;
   }
 
   async getAllMotorcycles(): Promise<readonly Motorcycle[]> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const rows = await getAll<MotorcycleRow>(
       `SELECT id, payload_json, created_at, updated_at, deleted_at
        FROM ${SQLITE_TABLES.motorcycles}
-       WHERE deleted_at IS NULL
-       ORDER BY created_at ASC;`,
+       WHERE workspace_id = ? AND deleted_at IS NULL
+       ORDER BY is_primary DESC, created_at ASC;`,
+      [workspaceId],
     );
 
     return rows.map(deserializeMotorcycle).filter((motorcycle): motorcycle is Motorcycle => motorcycle !== null);
   }
 
+  async getPrimaryMotorcycle(): Promise<Motorcycle | null> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
+    const row = await getFirst<MotorcycleRow>(
+      `SELECT id, payload_json, created_at, updated_at, deleted_at, workspace_id, is_primary
+       FROM ${SQLITE_TABLES.motorcycles}
+       WHERE workspace_id = ? AND is_primary = 1 AND deleted_at IS NULL LIMIT 1;`, [workspaceId]);
+    return row ? deserializeMotorcycle(row) : null;
+  }
+
+  async setPrimaryMotorcycle(id: MotorcycleId): Promise<MotorcycleWriteResult> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
+    const motorcycle = await this.getMotorcycle(id);
+    if (!motorcycle) return failure({ code: 'not_found', message: `Motorcycle ${id} does not exist.` });
+    await withDatabase((database) => database.withExclusiveTransactionAsync(async (transaction) => {
+      await transaction.runAsync(`UPDATE ${SQLITE_TABLES.motorcycles} SET is_primary = 0 WHERE workspace_id = ?;`, [workspaceId]);
+      await transaction.runAsync(`UPDATE ${SQLITE_TABLES.motorcycles} SET is_primary = 1 WHERE workspace_id = ? AND id = ?;`, [workspaceId, id]);
+    }));
+    return { ok: true, value: motorcycle };
+  }
+
   async saveMotorcycle(motorcycle: Motorcycle): Promise<MotorcycleWriteResult> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const validationError = validateMotorcycleForWrite(motorcycle);
 
     if (validationError) {
@@ -57,15 +84,23 @@ export class SQLiteMotorcycleRepository implements MotorcycleRepository {
     }
 
     await runStatement(
-      `INSERT INTO ${SQLITE_TABLES.motorcycles} (id, payload_json, created_at, updated_at, deleted_at)
-       VALUES (?, ?, ?, ?, NULL);`,
-      [motorcycle.id, payloadJson, motorcycle.createdAt, motorcycle.updatedAt],
+      `INSERT INTO ${SQLITE_TABLES.motorcycles} (id, payload_json, created_at, updated_at, deleted_at, workspace_id, is_primary)
+       VALUES (?, ?, ?, ?, NULL, ?, CASE WHEN NOT EXISTS (
+         SELECT 1 FROM ${SQLITE_TABLES.motorcycles} WHERE workspace_id = ? AND deleted_at IS NULL
+       ) THEN 1 ELSE 0 END);`,
+      [motorcycle.id, payloadJson, motorcycle.createdAt, motorcycle.updatedAt, workspaceId, workspaceId],
     );
+
+    if ((await this.getPrimaryMotorcycle()) === null) {
+      const replacement = (await this.getAllMotorcycles())[0];
+      if (replacement) await this.setPrimaryMotorcycle(replacement.id);
+    }
 
     return { ok: true, value: cloneMotorcycle(motorcycle) };
   }
 
   async updateMotorcycle(motorcycle: Motorcycle): Promise<MotorcycleWriteResult> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const validationError = validateMotorcycleForWrite(motorcycle);
 
     if (validationError) {
@@ -85,14 +120,15 @@ export class SQLiteMotorcycleRepository implements MotorcycleRepository {
     await runStatement(
       `UPDATE ${SQLITE_TABLES.motorcycles}
        SET payload_json = ?, updated_at = ?, deleted_at = NULL
-       WHERE id = ?;`,
-      [payloadJson, motorcycle.updatedAt, motorcycle.id],
+       WHERE id = ? AND workspace_id = ?;`,
+      [payloadJson, motorcycle.updatedAt, motorcycle.id, workspaceId],
     );
 
     return { ok: true, value: cloneMotorcycle(motorcycle) };
   }
 
   async deleteMotorcycle(id: MotorcycleId): Promise<MotorcycleDeleteResult> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     if (!(await this.motorcycleExists(id))) {
       return failure({ code: 'not_found', message: `Motorcycle ${id} does not exist.` });
     }
@@ -100,27 +136,34 @@ export class SQLiteMotorcycleRepository implements MotorcycleRepository {
     await runStatement(
       `UPDATE ${SQLITE_TABLES.motorcycles}
        SET deleted_at = ?
-       WHERE id = ?;`,
-      [new Date().toISOString(), id],
+       WHERE id = ? AND workspace_id = ?;`,
+      [new Date().toISOString(), id, workspaceId],
     );
+
+    if ((await this.getPrimaryMotorcycle()) === null) {
+      const replacement = (await this.getAllMotorcycles())[0];
+      if (replacement) await this.setPrimaryMotorcycle(replacement.id);
+    }
 
     return { ok: true, value: { id } };
   }
 
   async motorcycleExists(id: MotorcycleId): Promise<boolean> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const row = await getFirst<{ readonly id: string }>(
       `SELECT id
        FROM ${SQLITE_TABLES.motorcycles}
-       WHERE id = ? AND deleted_at IS NULL
+       WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
        LIMIT 1;`,
-      [id],
+      [id, workspaceId],
     );
 
     return row !== null;
   }
 
   async clear(): Promise<void> {
-    await runStatement(`DELETE FROM ${SQLITE_TABLES.motorcycles};`);
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
+    await runStatement(`DELETE FROM ${SQLITE_TABLES.motorcycles} WHERE workspace_id = ?;`, [workspaceId]);
   }
 }
 

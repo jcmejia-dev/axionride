@@ -2,11 +2,31 @@
 
 ## Purpose
 
-This document records the intended database direction for AxionRide. No database implementation has been selected yet.
+AxionRide uses `expo-sqlite` as its offline source of truth. Application screens call services, services call repository interfaces, and the default runtime repositories use `axionride.db`. Supabase remains a future sync target and is not part of the current storage path.
 
 ## Data Philosophy
 
 AxionRide should be designed as an offline-first application. Rider and motorcycle data must remain available when network coverage is poor or unavailable.
+
+## Current Schema
+
+Migration 1 creates `motorcycles`, `maintenance_records`, `rides`, `ride_points`, `sync_metadata`, and `schema_migrations`.
+
+Migration 2 creates `workspaces` and `app_state`, creates a stable `workspace-anonymous` workspace, and adds `workspace_id` to every owned table. It also adds `is_primary` to motorcycles, enforces one live primary motorcycle per workspace, and installs relationship guards so maintenance, rides, and ride points cannot reference records in another workspace.
+
+The active workspace is the local isolation boundary. Repositories resolve it for every read and write; screens never query SQLite directly. A workspace may later hold an external authentication user ID, but the local schema does not depend on a specific authentication provider.
+
+## Existing Data Migration
+
+Migration 2 runs inside the database migration transaction. Existing motorcycles, maintenance records, rides, ride points, and sync metadata are assigned to the stable anonymous workspace. The oldest live motorcycle becomes primary. No record is uploaded or deleted.
+
+Migration application is idempotent through `schema_migrations`: once version 2 is recorded, subsequent startup initialization skips it. If migration fails, its exclusive transaction rolls back and the version is not recorded.
+
+Before shipping a schema downgrade or replacing this migration, preserve a copy of the app database or export an AxionRide backup. SQLite `ALTER TABLE ... ADD COLUMN` is not automatically reversible. A rollback build should continue understanding schema version 2 or explicitly rebuild tables from a verified backup.
+
+## Backup Boundaries
+
+Backup format version 2 contains workspace metadata and only records visible to the active workspace. Restore clears and replaces only that active workspace. Version 1 backups lack ownership metadata and are rejected with an incompatibility message; they are not silently assigned or imported.
 
 ## Future Data Domains
 
@@ -32,9 +52,6 @@ AxionRide should be designed as an offline-first application. Rider and motorcyc
 
 ## Open Decisions
 
-- Local persistence technology.
-- Cloud database provider.
 - Conflict resolution strategy.
-- Backup and restore strategy.
 - Data retention and export policy.
-
+- Whether future authentication claims the anonymous workspace in place or copies it into a newly created authenticated workspace. The operation must require an explicit user decision.

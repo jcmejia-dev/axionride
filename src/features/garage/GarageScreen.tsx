@@ -1,26 +1,41 @@
 import type { ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
-import { Animated, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { layout, palette, spacing } from '@/src/theme';
+import { createMotorcycleService, type MotorcycleOverview } from '@/src/services';
 
 import { EmptyGarage } from './components/EmptyGarage';
 import { GarageHeader } from './components/GarageHeader';
 import { GarageQuickActions } from './components/GarageQuickActions';
 import { MotorcycleCarousel } from './components/MotorcycleCarousel';
-import { mockMotorcycles } from './data/mockGarage';
 
 export function GarageScreen() {
+  const router = useRouter();
+  const motorcycleService = useMemo(() => createMotorcycleService(), []);
+  const [overview, setOverview] = useState<MotorcycleOverview>({ motorcycles: [], primaryMotorcycleId: null });
+  const refresh = useCallback(async () => {
+    const result = await motorcycleService.getOverview();
+    if (result.ok) setOverview(result.value); else Alert.alert('Garage unavailable', result.error.message);
+  }, [motorcycleService]);
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
+
+  async function setPrimary(id: string) {
+    const result = await motorcycleService.setPrimaryMotorcycle(id);
+    if (!result.ok) Alert.alert('Primary motorcycle not changed', result.error.message);
+    await refresh();
+  }
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <GarageHeader motorcycleCount={mockMotorcycles.length} />
+        <GarageHeader motorcycleCount={overview.motorcycles.length} />
 
         <AnimatedEntrance delay={80}>
-          {mockMotorcycles.length > 0 ? <MotorcycleCarousel motorcycles={mockMotorcycles} /> : <EmptyGarage />}
+          {overview.motorcycles.length > 0 ? <MotorcycleCarousel motorcycles={overview.motorcycles} primaryMotorcycleId={overview.primaryMotorcycleId} onEdit={(id) => router.push({ pathname: '/motorcycle-management', params: { id } })} onSetPrimary={(id) => { void setPrimary(id); }} /> : <EmptyGarage />}
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={220}>

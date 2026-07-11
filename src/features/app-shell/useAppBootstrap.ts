@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { initializeDatabase } from '@/src/storage/sqlite';
 
 const BOOTSTRAP_DELAY_MS = 900;
 
@@ -11,6 +12,7 @@ export function useAppBootstrap(enabled: boolean) {
       return;
     }
 
+    let cancelled = false;
     const timeoutId = setTimeout(() => {
       // Future bootstrap work belongs here:
       // - load fonts
@@ -18,10 +20,12 @@ export function useAppBootstrap(enabled: boolean) {
       // - initialize database
       // - restore auth session
       // - sync pending offline data
-      setIsReady(true);
+      void initializeDatabase().then(() => {
+        if (!cancelled) setIsReady(true);
+      });
     }, BOOTSTRAP_DELAY_MS);
 
-    return () => clearTimeout(timeoutId);
+    return () => { cancelled = true; clearTimeout(timeoutId); };
   }, [enabled]);
 
   return { isReady };

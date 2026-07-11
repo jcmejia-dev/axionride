@@ -3,6 +3,7 @@ import { getAll, getFirst, SQLITE_TABLES, type AxionRideDatabase, withDatabase }
 
 import type { RideRepository } from './RideRepository';
 import type { RideDeleteResult, RideRepositoryError, RideWriteResult } from './RideRepositoryTypes';
+import type { WorkspaceScope } from '../workspace';
 
 type RideRow = {
   readonly id: string;
@@ -28,34 +29,39 @@ type RidePointRow = {
  * foundation. It does not collect GPS points or interact with maps.
  */
 export class SQLiteRideRepository implements RideRepository {
+  constructor(private readonly workspaceScope: WorkspaceScope) {}
+
   async getRide(id: RideId): Promise<Ride | null> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const row = await getFirst<RideRow>(
       `SELECT id, motorcycle_id, payload_json, created_at, updated_at, deleted_at
        FROM ${SQLITE_TABLES.rides}
-       WHERE id = ? AND deleted_at IS NULL
+       WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
        LIMIT 1;`,
-      [id],
+      [id, workspaceId],
     );
 
     if (!row) {
       return null;
     }
 
-    const points = await getRidePoints(id);
+    const points = await getRidePoints(id, workspaceId);
     return deserializeRide(row, points);
   }
 
   async getAllRides(): Promise<readonly Ride[]> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const rows = await getAll<RideRow>(
       `SELECT id, motorcycle_id, payload_json, created_at, updated_at, deleted_at
        FROM ${SQLITE_TABLES.rides}
-       WHERE deleted_at IS NULL
+       WHERE workspace_id = ? AND deleted_at IS NULL
        ORDER BY created_at ASC;`,
+      [workspaceId],
     );
     const rides: Ride[] = [];
 
     for (const row of rows) {
-      const points = await getRidePoints(row.id);
+      const points = await getRidePoints(row.id, workspaceId);
       const ride = deserializeRide(row, points);
 
       if (ride) {
@@ -67,6 +73,7 @@ export class SQLiteRideRepository implements RideRepository {
   }
 
   async saveRide(ride: Ride): Promise<RideWriteResult> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const validationError = validateRideForWrite(ride);
 
     if (validationError) {
@@ -87,11 +94,11 @@ export class SQLiteRideRepository implements RideRepository {
       database.withExclusiveTransactionAsync(async (transaction) => {
         await transaction.runAsync(
           `INSERT INTO ${SQLITE_TABLES.rides}
-           (id, motorcycle_id, payload_json, created_at, updated_at, deleted_at)
-           VALUES (?, ?, ?, ?, ?, NULL);`,
-          [ride.id, ride.motorcycleId, payloadJson, ride.createdAt, ride.updatedAt],
+           (id, motorcycle_id, payload_json, created_at, updated_at, deleted_at, workspace_id)
+           VALUES (?, ?, ?, ?, ?, NULL, ?);`,
+          [ride.id, ride.motorcycleId, payloadJson, ride.createdAt, ride.updatedAt, workspaceId],
         );
-        await replaceRidePoints(transaction, ride);
+        await replaceRidePoints(transaction, ride, workspaceId);
       }),
     );
 
@@ -99,6 +106,7 @@ export class SQLiteRideRepository implements RideRepository {
   }
 
   async updateRide(ride: Ride): Promise<RideWriteResult> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const validationError = validateRideForWrite(ride);
 
     if (validationError) {
@@ -120,10 +128,10 @@ export class SQLiteRideRepository implements RideRepository {
         await transaction.runAsync(
           `UPDATE ${SQLITE_TABLES.rides}
            SET motorcycle_id = ?, payload_json = ?, updated_at = ?, deleted_at = NULL
-           WHERE id = ?;`,
-          [ride.motorcycleId, payloadJson, ride.updatedAt, ride.id],
+           WHERE id = ? AND workspace_id = ?;`,
+          [ride.motorcycleId, payloadJson, ride.updatedAt, ride.id, workspaceId],
         );
-        await replaceRidePoints(transaction, ride);
+        await replaceRidePoints(transaction, ride, workspaceId);
       }),
     );
 
@@ -131,6 +139,7 @@ export class SQLiteRideRepository implements RideRepository {
   }
 
   async deleteRide(id: RideId): Promise<RideDeleteResult> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     if (!(await this.rideExists(id))) {
       return failure({ code: 'not_found', message: `Ride ${id} does not exist.` });
     }
@@ -140,13 +149,13 @@ export class SQLiteRideRepository implements RideRepository {
         await transaction.runAsync(
           `UPDATE ${SQLITE_TABLES.rides}
            SET deleted_at = ?
-           WHERE id = ?;`,
-          [new Date().toISOString(), id],
+           WHERE id = ? AND workspace_id = ?;`,
+          [new Date().toISOString(), id, workspaceId],
         );
         await transaction.runAsync(
           `DELETE FROM ${SQLITE_TABLES.ridePoints}
-           WHERE ride_id = ?;`,
-          [id],
+           WHERE ride_id = ? AND workspace_id = ?;`,
+          [id, workspaceId],
         );
       }),
     );
@@ -155,52 +164,54 @@ export class SQLiteRideRepository implements RideRepository {
   }
 
   async rideExists(id: RideId): Promise<boolean> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     const row = await getFirst<{ readonly id: string }>(
       `SELECT id
        FROM ${SQLITE_TABLES.rides}
-       WHERE id = ? AND deleted_at IS NULL
+       WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
        LIMIT 1;`,
-      [id],
+      [id, workspaceId],
     );
 
     return row !== null;
   }
 
   async clear(): Promise<void> {
+    const workspaceId = await this.workspaceScope.getActiveWorkspaceId();
     await withDatabase((database) =>
       database.withExclusiveTransactionAsync(async (transaction) => {
-        await transaction.runAsync(`DELETE FROM ${SQLITE_TABLES.ridePoints};`);
-        await transaction.runAsync(`DELETE FROM ${SQLITE_TABLES.rides};`);
+        await transaction.runAsync(`DELETE FROM ${SQLITE_TABLES.ridePoints} WHERE workspace_id = ?;`, [workspaceId]);
+        await transaction.runAsync(`DELETE FROM ${SQLITE_TABLES.rides} WHERE workspace_id = ?;`, [workspaceId]);
       }),
     );
   }
 }
 
-async function getRidePoints(rideId: RideId) {
+async function getRidePoints(rideId: RideId, workspaceId: string) {
   const rows = await getAll<RidePointRow>(
     `SELECT id, ride_id, sequence, payload_json, created_at
      FROM ${SQLITE_TABLES.ridePoints}
-     WHERE ride_id = ?
+     WHERE ride_id = ? AND workspace_id = ?
      ORDER BY sequence ASC;`,
-    [rideId],
+    [rideId, workspaceId],
   );
 
   return rows.map(deserializeRidePoint).filter((point): point is RidePoint => point !== null);
 }
 
-async function replaceRidePoints(database: AxionRideDatabase, ride: Ride) {
+async function replaceRidePoints(database: AxionRideDatabase, ride: Ride, workspaceId: string) {
   await database.runAsync(
     `DELETE FROM ${SQLITE_TABLES.ridePoints}
-     WHERE ride_id = ?;`,
-    [ride.id],
+     WHERE ride_id = ? AND workspace_id = ?;`,
+    [ride.id, workspaceId],
   );
 
   for (const [sequence, point] of ride.route.entries()) {
     await database.runAsync(
       `INSERT INTO ${SQLITE_TABLES.ridePoints}
-       (id, ride_id, sequence, payload_json, created_at)
-       VALUES (?, ?, ?, ?, ?);`,
-      [createRidePointId(ride.id, sequence), ride.id, sequence, JSON.stringify(point), point.timestamp],
+       (id, ride_id, sequence, payload_json, created_at, workspace_id)
+       VALUES (?, ?, ?, ?, ?, ?);`,
+      [createRidePointId(ride.id, sequence), ride.id, sequence, JSON.stringify(point), point.timestamp, workspaceId],
     );
   }
 }

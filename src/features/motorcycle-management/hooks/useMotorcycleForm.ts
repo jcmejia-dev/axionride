@@ -49,18 +49,17 @@ export function useMotorcycleForm({ initialMotorcycle }: UseMotorcycleFormOption
     setSubmitted(false);
   }
 
-  function submitDemo() {
+  function submit() {
     setSubmitted(true);
     const validation = validateForm(values, initialMotorcycle);
 
     if (!validation.valid) {
       setErrors(validation.errors);
-      return false;
+      return null;
     }
 
     setErrors({});
-    setToastVisible(true);
-    return true;
+    return toMotorcycle(values, initialMotorcycle, { tolerateInvalidNumbers: false });
   }
 
   return {
@@ -73,7 +72,7 @@ export function useMotorcycleForm({ initialMotorcycle }: UseMotorcycleFormOption
     setToastVisible,
     updateField,
     resetForm,
-    submitDemo,
+    submit,
   };
 }
 
