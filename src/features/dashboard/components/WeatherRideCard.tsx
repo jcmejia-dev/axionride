@@ -1,42 +1,32 @@
 import { SymbolView } from 'expo-symbols';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Body, Caption, GlassCard, Label } from '@/src/components';
-import { palette, radius, spacing, typography } from '@/src/theme';
+import { GlassCard } from '@/src/components/premium';
+import { iconSizes, premiumColors, radius, spacing, typography } from '@/src/theme';
 
 import type { DashboardWeather } from '../types';
 import { getWeatherRideMessage } from '../weatherMessage';
 
 type WeatherRideCardProps = {
-  weather: DashboardWeather;
+  readonly weather: DashboardWeather;
 };
 
 export function WeatherRideCard({ weather }: WeatherRideCardProps) {
   return (
     <GlassCard style={styles.card}>
-      <View style={styles.halo} />
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.sectionTitle}>Ride Conditions</Text>
-          <Text style={styles.sectionSubtitle}>Mock weather preview</Text>
-        </View>
-        <View style={styles.iconShell}>
-          <SymbolView name={getConditionIcon(weather.condition)} tintColor={palette.text} size={24} />
-        </View>
+      <View style={styles.glow} />
+      <View style={styles.iconShell}>
+        <SymbolView name={getConditionIcon(weather.condition)} tintColor={premiumColors.primaryBright} size={iconSizes.lg} />
       </View>
-
-      <View style={styles.forecastRow}>
-        <View>
-          <Label style={styles.conditionLabel}>{weather.condition}</Label>
-          <Text style={styles.temperature}>{weather.temperature}</Text>
-        </View>
-        <View style={styles.ridePill}>
-          <Caption style={styles.ridePillText}>{weather.rideCondition}</Caption>
-        </View>
+      <View style={styles.copy}>
+        <Text style={styles.eyebrow}>Ride Conditions</Text>
+        <Text numberOfLines={1} style={styles.title}>
+          {weather.temperature} - {weather.condition}
+        </Text>
+        <Text numberOfLines={2} style={styles.message}>
+          {getWeatherRideMessage(weather.condition)}
+        </Text>
       </View>
-
-      <Body style={styles.message}>{getWeatherRideMessage(weather.condition)}</Body>
-
       <View style={styles.chips}>
         <WeatherChip label="Wind" value={weather.wind} />
         <WeatherChip label="Rain" value={weather.rainChance} />
@@ -46,15 +36,17 @@ export function WeatherRideCard({ weather }: WeatherRideCardProps) {
 }
 
 type WeatherChipProps = {
-  label: string;
-  value: string;
+  readonly label: string;
+  readonly value: string;
 };
 
 function WeatherChip({ label, value }: WeatherChipProps) {
   return (
     <View style={styles.chip}>
-      <Caption style={styles.chipLabel}>{label}</Caption>
-      <Body style={styles.chipValue}>{value}</Body>
+      <Text style={styles.chipLabel}>{label}</Text>
+      <Text numberOfLines={1} style={styles.chipValue}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -75,99 +67,73 @@ function getConditionIcon(condition: DashboardWeather['condition']) {
 
 const styles = StyleSheet.create({
   card: {
-    gap: spacing.lg,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(245, 245, 245, 0.1)',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.3,
-    shadowRadius: 26,
-    elevation: 7,
-  },
-  halo: {
-    position: 'absolute',
-    top: -90,
-    right: -80,
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  header: {
+    minHeight: 112,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
+    gap: spacing.md,
+    padding: 16,
+    borderColor: 'rgba(255, 106, 0, 0.24)',
+    backgroundColor: 'rgba(17, 21, 28, 0.82)',
   },
-  sectionTitle: {
-    ...typography.subtitle,
-    color: palette.text,
-  },
-  sectionSubtitle: {
-    ...typography.caption,
-    marginTop: spacing.xs,
-    color: 'rgba(248, 250, 252, 0.58)',
+  glow: {
+    position: 'absolute',
+    top: -70,
+    right: -60,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 106, 0, 0.09)',
   },
   iconShell: {
-    width: 50,
-    height: 50,
+    width: 58,
+    height: 58,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: premiumColors.borderOrange,
+    borderRadius: 29,
+    backgroundColor: premiumColors.primaryMuted,
   },
-  forecastRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
+  copy: {
+    flex: 1,
+    minWidth: 0,
   },
-  conditionLabel: {
-    color: 'rgba(248, 250, 252, 0.6)',
+  eyebrow: {
+    ...typography.label,
+    color: premiumColors.textSecondary,
+    textTransform: 'uppercase',
   },
-  temperature: {
-    ...typography.display,
-    marginTop: spacing.xs,
-    color: palette.text,
-  },
-  ridePill: {
-    flexShrink: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  ridePillText: {
-    color: palette.text,
-    textAlign: 'right',
+  title: {
+    ...typography.subtitle,
+    marginTop: 3,
+    color: premiumColors.textPrimary,
   },
   message: {
-    color: palette.text,
-    fontWeight: '700',
+    ...typography.caption,
+    marginTop: 3,
+    color: premiumColors.textSecondary,
   },
   chips: {
-    flexDirection: 'row',
-    gap: spacing.md,
+    width: 78,
+    gap: spacing.sm,
   },
   chip: {
-    flex: 1,
-    padding: spacing.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(7, 10, 15, 0.36)',
+    borderColor: premiumColors.border,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   chipLabel: {
-    color: 'rgba(248, 250, 252, 0.58)',
+    ...typography.label,
+    color: premiumColors.textTertiary,
+    textTransform: 'uppercase',
   },
   chipValue: {
-    marginTop: spacing.xs,
-    color: palette.text,
+    ...typography.caption,
+    marginTop: 1,
+    color: premiumColors.textPrimary,
     fontWeight: '800',
   },
 });
