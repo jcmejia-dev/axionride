@@ -33,7 +33,7 @@ export class BackupService extends BaseService {
 
   async exportBackup(): Promise<ServiceResult<BackupExportResult>> {
     try {
-      const backupResult = await this.createBackup();
+      const backupResult = await this.createBackupPayload();
 
       if (!backupResult.ok) {
         return this.failure(backupResult.error);
@@ -162,7 +162,7 @@ export class BackupService extends BaseService {
         }));
       }
 
-      const existingBackup = await this.createBackup();
+      const existingBackup = await this.createBackupPayload();
 
       if (!existingBackup.ok) {
         return this.failure(existingBackup.error);
@@ -199,8 +199,9 @@ export class BackupService extends BaseService {
     }
   }
 
-  private async createBackup(): Promise<ServiceResult<AxionRideBackup>> {
-    const [motorcycles, maintenanceRecords, rides] = await Promise.all([
+  async createBackupPayload(): Promise<ServiceResult<AxionRideBackup>> {
+    const [workspace, motorcycles, maintenanceRecords, rides] = await Promise.all([
+      this.context.repositories.workspaces.getActiveWorkspace(),
       this.context.repositories.motorcycles.getAllMotorcycles(),
       this.context.repositories.maintenance.getAllMaintenance(),
       this.context.repositories.rides.getAllRides(),
@@ -216,7 +217,12 @@ export class BackupService extends BaseService {
       exportedAt: new Date().toISOString(),
       metadata: {
         format: 'full-local-replacement',
-        notes: 'Version 1 backup for local device restore. Import replaces existing local data.',
+        workspace: {
+          sourceWorkspaceId: workspace.id,
+          sourceWorkspaceKind: workspace.kind,
+          displayName: workspace.displayName,
+        },
+        notes: 'Version 2 backup for one local workspace. Import replaces only the active workspace data.',
         future: {},
       },
       data: {
@@ -284,6 +290,12 @@ export class BackupService extends BaseService {
 function parseBackup(content: string): { readonly ok: true; readonly value: AxionRideBackup } | { readonly ok: false; readonly error: string } {
   try {
     const parsed = JSON.parse(content) as unknown;
+    if (isRecord(parsed)
+      && parsed.schemaVersion === 1
+      && isRecord(parsed.source)
+      && parsed.source.application === AXIONRIDE_BACKUP_APPLICATION_ID) {
+      return { ok: false, error: 'Legacy AxionRide backup version 1 has no workspace ownership metadata and cannot be imported automatically.' };
+    }
     return isBackupEnvelope(parsed)
       ? { ok: true, value: parsed }
       : { ok: false, error: 'Selected file is not an AxionRide backup.' };
@@ -313,6 +325,16 @@ function isBackupEnvelope(value: unknown): value is AxionRideBackup {
     return false;
   }
 
+  if (!isRecord(value.metadata) || !isRecord(value.metadata.workspace)) {
+    return false;
+  }
+
+  if (typeof value.metadata.workspace.sourceWorkspaceId !== 'string'
+    || (value.metadata.workspace.sourceWorkspaceKind !== 'anonymous' && value.metadata.workspace.sourceWorkspaceKind !== 'authenticated')
+    || typeof value.metadata.workspace.displayName !== 'string') {
+    return false;
+  }
+
   return Array.isArray(value.data.motorcycles)
     && Array.isArray(value.data.maintenanceRecords)
     && Array.isArray(value.data.rides)
@@ -332,6 +354,10 @@ function validateBackup(backup: AxionRideBackup) {
 
   if (backup.source.application !== AXIONRIDE_BACKUP_APPLICATION_ID) {
     errors.push('Backup source is not AxionRide.');
+  }
+
+  if (!backup.metadata.workspace.sourceWorkspaceId.trim()) {
+    errors.push('Backup workspace metadata is missing. Legacy version 1 backups are not imported automatically.');
   }
 
   for (const motorcycle of backup.data.motorcycles) {

@@ -4,6 +4,7 @@ export {
   createBackupService,
   createLocationService,
   createMaintenanceService,
+  createMotorcycleService,
   createNotificationService,
   createProfileService,
   createRideService,
@@ -12,6 +13,7 @@ export {
   createServiceContext,
   createServiceContextWithRepositories,
   createStatisticsService,
+  createWorkspaceService,
 } from './ServiceFactory';
 export { BackupService } from './backup';
 export {
@@ -31,6 +33,10 @@ export type {
 export { RideService } from './ride';
 export type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './ride';
 export { MaintenanceService } from './maintenance';
+export { MotorcycleService } from './motorcycle';
+export type { MotorcycleOverview } from './motorcycle';
+export { WorkspaceService } from './workspace';
+export type { CreateAuthenticatedWorkspaceInput, LocalWorkspace, WorkspaceKind } from './workspace';
 export type {
   CompleteMaintenanceInput,
   CreateMaintenanceInput,

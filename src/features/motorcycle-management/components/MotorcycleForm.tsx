@@ -20,6 +20,7 @@ type MotorcycleFormProps = {
   onSave: () => void;
   onCancel: () => void;
   onReset: () => void;
+  onDelete?: () => void;
 };
 
 export function MotorcycleForm({
@@ -31,6 +32,7 @@ export function MotorcycleForm({
   onSave,
   onCancel,
   onReset,
+  onDelete,
 }: MotorcycleFormProps) {
   return (
     <View style={styles.container}>
@@ -160,6 +162,7 @@ export function MotorcycleForm({
         <ActionButton label="Save" onPress={onSave} primary />
         <ActionButton label="Reset" onPress={onReset} />
         <ActionButton label="Cancel" onPress={onCancel} quiet />
+        {onDelete ? <ActionButton label="Delete Motorcycle" onPress={onDelete} quiet /> : null}
       </View>
     </View>
   );

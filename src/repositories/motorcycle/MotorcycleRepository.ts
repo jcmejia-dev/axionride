@@ -11,6 +11,8 @@ import type { MotorcycleDeleteResult, MotorcycleWriteResult } from './Motorcycle
 export interface MotorcycleRepository {
   getMotorcycle(id: MotorcycleId): Promise<Motorcycle | null>;
   getAllMotorcycles(): Promise<readonly Motorcycle[]>;
+  getPrimaryMotorcycle(): Promise<Motorcycle | null>;
+  setPrimaryMotorcycle(id: MotorcycleId): Promise<MotorcycleWriteResult>;
   saveMotorcycle(motorcycle: Motorcycle): Promise<MotorcycleWriteResult>;
   updateMotorcycle(motorcycle: Motorcycle): Promise<MotorcycleWriteResult>;
   deleteMotorcycle(id: MotorcycleId): Promise<MotorcycleDeleteResult>;

@@ -1,9 +1,3 @@
-import {
-  FuelType,
-  MotorcycleCategory,
-  TransmissionType,
-  type Motorcycle,
-} from '@/src/domain/motorcycle';
 import { RideStatus, RideType, type Ride, type RidePoint } from '@/src/domain/ride';
 import {
   calculateMaximumSpeed,
@@ -17,7 +11,6 @@ import type { ServiceResult } from '@/src/services/ServiceTypes';
 
 import type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './RideServiceTypes';
 
-const DEMO_MOTORCYCLE_ID = 'demo-ride-motorcycle';
 const DEMO_SPEED_KMH = 36;
 const DEMO_ROUTE_START_LATITUDE = 14.5995;
 const DEMO_ROUTE_START_LONGITUDE = 120.9842;
@@ -40,7 +33,7 @@ export class RideService extends BaseService {
     super(context);
   }
 
-  startRide(): ServiceResult<RideSessionSnapshot> {
+  async startRide(): Promise<ServiceResult<RideSessionSnapshot>> {
     if (this.currentSession && this.currentSession.status !== 'paused') {
       return this.failure({
         code: 'conflict',
@@ -49,11 +42,13 @@ export class RideService extends BaseService {
     }
 
     const now = new Date();
+    const motorcycle = await this.context.repositories.motorcycles.getPrimaryMotorcycle();
+    if (!motorcycle) return this.failure({ code: 'not_found', message: 'Add a motorcycle and select it as primary before starting a ride.' });
     this.currentSession = {
       id: `ride-${now.getTime()}`,
       startedAt: now,
-      motorcycleId: DEMO_MOTORCYCLE_ID,
-      title: 'Demo ride',
+      motorcycleId: motorcycle.id,
+      title: `${motorcycle.nickname} ride`,
       pausedAt: null,
       totalPausedSeconds: 0,
       status: 'active',
@@ -160,12 +155,6 @@ export class RideService extends BaseService {
       updatedAt: completedAt.toISOString(),
     };
 
-    const motorcycleResult = await this.ensureDemoMotorcycle();
-
-    if (!motorcycleResult.ok) {
-      return this.failure(motorcycleResult.error);
-    }
-
     const saveResult = await this.context.repositories.rides.saveRide(ride);
 
     if (!saveResult.ok) {
@@ -244,41 +233,6 @@ export class RideService extends BaseService {
     return Math.max(0, secondsBetween(this.currentSession.startedAt, effectiveNow) - this.currentSession.totalPausedSeconds);
   }
 
-  private async ensureDemoMotorcycle(): Promise<ServiceResult<Motorcycle>> {
-    const existingMotorcycle = await this.context.repositories.motorcycles.getMotorcycle(DEMO_MOTORCYCLE_ID);
-
-    if (existingMotorcycle) {
-      return this.success(existingMotorcycle);
-    }
-
-    const now = new Date().toISOString();
-    const demoMotorcycle: Motorcycle = {
-      id: DEMO_MOTORCYCLE_ID,
-      nickname: 'Ride Demo Bike',
-      brand: 'AxionRide',
-      model: 'Demo Motorcycle',
-      year: 2026,
-      engineCc: 150,
-      category: MotorcycleCategory.Naked,
-      fuelType: FuelType.Gasoline,
-      transmission: TransmissionType.Manual,
-      color: 'Matte Black',
-      odometerKm: 0,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const result = await this.context.repositories.motorcycles.saveMotorcycle(demoMotorcycle);
-
-    if (!result.ok) {
-      return this.failure({
-        code: 'repository_error',
-        message: result.error.message,
-        cause: result.error,
-      });
-    }
-
-    return this.success(result.value);
-  }
 }
 
 function createIdleSnapshot(): RideSessionSnapshot {

@@ -30,4 +30,6 @@ export type MotorcycleRow = {
   readonly created_at: string;
   readonly updated_at: string;
   readonly deleted_at: string | null;
+  readonly workspace_id: string;
+  readonly is_primary: number;
 };

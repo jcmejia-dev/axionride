@@ -12,11 +12,14 @@ type MotorcycleHeroCardProps = {
   motorcycle: Motorcycle;
   status?: GarageMotorcycleStatus;
   width: number;
+  primary: boolean;
+  onPress: () => void;
+  onSetPrimary: () => void;
 };
 
-export function MotorcycleHeroCard({ motorcycle, status, width }: MotorcycleHeroCardProps) {
+export function MotorcycleHeroCard({ motorcycle, status, width, primary, onPress, onSetPrimary }: MotorcycleHeroCardProps) {
   return (
-    <Pressable onPress={() => undefined} style={({ pressed }) => [styles.pressable, { width }, pressed ? styles.pressed : null]}>
+    <Pressable accessibilityLabel={`${motorcycle.nickname}. Tap to edit. Long press to make primary.`} onPress={onPress} onLongPress={onSetPrimary} style={({ pressed }) => [styles.pressable, { width }, pressed ? styles.pressed : null]}>
       <GlassCard style={styles.card}>
         <View style={styles.lightBeam} />
         <View style={styles.topRow}>
@@ -27,8 +30,8 @@ export function MotorcycleHeroCard({ motorcycle, status, width }: MotorcycleHero
             </Text>
             <Text style={styles.year}>{motorcycle.year}</Text>
           </View>
-          <Badge variant={status?.rideReady ? 'success' : 'warning'}>
-            {status?.rideReady ? 'Ride Ready' : 'Check Bike'}
+          <Badge variant={primary ? 'success' : 'neutral'}>
+            {primary ? 'Primary' : 'Hold for Primary'}
           </Badge>
         </View>
 

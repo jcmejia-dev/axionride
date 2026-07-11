@@ -12,6 +12,7 @@ import type {
  */
 export class InMemoryMotorcycleRepository implements MotorcycleRepository {
   private readonly motorcycles = new Map<MotorcycleId, Motorcycle>();
+  private primaryId: MotorcycleId | null = null;
 
   constructor(initialMotorcycles: readonly Motorcycle[] = []) {
     for (const motorcycle of initialMotorcycles) {
@@ -19,6 +20,7 @@ export class InMemoryMotorcycleRepository implements MotorcycleRepository {
 
       if (validation.valid && !this.motorcycles.has(motorcycle.id)) {
         this.motorcycles.set(motorcycle.id, cloneMotorcycle(motorcycle));
+        this.primaryId ??= motorcycle.id;
       }
     }
   }
@@ -30,6 +32,17 @@ export class InMemoryMotorcycleRepository implements MotorcycleRepository {
 
   async getAllMotorcycles(): Promise<readonly Motorcycle[]> {
     return Array.from(this.motorcycles.values(), cloneMotorcycle);
+  }
+
+  async getPrimaryMotorcycle() {
+    return this.primaryId ? this.getMotorcycle(this.primaryId) : null;
+  }
+
+  async setPrimaryMotorcycle(id: MotorcycleId): Promise<MotorcycleWriteResult> {
+    const motorcycle = await this.getMotorcycle(id);
+    if (!motorcycle) return failure({ code: 'not_found', message: `Motorcycle ${id} does not exist.` });
+    this.primaryId = id;
+    return { ok: true, value: motorcycle };
   }
 
   async saveMotorcycle(motorcycle: Motorcycle): Promise<MotorcycleWriteResult> {
@@ -45,6 +58,7 @@ export class InMemoryMotorcycleRepository implements MotorcycleRepository {
 
     const motorcycleCopy = cloneMotorcycle(motorcycle);
     this.motorcycles.set(motorcycle.id, motorcycleCopy);
+    this.primaryId ??= motorcycle.id;
     return { ok: true, value: cloneMotorcycle(motorcycleCopy) };
   }
 
@@ -70,6 +84,7 @@ export class InMemoryMotorcycleRepository implements MotorcycleRepository {
     }
 
     this.motorcycles.delete(id);
+    if (this.primaryId === id) this.primaryId = this.motorcycles.keys().next().value ?? null;
     return { ok: true, value: { id } };
   }
 
@@ -79,6 +94,7 @@ export class InMemoryMotorcycleRepository implements MotorcycleRepository {
 
   async clear(): Promise<void> {
     this.motorcycles.clear();
+    this.primaryId = null;
   }
 }
 

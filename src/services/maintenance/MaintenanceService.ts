@@ -1,9 +1,4 @@
-import {
-  FuelType,
-  MotorcycleCategory,
-  TransmissionType,
-  type Motorcycle,
-} from '@/src/domain/motorcycle';
+import type { Motorcycle } from '@/src/domain/motorcycle';
 import {
   MaintenancePriority,
   MaintenanceStatus,
@@ -30,9 +25,6 @@ import type {
   UpdateMaintenanceInput,
 } from './MaintenanceServiceTypes';
 
-const DEFAULT_MOTORCYCLE_ID = 'demo-maintenance-motorcycle';
-const DEFAULT_CURRENT_ODOMETER_KM = 12430;
-
 /**
  * Application service for maintenance use cases.
  *
@@ -49,7 +41,7 @@ export class MaintenanceService extends BaseService {
   }
 
   async createMaintenance(input: CreateMaintenanceInput): Promise<ServiceResult<Maintenance>> {
-    const motorcycleResult = await this.ensureDemoMotorcycle(input.motorcycleId ?? DEFAULT_MOTORCYCLE_ID);
+    const motorcycleResult = await this.resolveMotorcycle(input.motorcycleId);
 
     if (!motorcycleResult.ok) {
       return this.failure(motorcycleResult.error);
@@ -60,6 +52,7 @@ export class MaintenanceService extends BaseService {
       input,
       motorcycleId: motorcycleResult.value.id,
       now,
+      currentOdometerKm: motorcycleResult.value.odometerKm,
     });
     const saveResult = await this.context.repositories.maintenance.saveMaintenance(maintenance);
 
@@ -86,6 +79,8 @@ export class MaintenanceService extends BaseService {
       });
     }
 
+    const motorcycle = await this.context.repositories.motorcycles.getMotorcycle(input.motorcycleId ?? existingMaintenance.motorcycleId);
+    if (!motorcycle) return this.failure({ code: 'not_found', message: 'Select a motorcycle before updating maintenance.' });
     const nextMaintenance = this.recalculateMaintenance({
       ...existingMaintenance,
       ...stripUndefined({
@@ -102,7 +97,7 @@ export class MaintenanceService extends BaseService {
         notes: normalizeOptionalText(input.notes),
       }),
       updatedAt: new Date().toISOString(),
-    });
+    }, motorcycle.odometerKm);
     const updateResult = await this.context.repositories.maintenance.updateMaintenance(nextMaintenance);
 
     if (!updateResult.ok) {
@@ -147,6 +142,8 @@ export class MaintenanceService extends BaseService {
     const completedDate = input.completedAt ?? toDateOnlyString(new Date());
     const completedOdometerKm =
       input.odometerKm ?? existingMaintenance.nextDueOdometerKm ?? existingMaintenance.lastServiceOdometerKm;
+    const motorcycle = await this.context.repositories.motorcycles.getMotorcycle(existingMaintenance.motorcycleId);
+    if (!motorcycle) return this.failure({ code: 'not_found', message: 'The motorcycle for this maintenance record was not found.' });
     const nextMaintenance = this.recalculateMaintenance({
       ...existingMaintenance,
       status: MaintenanceStatus.Completed,
@@ -155,7 +152,7 @@ export class MaintenanceService extends BaseService {
       cost: input.cost ?? existingMaintenance.cost,
       notes: input.notes ?? existingMaintenance.notes,
       updatedAt: new Date().toISOString(),
-    });
+    }, motorcycle.odometerKm);
     const updateResult = await this.context.repositories.maintenance.updateMaintenance(nextMaintenance);
 
     if (!updateResult.ok) {
@@ -173,21 +170,23 @@ export class MaintenanceService extends BaseService {
 
   async getMaintenanceHistory(): Promise<ServiceResult<readonly MaintenanceListItem[]>> {
     const maintenanceRecords = await this.context.repositories.maintenance.getAllMaintenance();
+    const primary = await this.context.repositories.motorcycles.getPrimaryMotorcycle();
     return this.success(
       maintenanceRecords
         .filter((maintenance) => maintenance.status === MaintenanceStatus.Completed)
         .sort((first, second) => Date.parse(second.updatedAt) - Date.parse(first.updatedAt))
-        .map((maintenance) => this.toListItem(maintenance)),
+        .map((maintenance) => this.toListItem(maintenance, primary?.odometerKm ?? maintenance.lastServiceOdometerKm ?? 0)),
     );
   }
 
   async getUpcomingMaintenance(): Promise<ServiceResult<readonly MaintenanceListItem[]>> {
     const maintenanceRecords = await this.context.repositories.maintenance.getAllMaintenance();
+    const primary = await this.context.repositories.motorcycles.getPrimaryMotorcycle();
     return this.success(
       maintenanceRecords
         .filter((maintenance) => maintenance.status !== MaintenanceStatus.Completed && maintenance.status !== MaintenanceStatus.Skipped)
         .sort(compareUpcomingMaintenance)
-        .map((maintenance) => this.toListItem(maintenance)),
+        .map((maintenance) => this.toListItem(maintenance, primary?.odometerKm ?? maintenance.lastServiceOdometerKm ?? 0)),
     );
   }
 
@@ -195,13 +194,15 @@ export class MaintenanceService extends BaseService {
     input,
     motorcycleId,
     now,
+    currentOdometerKm,
   }: {
     readonly input: CreateMaintenanceInput;
     readonly motorcycleId: string;
     readonly now: Date;
+    readonly currentOdometerKm: number;
   }): Maintenance {
     const createdAt = now.toISOString();
-    const lastServiceOdometerKm = input.lastServiceOdometerKm ?? DEFAULT_CURRENT_ODOMETER_KM - 1180;
+    const lastServiceOdometerKm = input.lastServiceOdometerKm ?? currentOdometerKm;
     const lastServiceDate = input.lastServiceDate ?? toDateOnlyString(addDays(now, -82));
     const intervalKm = input.intervalKm ?? 1500;
     const intervalDays = input.intervalDays ?? 90;
@@ -224,10 +225,10 @@ export class MaintenanceService extends BaseService {
       notes: normalizeOptionalText(input.notes),
       createdAt,
       updatedAt: createdAt,
-    });
+    }, currentOdometerKm);
   }
 
-  private recalculateMaintenance(maintenance: Maintenance): Maintenance {
+  private recalculateMaintenance(maintenance: Maintenance, currentOdometerKm: number): Maintenance {
     const nextDueOdometerKm =
       calculateNextDueOdometer(maintenance.lastServiceOdometerKm, maintenance.intervalKm) ?? maintenance.nextDueOdometerKm;
     const nextDueDate =
@@ -239,7 +240,7 @@ export class MaintenanceService extends BaseService {
         lastServiceDate: maintenance.lastServiceDate,
         intervalDays: maintenance.intervalDays,
       },
-      currentOdometerKm: DEFAULT_CURRENT_ODOMETER_KM,
+      currentOdometerKm,
       currentDate: new Date(),
     });
 
@@ -253,7 +254,7 @@ export class MaintenanceService extends BaseService {
     };
   }
 
-  private toListItem(maintenance: Maintenance): MaintenanceListItem {
+  private toListItem(maintenance: Maintenance, currentOdometerKm: number): MaintenanceListItem {
     const statusResult = calculateMaintenanceStatus({
       maintenance: {
         lastServiceOdometerKm: maintenance.lastServiceOdometerKm,
@@ -261,7 +262,7 @@ export class MaintenanceService extends BaseService {
         lastServiceDate: maintenance.lastServiceDate,
         intervalDays: maintenance.intervalDays,
       },
-      currentOdometerKm: DEFAULT_CURRENT_ODOMETER_KM,
+      currentOdometerKm,
       currentDate: new Date(),
     });
     const progress = Math.max(
@@ -283,40 +284,13 @@ export class MaintenanceService extends BaseService {
     };
   }
 
-  private async ensureDemoMotorcycle(motorcycleId: string): Promise<ServiceResult<Motorcycle>> {
-    const existingMotorcycle = await this.context.repositories.motorcycles.getMotorcycle(motorcycleId);
-
-    if (existingMotorcycle) {
-      return this.success(existingMotorcycle);
-    }
-
-    const now = new Date().toISOString();
-    const demoMotorcycle: Motorcycle = {
-      id: motorcycleId,
-      nickname: 'Maintenance Demo Bike',
-      brand: 'AxionRide',
-      model: 'Service Motorcycle',
-      year: 2026,
-      engineCc: 150,
-      category: MotorcycleCategory.Naked,
-      fuelType: FuelType.Gasoline,
-      transmission: TransmissionType.Manual,
-      color: 'Matte Black',
-      odometerKm: DEFAULT_CURRENT_ODOMETER_KM,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const result = await this.context.repositories.motorcycles.saveMotorcycle(demoMotorcycle);
-
-    if (!result.ok) {
-      return this.failure({
-        code: 'repository_error',
-        message: result.error.message,
-        cause: result.error,
-      });
-    }
-
-    return this.success(result.value);
+  private async resolveMotorcycle(motorcycleId?: string): Promise<ServiceResult<Motorcycle>> {
+    const motorcycle = motorcycleId
+      ? await this.context.repositories.motorcycles.getMotorcycle(motorcycleId)
+      : await this.context.repositories.motorcycles.getPrimaryMotorcycle();
+    return motorcycle
+      ? this.success(motorcycle)
+      : this.failure({ code: 'not_found', message: 'Add a motorcycle and select it as primary before creating maintenance.' });
   }
 
   private async scheduleMaintenanceReminder(maintenance: Maintenance) {

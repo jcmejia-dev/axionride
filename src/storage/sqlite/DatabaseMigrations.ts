@@ -1,4 +1,4 @@
-import { DOMAIN_SCHEMA_SQL } from './DatabaseSchema';
+import { DOMAIN_SCHEMA_SQL, WORKSPACE_SCHEMA_SQL } from './DatabaseSchema';
 import type { DatabaseMigration } from './SQLiteTypes';
 
 export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
@@ -6,6 +6,11 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     version: 1,
     name: 'create_offline_foundation_tables',
     statements: DOMAIN_SCHEMA_SQL,
+  },
+  {
+    version: 2,
+    name: 'add_local_workspace_isolation',
+    statements: WORKSPACE_SCHEMA_SQL,
   },
 ] as const;
 
