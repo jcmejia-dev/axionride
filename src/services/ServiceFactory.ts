@@ -13,6 +13,7 @@ import type { ServiceDependencies } from './ServiceTypes';
 import { SettingsService } from './settings';
 import { StatisticsService } from './statistics';
 import { WorkspaceService } from './workspace';
+import { WeatherService } from './weather';
 
 /**
  * Create a service context with default app dependencies.
@@ -96,6 +97,7 @@ export function createSearchService(overrides: Partial<ServiceDependencies> = {}
 export function createLocationService(overrides: Partial<ServiceDependencies> = {}) {
   return new LocationService(createServiceContext(overrides));
 }
+export function createWeatherService(overrides: Partial<ServiceDependencies> = {}) { return new WeatherService(createServiceContext(overrides)); }
 
 /**
  * Create the local backup export/import service with default dependencies.

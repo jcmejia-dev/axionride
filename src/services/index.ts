@@ -14,6 +14,7 @@ export {
   createServiceContextWithRepositories,
   createStatisticsService,
   createWorkspaceService,
+  createWeatherService,
 } from './ServiceFactory';
 export { BackupService } from './backup';
 export {
@@ -71,6 +72,8 @@ export type {
   LocationRidePoint,
   LocationUpdateHandler,
 } from './location';
+export { WeatherService } from './weather';
+export type { CurrentWeather } from './weather';
 export type {
   ServiceDependencies,
   ServiceError,
