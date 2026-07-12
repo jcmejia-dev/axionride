@@ -14,14 +14,12 @@ type MonthlyStatsCardProps = {
 type SymbolName = ComponentProps<typeof SymbolView>['name'];
 
 export function MonthlyStatsCard({ summary, loading = false }: MonthlyStatsCardProps) {
-  const monthLabel = summary ? formatMonth(summary.generatedAt) : formatMonth(new Date().toISOString());
-
   return (
     <GlassCard style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>This Month</Text>
+        <Text style={styles.eyebrow}>Activity Overview</Text>
         <View style={styles.monthPill}>
-          <Text style={styles.monthText}>{monthLabel}</Text>
+          <Text style={styles.monthText}>All time</Text>
           <SymbolView name={{ ios: 'chevron.down', android: 'expand_more', web: 'expand_more' }} size={iconSizes.sm} tintColor={premiumColors.textSecondary} />
         </View>
       </View>
@@ -74,16 +72,6 @@ function StatRow({ color, icon, label, value }: StatRowProps) {
   );
 }
 
-function formatMonth(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'This month';
-  }
-
-  return new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(date);
-}
-
 function formatNumber(value: number) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
 }
@@ -112,7 +100,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     minWidth: 0,
-    minHeight: 340,
+    minHeight: 300,
     padding: 18,
     backgroundColor: 'rgba(17, 21, 28, 0.82)',
   },

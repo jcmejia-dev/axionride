@@ -1,256 +1,27 @@
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, radius, spacing, typography } from '@/src/theme';
 
-type SpeedometerPreviewProps = {
-  readonly speedKmh: number;
-  readonly status: 'idle' | 'active' | 'paused' | 'completed';
-  readonly permissionLabel: string;
-  readonly gpsActive: boolean;
-  readonly elapsedTime: string;
-  readonly disabled?: boolean;
-  readonly onStart: () => void;
-  readonly onPause: () => void;
-  readonly onResume: () => void;
-  readonly onFinish: () => void;
-  readonly onCancel: () => void;
-};
+type Props={readonly speedKmh:number;readonly status:'idle'|'active'|'paused'|'completed';readonly permissionLabel:string;readonly gpsActive:boolean;readonly elapsedTime:string;readonly disabled?:boolean;readonly onStart:()=>void;readonly onPause:()=>void;readonly onResume:()=>void;readonly onFinish:()=>void;readonly onCancel:()=>void};
 
-export function SpeedometerPreview({
-  speedKmh,
-  status,
-  permissionLabel,
-  gpsActive,
-  elapsedTime,
-  disabled = false,
-  onStart,
-  onPause,
-  onResume,
-  onFinish,
-  onCancel,
-}: SpeedometerPreviewProps) {
-  const pulse = useRef(new Animated.Value(0)).current;
-  const statusText = getStatusText(status, gpsActive);
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 1800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 1800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    animation.start();
-    return () => animation.stop();
-  }, [pulse]);
-
-  return (
-    <View style={styles.container}>
-      <Animated.View
-        style={[
-          styles.pulseRing,
-          {
-            opacity: pulse.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.18, 0.38],
-            }),
-            transform: [
-              {
-                scale: pulse.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.96, 1.06],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-      <View style={styles.dial}>
-        <Text style={styles.speed}>{Math.round(speedKmh)}</Text>
-        <Text style={styles.unit}>km/h</Text>
-        <View style={styles.statusPill}>
-          <View style={[styles.statusDot, gpsActive ? styles.gpsDot : null]} />
-          <Text style={styles.statusText}>{statusText}</Text>
-        </View>
-        <Text style={styles.elapsed}>{elapsedTime}</Text>
-      </View>
-      <Text style={styles.permissionText}>{permissionLabel}</Text>
-      {status === 'idle' ? (
-        <CockpitButton label="Start Ride" onPress={onStart} disabled={disabled} primary />
-      ) : status === 'active' ? (
-        <View style={styles.buttonRow}>
-          <CockpitButton label="Pause" onPress={onPause} disabled={disabled} />
-          <CockpitButton label="Finish" onPress={onFinish} disabled={disabled} primary />
-        </View>
-      ) : (
-        <View style={styles.buttonRow}>
-          <CockpitButton label="Resume" onPress={onResume} disabled={disabled} primary />
-          <CockpitButton label="Cancel" onPress={onCancel} disabled={disabled} />
-          <CockpitButton label="Finish" onPress={onFinish} disabled={disabled} />
-        </View>
-      )}
-    </View>
-  );
+export function SpeedometerPreview({speedKmh,status,permissionLabel,gpsActive,elapsedTime,disabled=false,onStart,onPause,onResume,onFinish,onCancel}:Props){
+  const entrance=useRef(new Animated.Value(.92)).current;
+  useEffect(()=>{Animated.spring(entrance,{toValue:1,damping:16,stiffness:140,useNativeDriver:true}).start()},[entrance]);
+  const statusText=status==='active'?(gpsActive?'GPS locked':'Location unavailable'):status==='paused'?'Ride paused':'Ready to ride';
+  return <View style={styles.container}>
+    <View style={styles.topRow}><View><Text style={styles.kicker}>LIVE COCKPIT</Text><Text style={styles.heading}>{status==='idle'?'Start a new journey':'Ride in progress'}</Text></View><View style={styles.gps}><View style={[styles.gpsDot,gpsActive&&styles.gpsActive]}/><Text style={styles.gpsText}>{gpsActive?'GPS':'STANDBY'}</Text></View></View>
+    <Animated.View style={[styles.gauge,{transform:[{scale:entrance}]}]}>
+      <View style={styles.outerRing}/><View style={styles.accentArc}/><View style={styles.innerRing}/>
+      <SymbolView name={{ios:'speedometer',android:'speed',web:'speed'}} tintColor="rgba(255,106,0,.72)" size={25}/>
+      <Text adjustsFontSizeToFit numberOfLines={1} style={styles.speed}>{Math.round(speedKmh)}</Text><Text style={styles.unit}>KM/H</Text>
+      <View style={styles.status}><View style={[styles.statusDot,status==='paused'&&styles.pausedDot]}/><Text style={styles.statusText}>{statusText}</Text></View>
+    </Animated.View>
+    <View style={styles.metrics}><Metric label="ELAPSED" value={elapsedTime}/><View style={styles.divider}/><Metric label="SIGNAL" value={gpsActive?'ACTIVE':'WAITING'}/></View>
+    <Text style={styles.permission}>{permissionLabel}</Text>
+    {status==='idle'?<Button label="Start Ride" icon="near_me" primary disabled={disabled} onPress={onStart}/>:status==='active'?<View style={styles.actions}><Button label="Pause" icon="pause" disabled={disabled} onPress={onPause}/><Button label="Finish" icon="stop_circle" primary disabled={disabled} onPress={onFinish}/></View>:<View style={styles.actions}><Button label="Resume" icon="play_arrow" primary disabled={disabled} onPress={onResume}/><Button label="Cancel" icon="close" disabled={disabled} onPress={onCancel}/><Button label="Finish" icon="stop_circle" disabled={disabled} onPress={onFinish}/></View>}
+  </View>
 }
-
-type CockpitButtonProps = {
-  readonly label: string;
-  readonly onPress: () => void;
-  readonly disabled?: boolean;
-  readonly primary?: boolean;
-};
-
-function CockpitButton({ label, onPress, disabled = false, primary = false }: CockpitButtonProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.startButton,
-        primary ? styles.primaryButton : null,
-        disabled ? styles.disabled : null,
-        pressed && !disabled ? styles.pressed : null,
-      ]}>
-      <Text style={[styles.startButtonText, primary ? styles.primaryButtonText : null]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function getStatusText(status: SpeedometerPreviewProps['status'], gpsActive: boolean) {
-  if (status === 'active') {
-    return gpsActive ? 'GPS tracking' : 'Tracking without location';
-  }
-
-  if (status === 'paused') {
-    return 'Paused';
-  }
-
-  return 'Ready to ride';
-}
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    gap: spacing.xl,
-    paddingVertical: spacing.xl,
-  },
-  pulseRing: {
-    position: 'absolute',
-    top: 6,
-    width: 236,
-    height: 236,
-    borderWidth: 1,
-    borderColor: 'rgba(249, 115, 22, 0.4)',
-    borderRadius: 118,
-    backgroundColor: 'rgba(249, 115, 22, 0.1)',
-  },
-  dial: {
-    width: 220,
-    height: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    borderRadius: 110,
-    backgroundColor: '#08090B',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 22 },
-    shadowOpacity: 0.38,
-    shadowRadius: 30,
-    elevation: 9,
-  },
-  speed: {
-    color: palette.text,
-    fontSize: 76,
-    lineHeight: 82,
-    fontWeight: '900',
-  },
-  unit: {
-    ...typography.subtitle,
-    color: 'rgba(248, 250, 252, 0.62)',
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: palette.success,
-  },
-  statusText: {
-    ...typography.caption,
-    color: palette.text,
-    fontWeight: '800',
-  },
-  gpsDot: {
-    backgroundColor: palette.accentBlue,
-  },
-  elapsed: {
-    ...typography.caption,
-    marginTop: spacing.md,
-    color: 'rgba(248, 250, 252, 0.5)',
-    fontWeight: '800',
-  },
-  permissionText: {
-    ...typography.caption,
-    color: 'rgba(248, 250, 252, 0.58)',
-    textAlign: 'center',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  startButton: {
-    minHeight: 52,
-    minWidth: 132,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  primaryButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-  },
-  startButtonText: {
-    ...typography.button,
-    color: palette.text,
-  },
-  primaryButtonText: {
-    color: palette.darkBackground,
-  },
-  disabled: {
-    opacity: 0.46,
-  },
-  pressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.98 }],
-  },
-});
+function Metric({label,value}:{readonly label:string;readonly value:string}){return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.metricValue}>{value}</Text></View>}
+function Button({label,icon,onPress,disabled=false,primary=false}:{readonly label:string;readonly icon:'near_me'|'pause'|'stop_circle'|'play_arrow'|'close';readonly onPress:()=>void;readonly disabled?:boolean;readonly primary?:boolean}){return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({pressed})=>[styles.button,primary&&styles.primaryButton,disabled&&styles.disabled,pressed&&!disabled&&styles.pressed]}><SymbolView name={{ios:icon==='near_me'?'location.north.fill':icon==='pause'?'pause.fill':icon==='play_arrow'?'play.fill':icon==='close'?'xmark':'stop.circle.fill',android:icon,web:icon}} tintColor={primary?'#fff':palette.text} size={18}/><Text style={styles.buttonText}>{label}</Text></Pressable>}
+const styles=StyleSheet.create({container:{alignItems:'center',gap:spacing.lg,padding:spacing.lg},topRow:{width:'100%',flexDirection:'row',alignItems:'center',justifyContent:'space-between'},kicker:{fontSize:10,fontWeight:'900',letterSpacing:1.4,color:palette.accentOrange},heading:{...typography.subtitle,color:palette.text,marginTop:3,fontWeight:'900'},gps:{flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:10,paddingVertical:7,borderRadius:radius.pill,backgroundColor:'rgba(255,255,255,.05)'},gpsDot:{width:7,height:7,borderRadius:4,backgroundColor:palette.textMuted},gpsActive:{backgroundColor:palette.success},gpsText:{fontSize:9,fontWeight:'900',letterSpacing:.8,color:palette.textMuted},gauge:{width:230,height:230,alignItems:'center',justifyContent:'center',borderRadius:115,backgroundColor:'#090C11',shadowColor:'#000',shadowOpacity:.45,shadowRadius:24,elevation:10},outerRing:{position:'absolute',inset:0,borderWidth:10,borderColor:'rgba(255,255,255,.055)',borderRadius:115},accentArc:{position:'absolute',inset:0,borderWidth:10,borderLeftColor:palette.accentOrange,borderTopColor:palette.accentOrange,borderRightColor:'rgba(255,106,0,.16)',borderBottomColor:'rgba(255,255,255,.04)',borderRadius:115,transform:[{rotate:'-38deg'}]},innerRing:{position:'absolute',inset:18,borderWidth:1,borderColor:'rgba(255,255,255,.09)',borderRadius:100},speed:{color:palette.text,fontSize:72,lineHeight:76,fontWeight:'900',letterSpacing:-3},unit:{fontSize:10,fontWeight:'900',letterSpacing:2,color:palette.textMuted},status:{flexDirection:'row',alignItems:'center',gap:6,marginTop:12},statusDot:{width:7,height:7,borderRadius:4,backgroundColor:palette.success},pausedDot:{backgroundColor:palette.warning},statusText:{...typography.caption,color:palette.text,fontWeight:'800'},metrics:{width:'100%',flexDirection:'row',alignItems:'center',paddingVertical:12,borderTopWidth:1,borderBottomWidth:1,borderColor:'rgba(255,255,255,.07)'},metric:{flex:1,alignItems:'center'},metricLabel:{fontSize:9,fontWeight:'900',letterSpacing:1,color:palette.textMuted},metricValue:{...typography.body,color:palette.text,marginTop:3,fontWeight:'900'},divider:{width:1,height:28,backgroundColor:'rgba(255,255,255,.08)'},permission:{...typography.caption,color:palette.textMuted,textAlign:'center'},actions:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:spacing.sm},button:{minHeight:50,minWidth:118,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,paddingHorizontal:spacing.lg,borderWidth:1,borderColor:'rgba(255,255,255,.13)',borderRadius:16,backgroundColor:'rgba(255,255,255,.06)'},primaryButton:{backgroundColor:palette.accentOrange,borderColor:palette.accentOrange,shadowColor:palette.accentOrange,shadowOpacity:.22,shadowRadius:14,elevation:4},buttonText:{...typography.button,color:'#fff'},disabled:{opacity:.45},pressed:{opacity:.82,transform:[{scale:.98}]}});

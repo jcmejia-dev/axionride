@@ -165,8 +165,8 @@ function AnimatedEntrance({ children, delay, reduceMotion }: { readonly children
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: premiumColors.background },
-  topGlow: { position: 'absolute', top: -140, right: -140, width: 330, height: 330, borderRadius: 165, backgroundColor: 'rgba(45, 63, 82, 0.11)' },
-  sideGlow: { position: 'absolute', top: 330, left: -180, width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255, 106, 0, 0.035)' },
+  topGlow: { position: 'absolute', top: -190, right: -120, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(255, 106, 0, 0.07)' },
+  sideGlow: { position: 'absolute', top: 380, left: -210, width: 340, height: 340, borderRadius: 170, backgroundColor: 'rgba(72, 87, 104, 0.07)' },
   screen: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: layout.floatingTabBarContentInset + spacing.xl, gap: spacing.xl },
   contentCompact: { paddingHorizontal: spacing.lg, gap: spacing.lg },

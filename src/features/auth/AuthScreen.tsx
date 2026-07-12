@@ -18,6 +18,8 @@ import {
 import { palette, semanticColors, spacing } from '@/src/theme';
 import { useAuth } from '@/src/providers';
 
+import { PASSWORD_RESET_RESEND_COOLDOWN_SECONDS, secondsUntil } from './recoverySecurity';
+
 type AuthScreenMode = 'login' | 'register' | 'forgot-password';
 
 type AuthScreenProps = {
@@ -129,15 +131,22 @@ export function AuthScreen({ mode }: AuthScreenProps) {
   const [values, setValues] = useState<AuthValues>({ name: '', email: '', password: '' });
   const [errors, setErrors] = useState<AuthErrors>({});
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [resetCooldownEndsAt, setResetCooldownEndsAt] = useState<number | null>(null);
   const [resetCooldownSeconds, setResetCooldownSeconds] = useState(0);
   const scrollRef = useRef<ScrollView | null>(null);
   const passwordStrength = useMemo(() => getPasswordStrength(values.password), [values.password]);
 
   useEffect(() => {
-    if (resetCooldownSeconds <= 0) return;
-    const timer = setTimeout(() => setResetCooldownSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
-    return () => clearTimeout(timer);
-  }, [resetCooldownSeconds]);
+    if (resetCooldownEndsAt === null) return;
+    const updateCooldown = () => {
+      const remaining = secondsUntil(resetCooldownEndsAt);
+      setResetCooldownSeconds(remaining);
+      if (remaining === 0) setResetCooldownEndsAt(null);
+    };
+    updateCooldown();
+    const timer = setInterval(updateCooldown, 1000);
+    return () => clearInterval(timer);
+  }, [resetCooldownEndsAt]);
   const [toast, setToast] = useState<ToastState>({
     visible: false,
     message: '',
@@ -205,7 +214,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
     }
 
     const result = await requestPasswordReset(values.email);
-    if (result.ok) setResetCooldownSeconds(30);
+    if (result.ok) setResetCooldownEndsAt(Date.now() + PASSWORD_RESET_RESEND_COOLDOWN_SECONDS * 1000);
     showToast(result.ok ? 'If an account exists for that email, recovery instructions have been sent.' : result.error.message, result.ok ? 'success' : result.error.offline ? 'warning' : 'error');
   }
 

@@ -7,6 +7,7 @@ import { getSupabaseClient } from '@/src/lib/supabase';
 import { AuthOperationLock, AuthService, type AuthResult, type RegistrationResult } from '@/src/services/auth';
 import { OnboardingService } from '@/src/services/onboarding';
 import { createWorkspaceService, type LocalWorkspace } from '@/src/services';
+import { PASSWORD_RECOVERY_WINDOW_SECONDS } from '@/src/features/auth/recoverySecurity';
 
 type AuthContextValue = {
   readonly initialized: boolean;
@@ -18,10 +19,12 @@ type AuthContextValue = {
   readonly onboardingCompleted: boolean;
   readonly workspaceDecisionRequired: boolean;
   readonly recoveryMode: boolean;
+  readonly recoveryExpiresAt: number | null;
   login(email: string, password: string): Promise<AuthResult<Session>>;
   register(name: string, email: string, password: string): Promise<AuthResult<RegistrationResult>>;
   requestPasswordReset(email: string): Promise<AuthResult<void>>;
   updatePassword(password: string): Promise<AuthResult<User>>;
+  expirePasswordRecovery(): Promise<void>;
   logout(): Promise<AuthResult<void>>;
   refreshSession(): Promise<AuthResult<Session | null>>;
   attachAnonymousData(): Promise<AuthResult<LocalWorkspace>>;
@@ -42,7 +45,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [workspaceDecisionRequired, setWorkspaceDecisionRequired] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryExpiresAt, setRecoveryExpiresAt] = useState<number | null>(null);
   const operationLock = useRef(new AuthOperationLock()).current;
+
+  const beginPasswordRecovery = useCallback(() => {
+    setRecoveryMode(true);
+    setRecoveryExpiresAt(Date.now() + PASSWORD_RECOVERY_WINDOW_SECONDS * 1000);
+  }, []);
 
   const activateWorkspaceForUser = useCallback(async (user: User) => {
     const linked = await workspaceService.findWorkspaceForExternalUser(user.id);
@@ -86,15 +95,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const { data } = authService.onAuthStateChange((event, nextSession) => {
         if (!active) return;
         setSession(nextSession);
-        if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
+        if (event === 'PASSWORD_RECOVERY') beginPasswordRecovery();
         if (nextSession?.user) void activateWorkspaceForUser(nextSession.user);
         else if (event === 'SIGNED_OUT') void activateSafeAnonymousWorkspace();
       });
       authSubscription = data.subscription;
       const handleUrl = async (url: string) => {
-        if (url.includes('reset-password')) setRecoveryMode(true);
         const result = await authService.handleRedirect(url);
         if (result.ok && result.value) {
+          if (url.includes('reset-password')) beginPasswordRecovery();
           setSession(result.value);
           await activateWorkspaceForUser(result.value.user);
         }
@@ -106,7 +115,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
     void initialize();
     return () => { active = false; authSubscription?.unsubscribe(); linkSubscription?.remove(); };
-  }, [activateSafeAnonymousWorkspace, activateWorkspaceForUser, authService, onboardingService]);
+  }, [activateSafeAnonymousWorkspace, activateWorkspaceForUser, authService, beginPasswordRecovery, onboardingService]);
 
   useEffect(() => {
     if (!authService || Platform.OS === 'web') return;
@@ -129,9 +138,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const updatePassword = (password: string) => exclusive(async () => {
     if (!authService) return unavailable<User>();
     const result = await authService.updatePassword(password);
-    if (result.ok) setRecoveryMode(false);
+    if (result.ok) { setRecoveryMode(false); setRecoveryExpiresAt(null); }
     return result;
   });
+  const expirePasswordRecovery = useCallback(async () => {
+    setRecoveryMode(false);
+    setRecoveryExpiresAt(null);
+    if (authService) await authService.logout();
+    setSession(null);
+    setWorkspaceDecisionRequired(false);
+    await activateSafeAnonymousWorkspace();
+  }, [activateSafeAnonymousWorkspace, authService]);
   const refreshSession = () => exclusive<Session | null>(async () => authService ? authService.refreshSession() : unavailable<Session | null>());
   const logout = () => exclusive<void>(async () => {
     if (!authService) return unavailable<void>();
@@ -168,7 +185,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   async function completeOnboarding() { await onboardingService.markCompleted(); setOnboardingCompleted(true); }
 
-  return <AuthContext.Provider value={{ initialized, configured: clientResult.ok, configurationError: clientResult.ok ? null : clientResult.message, session, user: session?.user ?? null, submitting, onboardingCompleted, workspaceDecisionRequired, recoveryMode, login, register, requestPasswordReset, updatePassword, logout, refreshSession, attachAnonymousData, startFreshWorkspace, completeOnboarding }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ initialized, configured: clientResult.ok, configurationError: clientResult.ok ? null : clientResult.message, session, user: session?.user ?? null, submitting, onboardingCompleted, workspaceDecisionRequired, recoveryMode, recoveryExpiresAt, login, register, requestPasswordReset, updatePassword, expirePasswordRecovery, logout, refreshSession, attachAnonymousData, startFreshWorkspace, completeOnboarding }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used inside AuthProvider.'); return context; }

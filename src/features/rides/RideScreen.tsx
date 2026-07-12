@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GlassCard } from '@/src/components';
@@ -19,7 +19,6 @@ import { EmptyRidesState } from './components/EmptyRidesState';
 import { RecentRideList } from './components/RecentRideList';
 import { RideHeader } from './components/RideHeader';
 import { RideModeCard } from './components/RideModeCard';
-import { RideQuickActions } from './components/RideQuickActions';
 import { RideStatsGrid } from './components/RideStatsGrid';
 import type { CurrentRidePreview, RecentRide } from './types';
 
@@ -33,6 +32,8 @@ export function RideScreen() {
   const [completedRide, setCompletedRide] = useState<CompletedRideResult | null>(null);
   const [liveRidePoints, setLiveRidePoints] = useState<readonly RidePoint[]>([]);
   const [rideHistory, setRideHistory] = useState<readonly RecentRide[]>([]);
+  const [historyFilter, setHistoryFilter] = useState<RideHistoryFilter>('All');
+  const filteredRideHistory = useMemo(() => rideHistory.filter((ride) => isRideInFilter(ride.timestamp, historyFilter)), [historyFilter, rideHistory]);
   const currentRidePreview = toCurrentRidePreview(currentRide);
   const activeMapPoints = completedRide ? completedRide.ride.route : liveRidePoints;
   const currentMapPoint = completedRide ? null : liveRidePoints[liveRidePoints.length - 1] ?? null;
@@ -178,6 +179,7 @@ export function RideScreen() {
       <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
         <RideHeader onStartRide={() => { void handleStartRide(); }} />
+        <RideFilters selected={historyFilter} onSelect={setHistoryFilter} />
 
         <AnimatedEntrance delay={80}>
           <RideModeCard
@@ -224,11 +226,7 @@ export function RideScreen() {
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={280}>
-          {rideHistory.length > 0 ? <RecentRideList rides={rideHistory} /> : <EmptyRidesState />}
-        </AnimatedEntrance>
-
-        <AnimatedEntrance delay={380}>
-          <RideQuickActions />
+          {filteredRideHistory.length > 0 ? <RecentRideList rides={filteredRideHistory} /> : <EmptyRidesState />}
         </AnimatedEntrance>
       </ScrollView>
     </SafeAreaView>
@@ -281,8 +279,14 @@ function toRecentRide(ride: CompletedRideResult['ride']): RecentRide {
     duration: formatDuration(ride.durationSeconds),
     averageSpeed: `${Math.round(ride.averageSpeedKmh)} km/h`,
     date: ride.endTime ? formatDate(ride.endTime) : 'Saved locally',
+    timestamp: ride.endTime ?? ride.startTime,
   };
 }
+
+type RideHistoryFilter = 'All' | 'This Week' | 'This Month' | 'This Year';
+const rideFilters: readonly RideHistoryFilter[] = ['All', 'This Week', 'This Month', 'This Year'];
+function RideFilters({selected,onSelect}:{readonly selected:RideHistoryFilter;readonly onSelect:(filter:RideHistoryFilter)=>void}) { return <View style={styles.filters}>{rideFilters.map((filter)=><Pressable key={filter} accessibilityRole="button" accessibilityState={{selected:filter===selected}} onPress={()=>onSelect(filter)} style={({pressed})=>[styles.filter,filter===selected&&styles.filterSelected,pressed&&styles.filterPressed]}><Text style={[styles.filterText,filter===selected&&styles.filterTextSelected]}>{filter}</Text></Pressable>)}</View> }
+function isRideInFilter(timestamp:string|undefined,filter:RideHistoryFilter) { if(filter==='All') return true; if(!timestamp)return false; const date=new Date(timestamp); const now=new Date(); if(filter==='This Year') return date.getFullYear()===now.getFullYear(); if(filter==='This Month') return date.getFullYear()===now.getFullYear()&&date.getMonth()===now.getMonth(); const start=new Date(now); start.setHours(0,0,0,0); start.setDate(start.getDate()-((start.getDay()+6)%7)); return date>=start; }
 
 function RideCompletionSummary({ completedRide }: { readonly completedRide: CompletedRideResult }) {
   return (
@@ -437,8 +441,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: layout.floatingTabBarContentInset,
-    gap: spacing.xxl,
+    gap: spacing.xl,
   },
+  filters:{minHeight:52,flexDirection:'row',alignItems:'center',padding:6,borderRadius:18,backgroundColor:'rgba(17,21,28,.88)',borderWidth:1,borderColor:'rgba(255,255,255,.06)'},filter:{flex:1,minHeight:40,alignItems:'center',justifyContent:'center',paddingHorizontal:4,borderRadius:13},filterSelected:{backgroundColor:'rgba(255,106,0,.11)'},filterText:{fontSize:12,fontWeight:'800',color:palette.textMuted,textAlign:'center'},filterTextSelected:{color:palette.accentOrange},filterPressed:{opacity:.72},
   summaryCard: {
     gap: spacing.lg,
     backgroundColor: 'rgba(255, 255, 255, 0.075)',

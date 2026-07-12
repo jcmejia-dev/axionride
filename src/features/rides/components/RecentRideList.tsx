@@ -13,15 +13,13 @@ type RecentRideListProps = {
 export function RecentRideList({ rides }: RecentRideListProps) {
   return (
     <View style={styles.section}>
-      <View>
-        <Text style={styles.sectionTitle}>Ride History</Text>
-        <Text style={styles.sectionSubtitle}>Routes saved securely on this device</Text>
-      </View>
+      <View style={styles.headingRow}><Text style={styles.sectionTitle}>Ride History</Text><Text style={styles.viewAll}>View All</Text></View>
       <View style={styles.list}>
         {rides.map((ride) => (
           <RideCard key={ride.id} ride={ride} />
         ))}
       </View>
+      <SymbolView name={{ios:'chevron.right',android:'chevron_right',web:'chevron_right'}} tintColor={palette.textMuted} size={21}/>
     </View>
   );
 }
@@ -57,6 +55,8 @@ const styles = StyleSheet.create({
     ...typography.subtitle,
     color: palette.text,
   },
+  headingRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+  viewAll:{...typography.body,color:palette.accentOrange,fontWeight:'800'},
   sectionSubtitle: {
     ...typography.caption,
     marginTop: spacing.xs,
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.075)',
+    backgroundColor: 'rgba(17,21,28,.88)',
     borderColor: 'rgba(255, 255, 255, 0.13)',
   },
   iconShell: {

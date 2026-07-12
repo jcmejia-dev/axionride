@@ -46,6 +46,8 @@ The first handles email confirmation. The second opens the in-app password-updat
 
 Enable the Email provider in Authentication > Providers. Decide whether Confirm email is required. If enabled, registration shows a check-email result and does not claim a workspace until the confirmed session returns to the app.
 
+Set **Email OTP expiration** to `300` seconds in Authentication > Sign In / Providers > Auth Providers > Email. Supabase applies this server-side lifetime to password recovery links as well as other email links. The app also limits a verified recovery session to five minutes and signs it out when that timer expires. Keep the password-reset resend interval at `60` seconds or longer; the UI uses a 60-second cooldown to match Supabase's default per-user recovery-request limit.
+
 No public `profiles` table and no custom `users` table are required. Supabase owns `auth.users`; the submitted display name is stored in Auth user metadata as `display_name`.
 
 ## EAS Environments
