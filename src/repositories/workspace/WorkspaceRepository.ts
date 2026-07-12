@@ -7,6 +7,13 @@ export type LocalWorkspace = {
   readonly externalUserId: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly profileNickname?: string | null;
+  readonly profileImageUri?: string | null;
+};
+
+export type UpdateWorkspaceProfileInput = {
+  readonly nickname: string;
+  readonly imageUri: string | null;
 };
 
 export type CreateAuthenticatedWorkspaceInput = {
@@ -28,6 +35,7 @@ export interface WorkspaceRepository {
   linkExternalUser(workspaceId: string, externalUserId: string): Promise<LocalWorkspace>;
   switchActiveWorkspace(workspaceId: string): Promise<LocalWorkspace>;
   hasAnonymousDataToClaim(): Promise<boolean>;
+  updateActiveProfile?(input: UpdateWorkspaceProfileInput): Promise<LocalWorkspace>;
 }
 
 export type WorkspaceScope = Pick<WorkspaceRepository, 'getActiveWorkspaceId'>;

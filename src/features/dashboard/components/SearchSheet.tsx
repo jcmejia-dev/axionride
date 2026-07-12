@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput, EmptyState } from '@/src/components';
 import { createSearchService, type SearchResult } from '@/src/services';
@@ -10,6 +10,25 @@ type SearchSheetProps = {
   readonly visible: boolean;
   readonly onClose: () => void;
 };
+
+const motorcycleBrands=[
+  {name:'Skygo',logo:require('../../../../assets/images/brands/skygo.png')},
+  {name:'RUSI',logo:require('../../../../assets/images/brands/rusi.png')},
+  {name:'MotorStar',logo:require('../../../../assets/images/brands/motorstar.png')},
+  {name:'Bristol',logo:require('../../../../assets/images/brands/bristol.png')},
+  {name:'Honda',logo:require('../../../../assets/images/brands/honda.png')},
+  {name:'Yamaha',logo:require('../../../../assets/images/brands/yamaha.png')},
+  {name:'Kawasaki',logo:require('../../../../assets/images/brands/kawasaki.png')},
+  {name:'CFMOTO',logo:require('../../../../assets/images/brands/cfmoto.png')},
+  {name:'Keeway',logo:require('../../../../assets/images/brands/keeway.png')},
+  {name:'BMW',logo:require('../../../../assets/images/brands/bmw.png')},
+  {name:'Ducati',logo:require('../../../../assets/images/brands/ducati.png')},
+  {name:'KTM',logo:require('../../../../assets/images/brands/ktm.png')},
+  {name:'Triumph',logo:require('../../../../assets/images/brands/triumph.png')},
+  {name:'Harley-Davidson',logo:require('../../../../assets/images/brands/harley.png')},
+  {name:'Royal Enfield',logo:require('../../../../assets/images/brands/royal_enfield.png')},
+  {name:'Aprilia',logo:require('../../../../assets/images/brands/aprilia.png')},
+] as const;
 
 export function SearchSheet({ visible, onClose }: SearchSheetProps) {
   const searchService = useMemo(() => createSearchService(), []);
@@ -25,7 +44,7 @@ export function SearchSheet({ visible, onClose }: SearchSheetProps) {
         return;
       }
 
-      const result = await searchService.search({ query, limit: 12 });
+      const result = await searchService.search({ query, limit: 50 });
 
       if (!active) {
         return;
@@ -53,13 +72,13 @@ export function SearchSheet({ visible, onClose }: SearchSheetProps) {
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={handleClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS==='ios'?'padding':'height'}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View>
               <Text style={styles.kicker}>Universal Search</Text>
-              <Text style={styles.title}>Find anything local</Text>
+              <Text style={styles.title}>Find your next detail</Text>
             </View>
             <Pressable
               accessibilityLabel="Close search"
@@ -74,11 +93,13 @@ export function SearchSheet({ visible, onClose }: SearchSheetProps) {
             autoCapitalize="none"
             autoCorrect={false}
             autoFocus
-            label="Search"
             value={query}
             onChangeText={setQuery}
-            placeholder="Motorcycles, service, rides"
+            placeholder="Search your garage, rides, or service"
+            leadingIcon={<SymbolView name={{ios:'magnifyingglass',android:'search',web:'search'}} tintColor={palette.accentOrange} size={20}/>}
           />
+
+          <View><Text style={styles.brandHeading}>MOTORCYCLE BRANDS</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.brands}>{motorcycleBrands.map((brand)=><Pressable key={brand.name} accessibilityRole="button" onPress={()=>setQuery(brand.name)} style={({pressed})=>[styles.brand,query.toLowerCase()===brand.name.toLowerCase()&&styles.brandSelected,pressed&&styles.pressed]}><View style={styles.brandMark}><Image accessibilityIgnoresInvertColors resizeMode="contain" source={brand.logo} style={styles.brandLogo}/></View><Text numberOfLines={1} style={styles.brandName}>{brand.name}</Text></Pressable>)}</ScrollView></View>
 
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.results}>
             {results.length > 0 ? (
@@ -90,13 +111,13 @@ export function SearchSheet({ visible, onClose }: SearchSheetProps) {
               />
             ) : (
               <EmptyState
-                title="Search AxionRide"
-                description="Local motorcycles, maintenance records, and rides will appear here."
+                title="Your garage is ready"
+                description="All local motorcycles appear here by brand. Search to include service records and rides."
               />
             )}
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -131,15 +152,16 @@ function getResultIcon(type: SearchResult['type']) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    paddingTop:Platform.OS==='ios'?54:34,
+    paddingHorizontal:spacing.md,
     backgroundColor: 'rgba(0, 0, 0, 0.66)',
   },
   sheet: {
-    maxHeight: '82%',
+    maxHeight: '78%',
     gap: spacing.lg,
     padding: spacing.xl,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.14)',
     backgroundColor: '#090B0F',
@@ -174,6 +196,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingBottom: spacing.md,
   },
+  brandHeading:{...typography.label,color:'rgba(248,250,252,.48)',letterSpacing:.8,marginBottom:spacing.sm},brands:{gap:spacing.sm,paddingRight:spacing.xl},brand:{width:104,alignItems:'center',gap:8,padding:10,borderWidth:1,borderColor:'rgba(255,255,255,.08)',borderRadius:16,backgroundColor:'rgba(255,255,255,.04)'},brandSelected:{borderColor:'rgba(255,106,0,.5)',backgroundColor:'rgba(255,106,0,.09)'},brandMark:{width:72,height:48,alignItems:'center',justifyContent:'center',padding:6,borderRadius:12,backgroundColor:'rgba(255,255,255,.92)'},brandLogo:{width:'100%',height:'100%'},brandName:{...typography.label,color:palette.text,textAlign:'center'},
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,4 +1,6 @@
 import { SymbolView } from 'expo-symbols';
+import * as DocumentPicker from 'expo-document-picker';
+import { File, Paths } from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Alert, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -62,6 +64,17 @@ function MotorcycleManagementForm({ initialMotorcycle, editing }: { readonly ini
     setTimeout(() => router.back(), reduceMotion ? 0 : 360);
   }
 
+  async function handleChooseImage() {
+    const result=await DocumentPicker.getDocumentAsync({type:'image/*',copyToCacheDirectory:true,multiple:false});
+    if(result.canceled)return;
+    const asset=result.assets[0];
+    if(asset.size&&asset.size>12*1024*1024){Alert.alert('Image too large','Choose a motorcycle photo smaller than 12 MB.');return;}
+    const extension=asset.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'').toLowerCase()||'jpg';
+    const destination=new File(Paths.document,`motorcycle-${initialMotorcycle.id}.${extension}`);
+    await new File(asset.uri).copy(destination,{overwrite:true});
+    updateField('imageUri',destination.uri);
+  }
+
   function handleCancel() {
     if (!hasUnsavedChanges) { router.back(); return; }
     Alert.alert('Discard changes?', 'Your unsaved motorcycle details will be lost.', [
@@ -104,6 +117,8 @@ function MotorcycleManagementForm({ initialMotorcycle, editing }: { readonly ini
               hasUnsavedChanges={hasUnsavedChanges}
               notesCharacterCount={notesCharacterCount}
               onChangeField={updateField}
+              onChooseImage={() => { void handleChooseImage(); }}
+              onRemoveImage={() => updateField('imageUri','')}
               onSave={() => { void handleSave(); }}
               onCancel={handleCancel}
               onReset={resetForm}

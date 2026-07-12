@@ -1,7 +1,7 @@
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   AppTextInput,
@@ -230,6 +230,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
         keyboardShouldPersistTaps="handled"
         style={styles.scroll}
         contentContainerStyle={styles.content}>
+        {mode === 'login' ? <><Image accessibilityIgnoresInvertColors resizeMode="cover" source={require('../../../assets/images/login-motorcycle-hero.png')} style={styles.loginHero}/><View pointerEvents="none" style={styles.heroShadeTop}/><View pointerEvents="none" style={styles.heroShadeMid}/><View pointerEvents="none" style={styles.heroShadeBottom}/></> : null}
         <View style={styles.ambientTop} />
         <View style={styles.ambientBottom} />
         <AxionRideLogo variant="symbol" style={styles.logo} imageStyle={styles.logoImage} />
@@ -358,6 +359,10 @@ const styles = StyleSheet.create({
   },
   ambientTop:{position:'absolute',top:-100,right:-120,width:300,height:300,borderRadius:150,backgroundColor:'rgba(255,106,0,.07)'},
   ambientBottom:{position:'absolute',bottom:-120,left:-140,width:320,height:320,borderRadius:160,backgroundColor:'rgba(255,106,0,.035)'},
+  loginHero:{position:'absolute',top:0,left:0,right:0,width:'100%',height:660,opacity:.78},
+  heroShadeTop:{position:'absolute',top:0,left:0,right:0,height:170,backgroundColor:'rgba(7,10,15,.20)'},
+  heroShadeMid:{position:'absolute',top:390,left:0,right:0,height:190,backgroundColor:'rgba(7,10,15,.68)'},
+  heroShadeBottom:{position:'absolute',top:550,left:0,right:0,bottom:0,backgroundColor:palette.darkBackground},
   logo:{alignSelf:'center',marginBottom:12},
   logoImage:{width:260,height:150,marginBottom:0},
   card: {

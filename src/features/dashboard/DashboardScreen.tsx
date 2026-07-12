@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import { createStatisticsService, type StatisticsDashboardSummary } from '@/src/services';
 import { useAuth } from '@/src/providers';
@@ -40,15 +40,13 @@ export function DashboardScreen() {
     setStatisticsLoading(false);
   }, [statisticsService]);
 
-  useEffect(() => {
-    void loadStatistics();
-  }, [loadStatistics]);
+  useFocusEffect(useCallback(() => { void loadStatistics(); }, [loadStatistics]));
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView refreshControl={<RefreshControl refreshing={statisticsLoading} tintColor={premiumColors.primary} colors={[premiumColors.primary]} onRefresh={() => { void loadStatistics(); }}/>} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <DashboardTopHeader greeting={greeting} riderName={riderName} onOpenSettings={() => setSearchVisible(true)} />
 
         <View style={styles.stack}>

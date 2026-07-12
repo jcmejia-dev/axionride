@@ -1,23 +1,31 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import { Alert, Animated, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { createMaintenanceService, type CreateMaintenanceInput, type MaintenanceListItem } from '@/src/services';
-import { layout, palette, spacing } from '@/src/theme';
+import type { Motorcycle } from '@/src/domain/motorcycle';
+import { createMaintenanceService, createMotorcycleService, createSettingsService, type CreateMaintenanceInput, type MaintenanceListItem } from '@/src/services';
+import { layout, palette, radius, spacing, typography } from '@/src/theme';
 
 import { MaintenanceCreateSheet } from './components/MaintenanceCreateSheet';
 import { EmptyMaintenanceState } from './components/EmptyMaintenanceState';
 import { MaintenanceHeader } from './components/MaintenanceHeader';
-import { MaintenanceQuickActions } from './components/MaintenanceQuickActions';
 import { MaintenanceStatusCard } from './components/MaintenanceStatusCard';
-import { MaintenanceSummaryGrid } from './components/MaintenanceSummaryGrid';
 import { MaintenanceTaskCard } from './components/MaintenanceTaskCard';
 import { MaintenanceTimeline } from './components/MaintenanceTimeline';
 import type { MaintenanceData, MaintenanceStatus } from './types';
 
 export function MaintenanceScreen() {
+  const router=useRouter();
   const maintenanceService = useMemo(() => createMaintenanceService(), []);
+  const motorcycleService=useMemo(()=>createMotorcycleService(),[]);
+  const settingsService=useMemo(()=>createSettingsService(),[]);
+  const [primaryMotorcycle,setPrimaryMotorcycle]=useState<Motorcycle|null>(null);
+  const [activeTab,setActiveTab]=useState<'Upcoming'|'Completed'|'All Tasks'>('Upcoming');
+  const [remindersEnabled,setRemindersEnabled]=useState(false);
+  const [refreshing,setRefreshing]=useState(false);
   const [upcomingMaintenance, setUpcomingMaintenance] = useState<readonly MaintenanceListItem[]>([]);
   const [maintenanceHistory, setMaintenanceHistory] = useState<readonly MaintenanceListItem[]>([]);
   const [createSheetVisible, setCreateSheetVisible] = useState(false);
@@ -27,10 +35,13 @@ export function MaintenanceScreen() {
     [upcomingMaintenance, maintenanceHistory],
   );
   const refreshMaintenance = useCallback(async () => {
-    const [upcomingResult, historyResult] = await Promise.all([
+    const [upcomingResult, historyResult, motorcycleResult] = await Promise.all([
       maintenanceService.getUpcomingMaintenance(),
       maintenanceService.getMaintenanceHistory(),
+      motorcycleService.requirePrimaryMotorcycle(),
     ]);
+    if(motorcycleResult.ok)setPrimaryMotorcycle(motorcycleResult.value);else setPrimaryMotorcycle(null);
+    const settingsResult=settingsService.getSettingsOverview();if(settingsResult.ok)setRemindersEnabled(settingsResult.value.localNotificationsEnabled);
 
     if (upcomingResult.ok) {
       setUpcomingMaintenance(upcomingResult.value);
@@ -43,11 +54,10 @@ export function MaintenanceScreen() {
     } else {
       Alert.alert('Maintenance history unavailable', historyResult.error.message);
     }
-  }, [maintenanceService]);
+  }, [maintenanceService,motorcycleService,settingsService]);
 
-  useEffect(() => {
-    void refreshMaintenance();
-  }, [refreshMaintenance]);
+  useFocusEffect(useCallback(() => { void refreshMaintenance(); }, [refreshMaintenance]));
+  async function handleRefresh(){setRefreshing(true);await refreshMaintenance();setRefreshing(false)}
 
   async function handleCreateMaintenance(input: CreateMaintenanceInput) {
     setSaving(true);
@@ -97,24 +107,19 @@ export function MaintenanceScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} tintColor={palette.accentOrange} colors={[palette.accentOrange]} onRefresh={() => { void handleRefresh(); }}/>} style={styles.screen} contentContainerStyle={styles.content}>
         <MaintenanceHeader onAdd={() => setCreateSheetVisible(true)} />
+
+        <CurrentMotorcycleCard motorcycle={primaryMotorcycle} onChange={()=>router.push('/garage')} />
 
         <AnimatedEntrance delay={80}>
           <MaintenanceStatusCard status={maintenanceData.overallStatus} />
         </AnimatedEntrance>
 
-        <AnimatedEntrance delay={180}>
-          <MaintenanceSummaryGrid summary={maintenanceData.summary} />
-        </AnimatedEntrance>
-
         <AnimatedEntrance delay={280}>
           <View style={styles.section}>
-            <View>
-              <Text style={styles.sectionTitle}>Upcoming Maintenance</Text>
-              <Text style={styles.sectionSubtitle}>Service tasks staged for this motorcycle</Text>
-            </View>
-            {maintenanceData.upcomingTasks.length > 0 ? (
+            <MaintenanceTabs selected={activeTab} onSelect={setActiveTab}/>
+            {activeTab==='Completed'?<MaintenanceTimeline items={maintenanceData.timeline}/>:maintenanceData.upcomingTasks.length > 0 ? (
               <View style={styles.taskStack}>
                 {maintenanceData.upcomingTasks.map((task) => (
                   <MaintenanceTaskCard
@@ -129,20 +134,12 @@ export function MaintenanceScreen() {
             ) : (
               <EmptyMaintenanceState />
             )}
+            {activeTab==='All Tasks'&&maintenanceData.timeline.length>0?<MaintenanceTimeline items={maintenanceData.timeline}/>:null}
           </View>
         </AnimatedEntrance>
 
-        <AnimatedEntrance delay={380}>
-          <MaintenanceTimeline items={maintenanceData.timeline} />
-        </AnimatedEntrance>
-
-        <AnimatedEntrance delay={480}>
-          <MaintenanceQuickActions
-            onAddMaintenance={() => setCreateSheetVisible(true)}
-            onLogService={handleLogService}
-            onViewHistory={() => Alert.alert('Maintenance History', `${maintenanceHistory.length} completed service records.`)}
-          />
-        </AnimatedEntrance>
+        <Pressable onPress={()=>setActiveTab('Completed')} style={({pressed})=>[styles.actionCard,pressed&&styles.pressed]}><View style={styles.actionIcon}><SymbolView name={{ios:'calendar',android:'calendar_month',web:'calendar_month'}} tintColor="#FFD18A" size={24}/></View><View style={styles.actionCopy}><Text style={styles.actionTitle}>Maintenance History</Text><Text style={styles.actionSubtitle}>View all completed maintenance records</Text></View><SymbolView name={{ios:'chevron.right',android:'chevron_right',web:'chevron_right'}} tintColor={palette.textMuted} size={22}/></Pressable>
+        <View style={styles.reminderCard}><View style={styles.actionCopy}><Text style={styles.actionTitle}>Maintenance Reminders</Text><Text style={styles.actionSubtitle}>Get notified before your maintenance is due</Text></View><Switch value={remindersEnabled} onValueChange={(value)=>{const result=settingsService.setLocalNotificationsEnabled(value);if(result.ok)setRemindersEnabled(result.value)}} trackColor={{false:'rgba(255,255,255,.12)',true:palette.accentOrange}} thumbColor="#fff"/></View>
       </ScrollView>
       <MaintenanceCreateSheet
         visible={createSheetVisible}
@@ -155,6 +152,9 @@ export function MaintenanceScreen() {
     </SafeAreaView>
   );
 }
+
+function CurrentMotorcycleCard({motorcycle,onChange}:{readonly motorcycle:Motorcycle|null;readonly onChange:()=>void}){return <View style={styles.motorcycleCard}><View style={styles.motorcycleCopy}><Text style={styles.motorcycleKicker}>CURRENT MOTORCYCLE</Text><Text numberOfLines={1} style={styles.motorcycleName}>{motorcycle?.nickname??'No motorcycle selected'}</Text><Text style={styles.ready}>{motorcycle?'●  Ready to ride':'Add a primary motorcycle'}</Text></View>{motorcycle?<Image resizeMode="contain" source={motorcycle.imageUri?{uri:motorcycle.imageUri}:require('../../../assets/images/dashboard-motorcycle-fallback.png')} style={styles.motorcycleImage}/>:null}<Pressable accessibilityRole="button" onPress={onChange} style={({pressed})=>[styles.changeButton,pressed&&styles.pressed]}><Text style={styles.changeText}>{motorcycle?'Change':'Add'}</Text><SymbolView name={{ios:'chevron.right',android:'chevron_right',web:'chevron_right'}} tintColor={palette.textMuted} size={18}/></Pressable></View>}
+function MaintenanceTabs({selected,onSelect}:{readonly selected:'Upcoming'|'Completed'|'All Tasks';readonly onSelect:(tab:'Upcoming'|'Completed'|'All Tasks')=>void}){const tabs=['Upcoming','Completed','All Tasks'] as const;return <View style={styles.tabs}>{tabs.map(tab=><Pressable accessibilityRole="button" accessibilityState={{selected:selected===tab}} key={tab} onPress={()=>onSelect(tab)} style={[styles.tab,selected===tab&&styles.selectedTab]}><Text style={[styles.tabText,selected===tab&&styles.selectedTabText]}>{tab}</Text></Pressable>)}</View>}
 
 function createMaintenanceData(
   upcomingMaintenance: readonly MaintenanceListItem[],
@@ -340,4 +340,7 @@ const styles = StyleSheet.create({
   taskStack: {
     gap: spacing.md,
   },
+  motorcycleCard:{minHeight:150,overflow:'hidden',flexDirection:'row',alignItems:'center',padding:spacing.lg,borderWidth:1,borderColor:'rgba(255,255,255,.13)',borderRadius:radius.xl,backgroundColor:'rgba(17,21,28,.88)'},motorcycleCopy:{zIndex:2,flex:1,minWidth:0},motorcycleKicker:{...typography.label,color:palette.textMuted},motorcycleName:{...typography.subtitle,color:palette.text,marginTop:spacing.md,fontWeight:'900'},ready:{...typography.caption,color:palette.success,marginTop:8,fontWeight:'700'},motorcycleImage:{position:'absolute',right:54,bottom:-14,width:190,height:145,opacity:.88},changeButton:{zIndex:3,minHeight:48,flexDirection:'row',alignItems:'center',gap:7,paddingHorizontal:14,borderRadius:15,backgroundColor:'rgba(255,255,255,.07)'},changeText:{...typography.body,color:palette.text,fontWeight:'800'},
+  tabs:{minHeight:58,flexDirection:'row',alignItems:'center',padding:6,borderWidth:1,borderColor:'rgba(255,255,255,.1)',borderRadius:radius.xl,backgroundColor:'rgba(17,21,28,.9)'},tab:{flex:1,minHeight:46,alignItems:'center',justifyContent:'center',borderRadius:14},selectedTab:{backgroundColor:'rgba(255,106,0,.09)',borderBottomWidth:2,borderBottomColor:palette.accentOrange},tabText:{...typography.body,color:palette.textMuted,fontWeight:'800'},selectedTabText:{color:palette.accentOrange},
+  actionCard:{minHeight:88,flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.lg,borderWidth:1,borderColor:'rgba(255,255,255,.1)',borderRadius:radius.xl,backgroundColor:'rgba(17,21,28,.88)'},actionIcon:{width:46,height:46,alignItems:'center',justifyContent:'center',borderRadius:15,backgroundColor:'rgba(255,177,32,.09)'},actionCopy:{flex:1,minWidth:0},actionTitle:{...typography.subtitle,color:palette.text,fontWeight:'900'},actionSubtitle:{...typography.caption,color:palette.textMuted,marginTop:4},reminderCard:{minHeight:94,flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.lg,borderWidth:1,borderColor:'rgba(255,255,255,.1)',borderRadius:radius.xl,backgroundColor:'rgba(17,21,28,.88)'},pressed:{opacity:.78,transform:[{scale:.99}]},
 });

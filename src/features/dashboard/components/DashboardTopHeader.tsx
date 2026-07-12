@@ -1,7 +1,6 @@
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { IconButton } from '@/src/components/premium';
 import { iconSizes, premiumColors, spacing, typography } from '@/src/theme';
 
 type DashboardTopHeaderProps = {
@@ -19,19 +18,7 @@ export function DashboardTopHeader({ greeting, riderName, onOpenSettings }: Dash
           <Text style={styles.wordmarkAxion}>AXION</Text>
           <Text style={styles.wordmarkRide}>RIDE</Text>
         </View>
-        <IconButton
-          accessibilityLabel="Open dashboard search"
-          icon={
-            <SymbolView
-              name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
-              size={iconSizes.md}
-              tintColor={premiumColors.textPrimary}
-            />
-          }
-          onPress={onOpenSettings}
-          size="large"
-          style={styles.settingsButton}
-        />
+        <Pressable accessibilityLabel="Search motorcycles, rides, and maintenance" accessibilityRole="search" onPress={onOpenSettings} style={({pressed})=>[styles.searchButton,pressed&&styles.pressed]}><SymbolView name={{ios:'magnifyingglass',android:'search',web:'search'}} size={20} tintColor={premiumColors.textSecondary}/><Text style={styles.searchText}>Search</Text></Pressable>
       </View>
 
       <View style={styles.copy}>
@@ -54,9 +41,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  logoSpacer: {
-    width: 56,
-  },
+  logoSpacer: { display:'none' },
   wordmark: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -73,10 +58,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: premiumColors.primaryBright,
   },
-  settingsButton: {
+  searchButton: {
+    minWidth:126,
+    minHeight:46,
+    flexDirection:'row',
+    alignItems:'center',
+    gap:8,
+    paddingHorizontal:15,
+    borderRadius:16,
+    borderWidth:1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: 'rgba(255, 255, 255, 0.09)',
+    backgroundColor: 'rgba(255, 255, 255, 0.055)',
   },
+  searchText:{...typography.caption,color:premiumColors.textSecondary,fontWeight:'800'},pressed:{opacity:.72,transform:[{scale:.98}]},
   copy: {
     gap: 3,
   },

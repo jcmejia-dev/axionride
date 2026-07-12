@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Alert, Animated, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Alert, Animated, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MaintenanceStatus, MaintenanceType, type Maintenance } from '@/src/domain/maintenance';
@@ -102,7 +102,7 @@ export function GarageScreen() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.topGlow} />
       <View style={styles.sideGlow} />
-      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, compact ? styles.contentCompact : null]} showsVerticalScrollIndicator={false}>
+      <ScrollView refreshControl={<RefreshControl refreshing={false} tintColor={premiumColors.primary} colors={[premiumColors.primary]} onRefresh={() => { void refresh(); }}/>} style={styles.screen} contentContainerStyle={[styles.content, compact ? styles.contentCompact : null]} showsVerticalScrollIndicator={false}>
         <GarageHeader onAdd={addMotorcycle} />
 
         {loading ? <GarageLoadingState /> : error ? <GarageErrorState message={error} onRetry={() => { setLoading(true); void refresh(); }} /> : overview.motorcycles.length === 0 ? <EmptyGarage onAdd={addMotorcycle} /> : primary ? (

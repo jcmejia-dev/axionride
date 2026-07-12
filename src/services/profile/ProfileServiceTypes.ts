@@ -9,9 +9,11 @@ export type LocalProfile = {
   readonly membershipStatus: string;
   readonly accountMode: 'authenticated';
   readonly notice: string;
+  readonly imageUri: string | null;
 };
 
 export type ProfileIdentity = { readonly displayName?: string; readonly email: string };
+export type UpdateLocalProfileInput = { readonly nickname: string; readonly imageUri: string | null };
 
 /**
  * Profile screen read model composed by ProfileService.

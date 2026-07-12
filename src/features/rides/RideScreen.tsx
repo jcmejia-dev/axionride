@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GlassCard } from '@/src/components';
@@ -33,14 +34,14 @@ export function RideScreen() {
   const [liveRidePoints, setLiveRidePoints] = useState<readonly RidePoint[]>([]);
   const [rideHistory, setRideHistory] = useState<readonly RecentRide[]>([]);
   const [historyFilter, setHistoryFilter] = useState<RideHistoryFilter>('All');
+  const [refreshing,setRefreshing]=useState(false);
   const filteredRideHistory = useMemo(() => rideHistory.filter((ride) => isRideInFilter(ride.timestamp, historyFilter)), [historyFilter, rideHistory]);
   const currentRidePreview = toCurrentRidePreview(currentRide);
   const activeMapPoints = completedRide ? completedRide.ride.route : liveRidePoints;
   const currentMapPoint = completedRide ? null : liveRidePoints[liveRidePoints.length - 1] ?? null;
+  async function handleRefresh(){setRefreshing(true);await refreshRideHistory(rideService,setRideHistory);setRefreshing(false)}
 
-  useEffect(() => {
-    refreshRideHistory(rideService, setRideHistory);
-  }, [rideService]);
+  useFocusEffect(useCallback(() => { void refreshRideHistory(rideService,setRideHistory); }, [rideService]));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -177,7 +178,7 @@ export function RideScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} tintColor={palette.accentOrange} colors={[palette.accentOrange]} onRefresh={() => { void handleRefresh(); }}/>} style={styles.screen} contentContainerStyle={styles.content}>
         <RideHeader onStartRide={() => { void handleStartRide(); }} />
         <RideFilters selected={historyFilter} onSelect={setHistoryFilter} />
 
