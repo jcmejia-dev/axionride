@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { palette, radius, spacing, typography } from '@/src/theme';
+import { motion, premiumColors, radius, spacing, typography } from '@/src/theme';
 
 import { MotorcycleField } from './MotorcycleField';
 
@@ -9,7 +9,7 @@ const colorOptions = [
   { label: 'Black', value: 'Ebony Black', swatch: '#09090B' },
   { label: 'White', value: 'Pearl White', swatch: '#F8FAFC' },
   { label: 'Red', value: 'Racing Red', swatch: '#DC2626' },
-  { label: 'Orange', value: 'Burnt Orange', swatch: palette.accentOrange },
+  { label: 'Orange', value: 'Burnt Orange', swatch: premiumColors.primary },
 ] as const;
 
 type MotorcycleColorPickerProps = {
@@ -63,11 +63,11 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.label,
-    color: 'rgba(248, 250, 252, 0.64)',
+    color: premiumColors.textSecondary,
     textTransform: 'uppercase',
   },
   required: {
-    color: palette.accentOrange,
+    color: premiumColors.primary,
   },
   swatches: {
     flexDirection: 'row',
@@ -81,13 +81,13 @@ const styles = StyleSheet.create({
     minHeight: 42,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.13)',
+    borderColor: premiumColors.border,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: 'rgba(255,255,255,0.045)',
   },
   selectedSwatch: {
-    borderColor: 'rgba(249, 115, 22, 0.74)',
-    backgroundColor: 'rgba(249, 115, 22, 0.14)',
+    borderColor: premiumColors.borderOrange,
+    backgroundColor: premiumColors.primaryMuted,
   },
   swatch: {
     width: 16,
@@ -98,11 +98,11 @@ const styles = StyleSheet.create({
   },
   swatchLabel: {
     ...typography.caption,
-    color: palette.text,
+    color: premiumColors.textPrimary,
     fontWeight: '700',
   },
   pressed: {
     opacity: 0.78,
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: motion.scale.pressed }],
   },
 });

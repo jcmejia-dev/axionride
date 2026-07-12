@@ -6,3 +6,11 @@ export type GarageMotorcycleStatus = {
   readonly oilStatus: string;
   readonly lastRide: string;
 };
+
+export type GarageMaintenanceSummary = {
+  readonly statusLabel: string;
+  readonly statusTone: 'success' | 'warning' | 'danger' | 'neutral';
+  readonly nextMaintenanceLabel: string;
+  readonly lastOilChangeLabel: string;
+  readonly progressPercent: number | null;
+};

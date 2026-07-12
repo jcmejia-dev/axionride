@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { palette, radius, spacing, typography } from '@/src/theme';
+import { motion, premiumColors, radius, spacing, typography } from '@/src/theme';
 
 type MotorcycleSegmentedSelectorProps<T extends string> = {
   label: string;
@@ -53,11 +53,11 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.label,
-    color: 'rgba(248, 250, 252, 0.64)',
+    color: premiumColors.textSecondary,
     textTransform: 'uppercase',
   },
   required: {
-    color: palette.accentOrange,
+    color: premiumColors.primary,
   },
   options: {
     flexDirection: 'row',
@@ -69,24 +69,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.13)',
+    borderColor: premiumColors.border,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: 'rgba(255,255,255,0.045)',
   },
   selectedOption: {
-    borderColor: 'rgba(249, 115, 22, 0.74)',
-    backgroundColor: 'rgba(249, 115, 22, 0.16)',
+    borderColor: premiumColors.borderOrange,
+    backgroundColor: premiumColors.primaryMuted,
   },
   optionText: {
     ...typography.caption,
-    color: 'rgba(248, 250, 252, 0.72)',
+    color: premiumColors.textSecondary,
     fontWeight: '700',
   },
   selectedOptionText: {
-    color: palette.text,
+    color: premiumColors.textPrimary,
   },
   pressed: {
     opacity: 0.78,
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: motion.scale.pressed }],
   },
 });

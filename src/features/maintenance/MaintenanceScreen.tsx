@@ -98,7 +98,7 @@ export function MaintenanceScreen() {
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <MaintenanceHeader />
+        <MaintenanceHeader onAdd={() => setCreateSheetVisible(true)} />
 
         <AnimatedEntrance delay={80}>
           <MaintenanceStatusCard status={maintenanceData.overallStatus} />

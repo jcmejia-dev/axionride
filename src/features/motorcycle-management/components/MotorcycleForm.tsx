@@ -1,7 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { PremiumButton } from '@/src/components/premium';
 import { MotorcycleCategory, FuelType, TransmissionType } from '@/src/domain/motorcycle';
-import { palette, radius, spacing, typography } from '@/src/theme';
+import { iconSizes, motion, premiumColors, radius, spacing, typography } from '@/src/theme';
 
 import { MotorcycleCategorySelector } from './MotorcycleCategorySelector';
 import { MotorcycleColorPicker } from './MotorcycleColorPicker';
@@ -16,6 +18,8 @@ type MotorcycleFormProps = {
   errors: MotorcycleFormErrors;
   hasUnsavedChanges: boolean;
   notesCharacterCount: number;
+  editing: boolean;
+  saving: boolean;
   onChangeField: (field: MotorcycleFormField, value: string) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -28,12 +32,15 @@ export function MotorcycleForm({
   errors,
   hasUnsavedChanges,
   notesCharacterCount,
+  editing,
+  saving,
   onChangeField,
   onSave,
   onCancel,
   onReset,
   onDelete,
 }: MotorcycleFormProps) {
+  const compact = useWindowDimensions().width < 390;
   return (
     <View style={styles.container}>
       <View style={styles.statusRow}>
@@ -41,7 +48,7 @@ export function MotorcycleForm({
         <Text style={styles.unsavedText}>{hasUnsavedChanges ? 'Unsaved changes' : 'No changes'}</Text>
       </View>
 
-      <MotorcycleSection title="Basic Information" description="Name the bike and classify the machine." delay={80}>
+      <MotorcycleSection title="Identity" description="The details you use to recognize this motorcycle." delay={60}>
         <MotorcycleField
           label="Nickname"
           value={values.nickname}
@@ -50,7 +57,7 @@ export function MotorcycleForm({
           helperText="What you call this motorcycle."
           required
         />
-        <View style={styles.twoColumn}>
+        <View style={[styles.twoColumn, compact ? styles.stacked : null]}>
           <MotorcycleField
             label="Brand"
             value={values.brand}
@@ -82,7 +89,7 @@ export function MotorcycleForm({
         />
       </MotorcycleSection>
 
-      <MotorcycleSection title="Specifications" description="Core specs used by future ride and maintenance features." delay={160}>
+      <MotorcycleSection title="Specifications" description="Core mechanical details for rides and maintenance." delay={120}>
         <MotorcycleField
           label="Engine CC"
           value={values.engineCc}
@@ -103,7 +110,7 @@ export function MotorcycleForm({
         />
       </MotorcycleSection>
 
-      <MotorcycleSection title="Ownership" description="Sensitive identifiers stay visible only where needed." delay={240}>
+      <MotorcycleSection title="Ownership" description="Optional purchase and registration details kept on this device." delay={180}>
         <MotorcycleField
           label="Plate Number"
           value={values.plateNumber}
@@ -119,7 +126,7 @@ export function MotorcycleForm({
           error={errors.vin}
           autoCapitalize="characters"
         />
-        <View style={styles.twoColumn}>
+        <View style={[styles.twoColumn, compact ? styles.stacked : null]}>
           <MotorcycleField
             label="Purchase Date"
             value={values.purchaseDate}
@@ -147,7 +154,7 @@ export function MotorcycleForm({
         />
       </MotorcycleSection>
 
-      <MotorcycleSection title="Additional Notes" description="Setup notes, reminders, or ownership context." delay={320}>
+      <MotorcycleSection title="Notes" description="Service context, setup details, or anything worth remembering." delay={240}>
         <MotorcycleField
           label="Notes"
           value={values.notes}
@@ -159,10 +166,12 @@ export function MotorcycleForm({
       </MotorcycleSection>
 
       <View style={styles.actions}>
-        <ActionButton label="Save" onPress={onSave} primary />
-        <ActionButton label="Reset" onPress={onReset} />
-        <ActionButton label="Cancel" onPress={onCancel} quiet />
-        {onDelete ? <ActionButton label="Delete Motorcycle" onPress={onDelete} quiet /> : null}
+        <PremiumButton title={editing ? 'Update Motorcycle' : 'Add Motorcycle'} loading={saving} disabled={saving} icon={<SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} tintColor="#FFFFFF" size={iconSizes.sm} />} onPress={onSave} />
+        <View style={styles.secondaryActions}>
+          {hasUnsavedChanges ? <ActionButton label="Reset" onPress={onReset} /> : null}
+          <ActionButton label="Cancel" onPress={onCancel} />
+        </View>
+        {onDelete ? <ActionButton label="Delete Motorcycle" onPress={onDelete} danger /> : null}
       </View>
     </View>
   );
@@ -171,22 +180,20 @@ export function MotorcycleForm({
 type ActionButtonProps = {
   label: string;
   onPress: () => void;
-  primary?: boolean;
-  quiet?: boolean;
+  danger?: boolean;
 };
 
-function ActionButton({ label, onPress, primary = false, quiet = false }: ActionButtonProps) {
+function ActionButton({ label, onPress, danger = false }: ActionButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.actionButton,
-        primary ? styles.primaryButton : null,
-        quiet ? styles.quietButton : null,
+        danger ? styles.dangerButton : null,
         pressed ? styles.pressed : null,
       ]}>
-      <Text style={[styles.actionText, primary ? styles.primaryActionText : null, quiet ? styles.quietActionText : null]}>
+      <Text style={[styles.actionText, danger ? styles.dangerText : null]}>
         {label}
       </Text>
     </Pressable>
@@ -205,9 +212,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.13)',
+    borderColor: premiumColors.border,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: premiumColors.surfaceGlass,
   },
   unsavedDot: {
     width: 8,
@@ -216,53 +223,49 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(248, 250, 252, 0.36)',
   },
   unsavedDotActive: {
-    backgroundColor: palette.warning,
+    backgroundColor: premiumColors.primary,
   },
   unsavedText: {
     ...typography.caption,
-    color: palette.text,
+    color: premiumColors.textSecondary,
     fontWeight: '700',
   },
   twoColumn: {
     flexDirection: 'row',
     gap: spacing.md,
   },
+  stacked: { flexDirection: 'column' },
   columnField: {
     flex: 1,
     minWidth: 0,
   },
   actions: {
-    gap: spacing.md,
+    gap: spacing.lg,
+    paddingTop: spacing.sm,
   },
+  secondaryActions: { flexDirection: 'row', gap: spacing.md },
   actionButton: {
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    flex: 1,
+    borderColor: premiumColors.border,
+    borderRadius: radius.lg,
+    backgroundColor: premiumColors.surfaceGlass,
   },
-  primaryButton: {
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-  },
-  quietButton: {
+  dangerButton: {
+    flex: 0,
     backgroundColor: 'transparent',
-    borderColor: 'transparent',
+    borderColor: 'rgba(255, 77, 79, 0.28)',
   },
   actionText: {
     ...typography.button,
-    color: palette.text,
+    color: premiumColors.textPrimary,
   },
-  primaryActionText: {
-    color: palette.darkBackground,
-  },
-  quietActionText: {
-    color: 'rgba(248, 250, 252, 0.68)',
-  },
+  dangerText: { color: premiumColors.danger },
   pressed: {
     opacity: 0.78,
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: motion.scale.pressed }],
   },
 });

@@ -20,19 +20,14 @@ export function RideStatsGrid({ currentRide, insights }: RideStatsGridProps) {
 
   return (
     <View style={styles.section}>
-      <SectionTitle title="Current Ride Preview" subtitle="Foreground GPS when available, demo fallback otherwise." />
+      <SectionTitle title="Current Ride" subtitle="Live statistics from foreground GPS" />
       <View style={styles.grid}>
         {currentStats.map((stat, index) => (
           <RideStatCard key={stat.label} stat={stat} index={index} />
         ))}
       </View>
 
-      <SectionTitle title="Ride Insights" subtitle="Weekly riding snapshot" />
-      <View style={styles.grid}>
-        {insights.map((stat, index) => (
-          <RideStatCard key={stat.label} stat={stat} index={index + currentStats.length} />
-        ))}
-      </View>
+      {insights.length > 0 ? <><SectionTitle title="Ride Insights" subtitle="Your riding snapshot" /><View style={styles.grid}>{insights.map((stat,index)=><RideStatCard key={stat.label} stat={stat} index={index+currentStats.length}/>)}</View></> : null}
     </View>
   );
 }

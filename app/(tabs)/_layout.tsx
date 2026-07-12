@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/src/components/useColorScheme';
-import { colorScheme as themeColors, palette, radius, spacing, typography } from '@/src/theme';
+import { colorScheme as themeColors, premiumColors, radius, spacing, typography } from '@/src/theme';
 
 export default function TabLayout() {
   const colorSchemeName = useColorScheme();
@@ -19,8 +19,8 @@ export default function TabLayout() {
         tabBarStyle: [
           styles.tabBar,
           {
-            height: 64 + insets.bottom,
-            paddingBottom: Math.max(insets.bottom, spacing.sm),
+            height: 78 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, spacing.md),
           },
         ],
         tabBarItemStyle: styles.tabItem,
@@ -119,14 +119,19 @@ const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: spacing.md,
+    bottom: spacing.sm,
     left: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: radius.xl,
-    backgroundColor: palette.darkPrimary,
+    borderColor: premiumColors.borderStrong,
+    borderRadius: radius.xl + 4,
+    backgroundColor: 'rgba(11, 15, 21, 0.98)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 14,
   },
   tabItem: {
     paddingVertical: spacing.xs,
@@ -134,5 +139,6 @@ const styles = StyleSheet.create({
   tabLabel: {
     ...typography.caption,
     fontSize: 11,
+    fontWeight: '600',
   },
 });

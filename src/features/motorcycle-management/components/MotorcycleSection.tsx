@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
 
 import { GlassCard } from '@/src/components';
-import { palette, spacing, typography } from '@/src/theme';
+import { motion, premiumColors, spacing, typography } from '@/src/theme';
 
 type MotorcycleSectionProps = {
   title: string;
@@ -16,13 +16,12 @@ export function MotorcycleSection({ title, description, children, delay = 0 }: M
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(progress, {
-      toValue: 1,
-      delay,
-      friction: 8,
-      tension: 48,
-      useNativeDriver: true,
-    }).start();
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (!active) return;
+      Animated.timing(progress, { toValue: 1, delay: reduced ? 0 : delay, duration: reduced ? 0 : motion.duration.slow, useNativeDriver: true }).start();
+    });
+    return () => { active = false; };
   }, [delay, progress]);
 
   return (
@@ -33,7 +32,7 @@ export function MotorcycleSection({ title, description, children, delay = 0 }: M
           {
             translateY: progress.interpolate({
               inputRange: [0, 1],
-              outputRange: [20, 0],
+              outputRange: [14, 0],
             }),
           },
         ],
@@ -52,17 +51,17 @@ export function MotorcycleSection({ title, description, children, delay = 0 }: M
 const styles = StyleSheet.create({
   card: {
     gap: spacing.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.075)',
-    borderColor: 'rgba(255, 255, 255, 0.13)',
+    backgroundColor: 'rgba(15, 19, 26, 0.9)',
+    borderColor: premiumColors.border,
   },
   title: {
     ...typography.subtitle,
-    color: palette.text,
+    color: premiumColors.textPrimary,
   },
   description: {
     ...typography.caption,
     marginTop: spacing.xs,
-    color: 'rgba(248, 250, 252, 0.56)',
+    color: premiumColors.textSecondary,
   },
   content: {
     gap: spacing.lg,

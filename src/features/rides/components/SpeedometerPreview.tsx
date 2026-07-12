@@ -130,7 +130,7 @@ function CockpitButton({ label, onPress, disabled = false, primary = false }: Co
 
 function getStatusText(status: SpeedometerPreviewProps['status'], gpsActive: boolean) {
   if (status === 'active') {
-    return gpsActive ? 'GPS tracking' : 'Demo tracking';
+    return gpsActive ? 'GPS tracking' : 'Tracking without location';
   }
 
   if (status === 'paused') {

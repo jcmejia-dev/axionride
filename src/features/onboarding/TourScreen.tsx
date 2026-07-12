@@ -1,91 +1,16 @@
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { palette, radius, spacing, typography } from '@/src/theme';
 
-import { Body, GlassCard, PrimaryButton, SectionHeader, Title } from '@/src/components';
-import { palette, spacing } from '@/src/theme';
-
-const tourCards = [
-  {
-    title: 'Garage',
-    description: 'Build a clean profile for each motorcycle you own.',
-    icon: { ios: 'motorcycle.fill', android: 'two_wheeler', web: 'two_wheeler' },
-  },
-  {
-    title: 'Ride Tracking',
-    description: 'Capture ride context later when GPS features are introduced.',
-    icon: { ios: 'road.lanes', android: 'route', web: 'route' },
-  },
-  {
-    title: 'Maintenance',
-    description: 'Keep service records, reminders, and ownership history close.',
-    icon: { ios: 'checklist.checked', android: 'checklist', web: 'checklist' },
-  },
-  {
-    title: 'Insights',
-    description: 'Turn records into useful ownership and performance summaries.',
-    icon: { ios: 'chart.line.uptrend.xyaxis', android: 'monitoring', web: 'monitoring' },
-  },
+const cards = [
+  { step:'01', title:'Garage', description:'Build a detailed local profile for every motorcycle you own.', icon:{ios:'motorcycle.fill',android:'two_wheeler',web:'two_wheeler'} },
+  { step:'02', title:'Ride Tracking', description:'See your position and highlight the road traveled as you ride.', icon:{ios:'location.north.line.fill',android:'near_me',web:'near_me'} },
+  { step:'03', title:'Maintenance', description:'Record service history and keep upcoming work visible.', icon:{ios:'wrench.and.screwdriver.fill',android:'build',web:'build'} },
+  { step:'04', title:'Insights', description:'Review real distance, time, speed, and ownership trends.', icon:{ios:'chart.line.uptrend.xyaxis',android:'monitoring',web:'monitoring'} },
 ] as const;
 
-export function TourScreen() {
-  const router = useRouter();
+export function TourScreen(){const router=useRouter();return <SafeAreaView style={styles.safeArea}><View style={styles.glow}/><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><View style={styles.hero}><Text style={styles.eyebrow}>The essentials</Text><Text style={styles.title}>Everything in one place.</Text><Text style={styles.description}>Focused tools for the motorcycle you own and every kilometer you ride.</Text></View><View style={styles.grid}>{cards.map((card)=><View key={card.title} style={styles.card}><View style={styles.top}><View style={styles.icon}><SymbolView name={card.icon} tintColor={palette.accentOrange} size={25}/></View><Text style={styles.step}>{card.step}</Text></View><Text style={styles.cardTitle}>{card.title}</Text><Text style={styles.cardDescription}>{card.description}</Text></View>)}</View><Pressable accessibilityRole="button" onPress={()=>router.push('/first-motorcycle')} style={({pressed})=>[styles.button,pressed&&styles.pressed]}><Text style={styles.buttonText}>Continue</Text><SymbolView name={{ios:'arrow.right',android:'arrow_forward',web:'arrow_forward'}} tintColor="#fff" size={20}/></Pressable></ScrollView></SafeAreaView>}
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <Title>Feature Tour</Title>
-          <Body muted>AxionRide starts simple and grows into a complete motorcycle companion.</Body>
-        </View>
-
-        <View style={styles.grid}>
-          {tourCards.map((card) => (
-            <GlassCard key={card.title} style={styles.card}>
-              <View style={styles.iconWrap}>
-                <SymbolView name={card.icon} tintColor={palette.accentBlue} size={24} />
-              </View>
-              <SectionHeader title={card.title} subtitle={card.description} />
-            </GlassCard>
-          ))}
-        </View>
-
-        <PrimaryButton title="Continue" onPress={() => router.push('/first-motorcycle')} />
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: palette.darkBackground,
-  },
-  screen: {
-    flex: 1,
-    backgroundColor: palette.darkBackground,
-  },
-  content: {
-    padding: spacing.xl,
-    paddingBottom: spacing.xxxl,
-    gap: spacing.xl,
-  },
-  hero: {
-    gap: spacing.sm,
-  },
-  grid: {
-    gap: spacing.lg,
-  },
-  card: {
-    gap: spacing.lg,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: 'rgba(34, 211, 238, 0.12)',
-  },
-});
+const styles=StyleSheet.create({safeArea:{flex:1,backgroundColor:palette.darkBackground},glow:{position:'absolute',top:-140,left:-160,width:340,height:340,borderRadius:170,backgroundColor:'rgba(255,106,0,.06)'},content:{paddingHorizontal:spacing.xl,paddingTop:spacing.xxl,paddingBottom:spacing.xxxl,gap:spacing.xl},hero:{gap:spacing.sm},eyebrow:{...typography.label,color:palette.accentOrange,textTransform:'uppercase',letterSpacing:1.4},title:{color:palette.text,fontSize:34,lineHeight:40,fontWeight:'900',letterSpacing:-1},description:{...typography.body,color:palette.textMuted,lineHeight:24},grid:{gap:spacing.md},card:{minHeight:150,padding:spacing.lg,borderWidth:1,borderColor:'rgba(255,255,255,.10)',borderRadius:radius.xl,backgroundColor:'rgba(17,21,28,.88)'},top:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},icon:{width:46,height:46,alignItems:'center',justifyContent:'center',borderRadius:15,backgroundColor:'rgba(255,106,0,.12)'},step:{fontSize:12,fontWeight:'900',letterSpacing:1.5,color:'rgba(247,248,250,.28)'},cardTitle:{...typography.subtitle,color:palette.text,marginTop:spacing.md,fontWeight:'900'},cardDescription:{...typography.caption,color:palette.textMuted,marginTop:spacing.xs,lineHeight:20},button:{minHeight:58,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,borderRadius:radius.lg,backgroundColor:palette.accentOrange},buttonText:{...typography.button,color:'#fff'},pressed:{opacity:.86,transform:[{scale:.985}]}});

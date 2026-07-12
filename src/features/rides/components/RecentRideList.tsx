@@ -14,8 +14,8 @@ export function RecentRideList({ rides }: RecentRideListProps) {
   return (
     <View style={styles.section}>
       <View>
-        <Text style={styles.sectionTitle}>Recent Rides</Text>
-        <Text style={styles.sectionSubtitle}>Mock history for future ride tracking</Text>
+        <Text style={styles.sectionTitle}>Ride History</Text>
+        <Text style={styles.sectionSubtitle}>Routes saved securely on this device</Text>
       </View>
       <View style={styles.list}>
         {rides.map((ride) => (

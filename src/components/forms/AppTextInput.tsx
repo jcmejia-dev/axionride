@@ -1,3 +1,5 @@
+import { SymbolView } from 'expo-symbols';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 
 import { useColorScheme } from '@/src/components/useColorScheme';
@@ -10,6 +12,7 @@ type AppTextInputProps = TextInputProps & {
   showPasswordToggle?: boolean;
   passwordVisible?: boolean;
   onTogglePasswordVisibility?: () => void;
+  leadingIcon?: ReactNode;
 };
 
 /** Branded text input with label, error, and dark-mode aware styling. */
@@ -20,11 +23,12 @@ export function AppTextInput({
   showPasswordToggle = false,
   passwordVisible = false,
   onTogglePasswordVisibility,
+  leadingIcon,
   style,
   ...props
 }: AppTextInputProps) {
-  const colorScheme = useColorScheme();
-  const colors = semanticColors[colorScheme];
+  useColorScheme();
+  const colors = semanticColors.dark;
   const supportingText = error ?? helperText;
 
   return (
@@ -38,6 +42,7 @@ export function AppTextInput({
             borderColor: error ? '#EF4444' : colors.border,
           },
         ]}>
+        {leadingIcon ? <View style={styles.leadingIcon}>{leadingIcon}</View> : null}
         <TextInput
           placeholderTextColor={colors.textMuted}
           style={[
@@ -58,7 +63,11 @@ export function AppTextInput({
             hitSlop={spacing.sm}
             onPress={onTogglePasswordVisibility}
             style={styles.toggle}>
-            <Text style={styles.toggleText}>{passwordVisible ? 'Hide' : 'Show'}</Text>
+            <SymbolView
+              name={{ ios: passwordVisible ? 'eye.slash.fill' : 'eye.fill', android: passwordVisible ? 'visibility_off' : 'visibility', web: 'visibility' }}
+              tintColor="rgba(248,250,252,0.62)"
+              size={22}
+            />
           </Pressable>
         ) : null}
       </View>
@@ -80,17 +89,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   inputShell: {
-    minHeight: 52,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
+    backgroundColor: '#11151B',
   },
   input: {
-    minHeight: 52,
+    minHeight: 58,
     flex: 1,
     paddingHorizontal: spacing.lg,
     ...typography.body,
+  },
+  leadingIcon: {
+    width: 52,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -spacing.sm,
   },
   inputWithToggle: {
     paddingRight: spacing.sm,
@@ -99,11 +116,6 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-  },
-  toggleText: {
-    ...typography.label,
-    color: '#22D3EE',
-    textTransform: 'uppercase',
   },
   supportingText: {
     ...typography.caption,

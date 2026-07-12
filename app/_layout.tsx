@@ -62,7 +62,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="motorcycle-management" options={{ title: 'Motorcycle Management' }} />
+        <Stack.Screen name="motorcycle-management" options={{ headerShown: false }} />
         <Stack.Screen name="workspace-setup" options={{ headerShown: false }} />
         <Stack.Screen name="reset-password" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'AxionRide' }} />
