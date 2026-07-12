@@ -4,7 +4,7 @@ import { Animated, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 
-import { createStatisticsService, type StatisticsDashboardSummary } from '@/src/services';
+import { createStatisticsService, createWeatherService, type CurrentWeather, type StatisticsDashboardSummary } from '@/src/services';
 import { useAuth } from '@/src/providers';
 import { layout, premiumColors, spacing } from '@/src/theme';
 
@@ -14,6 +14,8 @@ import { MonthlyStatsCard } from './components/MonthlyStatsCard';
 import { MotorcycleHeroSection } from './components/MotorcycleHeroSection';
 import { RecentRideCard } from './components/RecentRideCard';
 import { SearchSheet } from './components/SearchSheet';
+import { WeatherRideCard } from './components/WeatherRideCard';
+import type { DashboardWeather, WeatherCondition } from './types';
 
 export function DashboardScreen() {
   const greeting = getGreeting(new Date());
@@ -24,21 +26,25 @@ export function DashboardScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const statisticsService = useMemo(() => createStatisticsService(), []);
+  const weatherService=useMemo(()=>createWeatherService(),[]);
   const [statisticsSummary, setStatisticsSummary] = useState<StatisticsDashboardSummary | null>(null);
   const [statisticsLoading, setStatisticsLoading] = useState(true);
+  const [weather,setWeather]=useState<DashboardWeather|null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const stackCards = width < 430;
 
   const loadStatistics = useCallback(async () => {
     setStatisticsLoading(true);
     const result = await statisticsService.getDashboardStatistics();
+    const weatherResult=await weatherService.getCurrentWeather();
 
     if (result.ok) {
       setStatisticsSummary(result.value);
     }
+    setWeather(weatherResult.ok?toDashboardWeather(weatherResult.value):null);
 
     setStatisticsLoading(false);
-  }, [statisticsService]);
+  }, [statisticsService,weatherService]);
 
   useFocusEffect(useCallback(() => { void loadStatistics(); }, [loadStatistics]));
 
@@ -62,6 +68,8 @@ export function DashboardScreen() {
             <DashboardMetricStrip loading={statisticsLoading} summary={statisticsSummary} />
           </AnimatedEntrance>
 
+          {weather?<AnimatedEntrance delay={210}><WeatherRideCard weather={weather}/></AnimatedEntrance>:null}
+
           <AnimatedEntrance delay={250} style={[styles.cardGrid, stackCards ? styles.cardGridStacked : null]}>
             <RecentRideCard loading={statisticsLoading} ride={statisticsSummary?.recentRide ?? null} onPress={() => router.push('/rides')} />
             <MonthlyStatsCard loading={statisticsLoading} summary={statisticsSummary} />
@@ -72,6 +80,9 @@ export function DashboardScreen() {
     </SafeAreaView>
   );
 }
+
+function toDashboardWeather(weather:CurrentWeather):DashboardWeather{return {condition:toCondition(weather.weatherCode,weather.temperatureCelsius),temperature:`${Math.round(weather.temperatureCelsius)}°C`,rideCondition:'Current local conditions',wind:`${Math.round(weather.windKmh)} km/h`,rainChance:`${weather.precipitationMm.toFixed(1)} mm`}}
+function toCondition(code:number,temperature:number):WeatherCondition{if(code>=95)return 'Stormy';if(code>=51)return 'Rainy';if(code>=2)return 'Cloudy';if(temperature>=34)return 'Hot';return 'Sunny'}
 
 type AnimatedEntranceProps = {
   children: ReactNode;

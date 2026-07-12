@@ -78,8 +78,7 @@ function getMotorcycleDetails(motorcycle: Motorcycle) {
 
 const styles = StyleSheet.create({
   card: {
-    minHeight: 292,
-    justifyContent: 'center',
+    minHeight: 390,
     padding: 22,
     borderColor: premiumColors.borderOrange,
     backgroundColor: 'rgba(8, 12, 18, 0.9)',
@@ -103,7 +102,7 @@ const styles = StyleSheet.create({
   },
   copy: {
     zIndex: 2,
-    width: '53%',
+    width: '100%',
     gap: 9,
   },
   eyebrow: {
@@ -154,17 +153,19 @@ const styles = StyleSheet.create({
     color: premiumColors.textSecondary,
   },
   visual: {
-    position: 'absolute',
-    right: 4,
-    bottom: 2,
-    width: '62%',
-    height: 220,
+    width: '100%',
+    height: 210,
+    marginTop:spacing.lg,
+    overflow:'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius:18,
+    backgroundColor:'rgba(255,255,255,.025)',
   },
   motorcycleImage: {
     width: '100%',
     height: '100%',
+    borderRadius:18,
   },
   fallbackMotorcycleImage: {
     width: '100%',

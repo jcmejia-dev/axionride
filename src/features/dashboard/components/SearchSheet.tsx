@@ -71,7 +71,7 @@ export function SearchSheet({ visible, onClose }: SearchSheetProps) {
   }
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={handleClose}>
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={handleClose}>
       <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS==='ios'?'padding':'height'}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         <View style={styles.sheet}>
