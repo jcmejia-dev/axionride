@@ -1,10 +1,12 @@
 import { SymbolView } from 'expo-symbols';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { File, Paths } from 'expo-file-system';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { GlassCard, LoadingSpinner, Toast } from '@/src/components';
+import { AppTextInput, GlassCard, LoadingSpinner, Toast } from '@/src/components';
 import {
   createBackupService,
   createNotificationService,
@@ -36,6 +38,13 @@ export function ProfileScreen() {
   const [lastBackupResult, setLastBackupResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileRefreshKey,setProfileRefreshKey]=useState(0);
+  const profileFocusedOnce=useRef(false);
+  useFocusEffect(useCallback(()=>{if(profileFocusedOnce.current)setProfileRefreshKey((key)=>key+1);else profileFocusedOnce.current=true;},[]));
 
   useEffect(() => {
     let active = true;
@@ -56,6 +65,8 @@ export function ProfileScreen() {
 
       if (profileResult.ok) {
         setProfileOverview(profileResult.value);
+        setNickname(profileResult.value.profile.riderName);
+        setProfileImageUri(profileResult.value.profile.imageUri);
       }
 
       if (settingsResult.ok) {
@@ -74,13 +85,41 @@ export function ProfileScreen() {
     return () => {
       active = false;
     };
-  }, [notificationService, profileService, settingsService, user]);
+  }, [notificationService, profileRefreshKey, profileService, settingsService, user]);
 
   function handleLogout() {
     Alert.alert('Sign out?', 'Your local records stay on this device and will be isolated from the next account.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: () => { setLogoutMessage('Signing out securely…'); void logout().then((result) => { if (!result.ok) { setLogoutMessage(result.error.message); } }); } },
     ]);
+  }
+
+  async function handleChooseProfileImage() {
+    const result = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true, multiple: false });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (asset.size && asset.size > 8 * 1024 * 1024) {
+      Alert.alert('Image too large', 'Choose a profile image smaller than 8 MB.');
+      return;
+    }
+    const extension = asset.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
+    const destination = new File(Paths.document, `profile-${user?.id ?? 'local'}.${extension}`);
+    await new File(asset.uri).copy(destination, { overwrite: true });
+    setProfileImageUri(destination.uri);
+  }
+
+  async function handleSaveProfile() {
+    setProfileSaving(true);
+    const result = await profileService.updateLocalProfile({ nickname, imageUri: profileImageUri });
+    setProfileSaving(false);
+    if (!result.ok) {
+      Alert.alert('Profile not saved', result.error.message);
+      return;
+    }
+    if (profileOverview) {
+      setProfileOverview({ ...profileOverview, profile: { ...profileOverview.profile, riderName: nickname.trim(), imageUri: profileImageUri } });
+    }
+    setEditingProfile(false);
   }
 
   async function handleToggleLocalNotifications() {
@@ -198,14 +237,14 @@ export function ProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <ScrollView refreshControl={<RefreshControl refreshing={loading} tintColor={palette.accentOrange} colors={[palette.accentOrange]} onRefresh={() => { setLoading(true); setProfileRefreshKey((key)=>key+1); }}/>} style={styles.screen} contentContainerStyle={styles.content}>
         <View style={styles.header}><View style={styles.headerRow}><View style={styles.headerAccent}/><View><Text style={styles.title}>Profile</Text><Text style={styles.subtitle}>Your account &amp; preferences</Text></View></View></View>
 
         {loading ? (
           <LoadingSpinner label="Loading local profile..." />
         ) : profileOverview && settingsOverview ? (
           <>
-            <ProfileHero overview={profileOverview} />
+            <ProfileHero overview={profileOverview} onEdit={() => setEditingProfile(true)} />
             <ProfileStats overview={profileOverview} />
             <MotorcyclePanel overview={profileOverview} onAdd={() => router.push('/motorcycle-management')} onViewAll={() => router.push('/garage')} />
             <SettingsPanel
@@ -230,17 +269,28 @@ export function ProfileScreen() {
         )}
       </ScrollView>
       <Toast visible={Boolean(logoutMessage)} message={logoutMessage ?? ''} variant="info" onHide={() => setLogoutMessage(null)} />
+      <ProfileEditModal
+        imageUri={profileImageUri}
+        nickname={nickname}
+        saving={profileSaving}
+        visible={editingProfile}
+        onCancel={() => setEditingProfile(false)}
+        onChangeNickname={setNickname}
+        onChooseImage={() => void handleChooseProfileImage()}
+        onRemoveImage={() => setProfileImageUri(null)}
+        onSave={() => void handleSaveProfile()}
+      />
     </SafeAreaView>
   );
 }
 
-function ProfileHero({ overview }: { readonly overview: ProfileOverview }) {
+function ProfileHero({ overview, onEdit }: { readonly overview: ProfileOverview; readonly onEdit: () => void }) {
   const motorcycle = overview.statistics.motorcycles.defaultMotorcycle;
   return (
     <View style={styles.heroCard}>
-      <View style={styles.avatar}><SymbolView name={{ ios: 'person.crop.circle.fill', android: 'person', web: 'person' }} tintColor={palette.text} size={50} /></View>
+      <View style={styles.avatar}>{overview.profile.imageUri ? <Image source={{ uri: overview.profile.imageUri }} style={styles.avatarImage} /> : <SymbolView name={{ ios: 'person.crop.circle.fill', android: 'person', web: 'person' }} tintColor={palette.text} size={50} />}</View>
 
-      <View>
+      <View style={styles.heroCopy}>
         <Text style={styles.heroName}>{overview.profile.riderName}</Text>
         <Text style={styles.rideMotto}>Ride safe. Ride smart.</Text>
         <View style={styles.riderBadge}><SymbolView name={{ios:'shield.fill',android:'shield',web:'shield'}} tintColor={palette.accentOrange} size={13}/><Text style={styles.riderBadgeText}>AXION RIDER</Text></View>
@@ -248,6 +298,10 @@ function ProfileHero({ overview }: { readonly overview: ProfileOverview }) {
           {motorcycle ? `${overview.profile.email} • ${motorcycle.nickname}` : overview.profile.email}
         </Text>
       </View>
+
+      <Pressable accessibilityLabel="Edit rider profile" accessibilityRole="button" onPress={onEdit} style={({ pressed }) => [styles.editProfileButton, pressed && styles.pressed]}>
+        <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} tintColor={palette.text} size={18} />
+      </Pressable>
 
       <View style={styles.notice}>
         <SymbolView
@@ -259,6 +313,10 @@ function ProfileHero({ overview }: { readonly overview: ProfileOverview }) {
       </View>
     </View>
   );
+}
+
+function ProfileEditModal({ imageUri, nickname, saving, visible, onCancel, onChangeNickname, onChooseImage, onRemoveImage, onSave }: { readonly imageUri: string | null; readonly nickname: string; readonly saving: boolean; readonly visible: boolean; readonly onCancel: () => void; readonly onChangeNickname: (value: string) => void; readonly onChooseImage: () => void; readonly onRemoveImage: () => void; readonly onSave: () => void }) {
+  return <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}><View style={styles.modalOverlay}><Pressable style={StyleSheet.absoluteFill} onPress={onCancel}/><View style={styles.editSheet}><View style={styles.editHeader}><View><Text style={styles.kicker}>Rider identity</Text><Text style={styles.sectionTitle}>Edit profile</Text></View><Pressable accessibilityLabel="Close profile editor" accessibilityRole="button" onPress={onCancel} style={styles.closeEdit}><SymbolView name={{ios:'xmark',android:'close',web:'close'}} tintColor={palette.text} size={18}/></Pressable></View><View style={styles.photoEditor}><View style={styles.avatarLarge}>{imageUri?<Image source={{uri:imageUri}} style={styles.avatarImage}/>:<SymbolView name={{ios:'person.crop.circle.fill',android:'person',web:'person'}} tintColor={palette.text} size={58}/>}</View><View style={styles.photoActions}><Pressable accessibilityRole="button" onPress={onChooseImage} style={({pressed})=>[styles.photoButton,pressed&&styles.pressed]}><Text style={styles.photoButtonText}>{imageUri?'Change photo':'Add photo'}</Text></Pressable>{imageUri?<Pressable accessibilityRole="button" onPress={onRemoveImage}><Text style={styles.removePhoto}>Remove</Text></Pressable>:null}</View></View><AppTextInput label="Nickname" maxLength={32} value={nickname} onChangeText={onChangeNickname} placeholder="How riders know you"/><View style={styles.editActions}><Pressable accessibilityRole="button" onPress={onCancel} style={({pressed})=>[styles.cancelButton,pressed&&styles.pressed]}><Text style={styles.cancelText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" disabled={saving} onPress={onSave} style={({pressed})=>[styles.saveButton,pressed&&styles.pressed,saving&&styles.disabledButton]}><Text style={styles.saveText}>{saving?'Saving...':'Save profile'}</Text></Pressable></View></View></View></Modal>;
 }
 
 function ProfileStats({ overview }: { readonly overview: ProfileOverview }) {
@@ -618,8 +676,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     borderRadius: 44,
+    overflow: 'hidden',
     backgroundColor: 'rgba(255, 106, 0, 0.10)',
   },
+  avatarImage:{width:'100%',height:'100%',borderRadius:999},
+  editProfileButton:{width:42,height:42,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(255,255,255,.14)',borderRadius:radius.pill,backgroundColor:'rgba(255,255,255,.07)'},
   heroCopy:{flex:1,minWidth:0},
   heroName: {
     ...typography.heading,
@@ -784,4 +845,5 @@ const styles = StyleSheet.create({
   motorcycleRow:{minHeight:96,flexDirection:'row',alignItems:'center',gap:spacing.md},bikeImageShell:{width:104,height:78,overflow:'hidden',borderRadius:radius.lg,backgroundColor:'rgba(255,255,255,.04)'},bikeImage:{width:'100%',height:'100%'},bikeCopy:{flex:1,minWidth:0},bikeName:{...typography.subtitle,color:palette.text,fontWeight:'900'},bikeSpec:{...typography.caption,color:palette.textMuted,marginTop:4},ready:{...typography.caption,color:palette.success,marginTop:8,fontWeight:'700'},emptyBike:{...typography.body,color:palette.textMuted},
   addBike:{minHeight:70,flexDirection:'row',alignItems:'center',gap:spacing.lg,paddingHorizontal:spacing.lg,borderWidth:1,borderStyle:'dashed',borderColor:'rgba(255,255,255,.15)',borderRadius:radius.lg},addBikeTitle:{...typography.body,color:palette.text,fontWeight:'800'},addBikeCopy:{...typography.caption,color:palette.textMuted,marginTop:2},
   logoutCard:{minHeight:86,flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.lg,borderWidth:1,borderColor:'rgba(255,255,255,.1)',borderRadius:radius.xl,backgroundColor:'rgba(17,21,28,.88)'},logoutIcon:{width:46,height:46,alignItems:'center',justifyContent:'center',borderRadius:14,backgroundColor:'rgba(255,77,79,.1)'},logoutCopy:{flex:1},logoutTitle:{...typography.body,color:palette.text,fontWeight:'900'},logoutSubtitle:{...typography.caption,color:palette.textMuted,marginTop:3},
+  modalOverlay:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,.72)'},editSheet:{gap:spacing.xl,padding:spacing.xl,paddingBottom:spacing.xxl,borderTopLeftRadius:radius.xl,borderTopRightRadius:radius.xl,borderWidth:1,borderColor:'rgba(255,255,255,.14)',backgroundColor:'#0B0E13'},editHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},closeEdit:{width:42,height:42,alignItems:'center',justifyContent:'center',borderRadius:radius.pill,backgroundColor:'rgba(255,255,255,.08)'},photoEditor:{flexDirection:'row',alignItems:'center',gap:spacing.lg},avatarLarge:{width:96,height:96,overflow:'hidden',alignItems:'center',justifyContent:'center',borderWidth:2,borderColor:'rgba(249,115,22,.7)',borderRadius:48,backgroundColor:'rgba(255,255,255,.07)'},photoActions:{gap:spacing.md},photoButton:{minHeight:44,justifyContent:'center',paddingHorizontal:spacing.lg,borderRadius:radius.lg,backgroundColor:'rgba(249,115,22,.13)'},photoButtonText:{...typography.body,color:palette.accentOrange,fontWeight:'800'},removePhoto:{...typography.caption,color:palette.danger,fontWeight:'700'},editActions:{flexDirection:'row',gap:spacing.md},cancelButton:{flex:1,minHeight:50,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(255,255,255,.13)',borderRadius:radius.lg},cancelText:{...typography.body,color:palette.text,fontWeight:'800'},saveButton:{flex:1,minHeight:50,alignItems:'center',justifyContent:'center',borderRadius:radius.lg,backgroundColor:palette.accentOrange},saveText:{...typography.body,color:'#0A0B0E',fontWeight:'900'},disabledButton:{opacity:.55},
 });

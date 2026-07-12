@@ -93,6 +93,7 @@ function toFormValues(motorcycle: Motorcycle): MotorcycleFormValues {
     purchasePrice: motorcycle.purchasePrice === undefined ? '' : String(motorcycle.purchasePrice),
     odometerKm: String(motorcycle.odometerKm),
     notes: motorcycle.notes ?? '',
+    imageUri: motorcycle.imageUri ?? '',
   };
 }
 
@@ -157,6 +158,7 @@ function toMotorcycle(
     purchasePrice: values.purchasePrice.trim().length === 0 ? undefined : parsedPurchasePrice,
     odometerKm: Number.isFinite(parsedOdometerKm) ? parsedOdometerKm : fallbackOdometerKm,
     notes: optionalText(values.notes),
+    imageUri: optionalText(values.imageUri),
     updatedAt: new Date().toISOString(),
   };
 }

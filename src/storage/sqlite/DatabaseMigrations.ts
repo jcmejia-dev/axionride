@@ -12,6 +12,14 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     name: 'add_local_workspace_isolation',
     statements: WORKSPACE_SCHEMA_SQL,
   },
+  {
+    version: 3,
+    name: 'add_local_profile_customization',
+    statements: [
+      `ALTER TABLE workspaces ADD COLUMN profile_nickname TEXT;`,
+      `ALTER TABLE workspaces ADD COLUMN profile_image_uri TEXT;`,
+    ],
+  },
 ] as const;
 
 export const CURRENT_DATABASE_VERSION = DATABASE_MIGRATIONS.reduce(

@@ -1,6 +1,6 @@
 import { getFirst, runStatement, SQLITE_TABLES } from '@/src/storage/sqlite';
 
-import type { CreateAnonymousWorkspaceInput, CreateAuthenticatedWorkspaceInput, LocalWorkspace, WorkspaceRepository } from './WorkspaceRepository';
+import type { CreateAnonymousWorkspaceInput, CreateAuthenticatedWorkspaceInput, LocalWorkspace, UpdateWorkspaceProfileInput, WorkspaceRepository } from './WorkspaceRepository';
 
 type WorkspaceRow = {
   readonly id: string;
@@ -9,12 +9,16 @@ type WorkspaceRow = {
   readonly external_user_id: string | null;
   readonly created_at: string;
   readonly updated_at: string;
+  readonly profile_nickname: string | null;
+  readonly profile_image_uri: string | null;
 };
+
+const WORKSPACE_COLUMNS = 'id, kind, display_name, external_user_id, created_at, updated_at, profile_nickname, profile_image_uri';
 
 export class SQLiteWorkspaceRepository implements WorkspaceRepository {
   async getActiveWorkspace(): Promise<LocalWorkspace> {
     const row = await getFirst<WorkspaceRow>(
-      `SELECT w.id, w.kind, w.display_name, w.external_user_id, w.created_at, w.updated_at
+      `SELECT w.id, w.kind, w.display_name, w.external_user_id, w.created_at, w.updated_at, w.profile_nickname, w.profile_image_uri
        FROM ${SQLITE_TABLES.workspaces} w
        INNER JOIN ${SQLITE_TABLES.appState} s ON s.active_workspace_id = w.id
        WHERE s.singleton_id = 1 LIMIT 1;`,
@@ -28,7 +32,7 @@ export class SQLiteWorkspaceRepository implements WorkspaceRepository {
   async listWorkspaces(): Promise<readonly LocalWorkspace[]> {
     const { getAll } = await import('@/src/storage/sqlite');
     const rows = await getAll<WorkspaceRow>(
-      `SELECT id, kind, display_name, external_user_id, created_at, updated_at
+      `SELECT ${WORKSPACE_COLUMNS}
        FROM ${SQLITE_TABLES.workspaces} ORDER BY created_at ASC;`,
     );
     return rows.map(toWorkspace);
@@ -58,14 +62,14 @@ export class SQLiteWorkspaceRepository implements WorkspaceRepository {
 
   async getWorkspaceByExternalUserId(externalUserId: string) {
     const row = await getFirst<WorkspaceRow>(
-      `SELECT id, kind, display_name, external_user_id, created_at, updated_at
+      `SELECT ${WORKSPACE_COLUMNS}
        FROM ${SQLITE_TABLES.workspaces} WHERE external_user_id = ? LIMIT 1;`, [externalUserId]);
     return row ? toWorkspace(row) : null;
   }
 
   async getClaimableAnonymousWorkspace() {
     const row = await getFirst<WorkspaceRow>(
-      `SELECT w.id, w.kind, w.display_name, w.external_user_id, w.created_at, w.updated_at
+      `SELECT w.id, w.kind, w.display_name, w.external_user_id, w.created_at, w.updated_at, w.profile_nickname, w.profile_image_uri
        FROM ${SQLITE_TABLES.workspaces} w
        WHERE w.kind = 'anonymous' AND w.external_user_id IS NULL AND (
          EXISTS (SELECT 1 FROM ${SQLITE_TABLES.motorcycles} m WHERE m.workspace_id = w.id AND m.deleted_at IS NULL) OR
@@ -96,9 +100,19 @@ export class SQLiteWorkspaceRepository implements WorkspaceRepository {
     return (await this.getClaimableAnonymousWorkspace()) !== null;
   }
 
+  async updateActiveProfile(input: UpdateWorkspaceProfileInput) {
+    const active = await this.getActiveWorkspace();
+    await runStatement(
+      `UPDATE ${SQLITE_TABLES.workspaces}
+       SET profile_nickname = ?, profile_image_uri = ?, updated_at = ? WHERE id = ?;`,
+      [input.nickname.trim(), input.imageUri, new Date().toISOString(), active.id],
+    );
+    return (await this.getWorkspace(active.id))!;
+  }
+
   private async getWorkspace(id: string) {
     const row = await getFirst<WorkspaceRow>(
-      `SELECT id, kind, display_name, external_user_id, created_at, updated_at FROM ${SQLITE_TABLES.workspaces} WHERE id = ? LIMIT 1;`,
+      `SELECT ${WORKSPACE_COLUMNS} FROM ${SQLITE_TABLES.workspaces} WHERE id = ? LIMIT 1;`,
       [id],
     );
     return row ? toWorkspace(row) : null;
@@ -106,5 +120,5 @@ export class SQLiteWorkspaceRepository implements WorkspaceRepository {
 }
 
 function toWorkspace(row: WorkspaceRow): LocalWorkspace {
-  return { id: row.id, kind: row.kind, displayName: row.display_name, externalUserId: row.external_user_id, createdAt: row.created_at, updatedAt: row.updated_at };
+  return { id: row.id, kind: row.kind, displayName: row.display_name, externalUserId: row.external_user_id, createdAt: row.created_at, updatedAt: row.updated_at, profileNickname: row.profile_nickname, profileImageUri: row.profile_image_uri };
 }

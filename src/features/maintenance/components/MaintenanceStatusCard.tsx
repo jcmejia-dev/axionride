@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { SymbolView } from 'expo-symbols';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
-import { Badge, GlassCard } from '@/src/components';
+import { GlassCard } from '@/src/components';
 import { palette, radius, spacing, typography } from '@/src/theme';
 
 import type { MaintenanceOverallStatus } from '../types';
@@ -32,25 +32,9 @@ export function MaintenanceStatusCard({ status }: MaintenanceStatusCardProps) {
   return (
     <GlassCard style={styles.card}>
       <View style={styles.glow} />
-      <View style={styles.header}>
-        <View style={styles.iconShell}>
-          <SymbolView name={{ ios: 'wrench.adjustable.fill', android: 'build', web: 'build' }} tintColor={palette.text} size={28} />
-        </View>
-        <Badge variant="warning">{status.status}</Badge>
-      </View>
-
-      <View>
-        <Text style={styles.kicker}>Next service</Text>
-        <Text style={styles.title}>{status.nextService}</Text>
-        <Text style={styles.subtitle}>{status.remainingDistance}</Text>
-      </View>
-
-      <View style={styles.progressHeader}>
-        <Text style={styles.progressLabel}>Service window</Text>
-        <Text style={styles.progressPercent}>{Math.round(clampedProgress * 100)}%</Text>
-      </View>
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+      <View style={styles.statusHeading}><SymbolView name={{ ios: 'wrench.adjustable.fill', android: 'build', web: 'build' }} tintColor={palette.accentOrange} size={25}/><Text style={styles.headingText}>Next Maintenance</Text></View>
+      <View style={styles.bodyRow}><View style={styles.copy}><Text style={styles.title}>{status.nextService}</Text><Text style={styles.subtitle}>{status.remainingDistance}</Text><Text style={styles.estimate}>{status.status}</Text></View><View style={styles.progressCircle}><View style={styles.progressCircleInner}><Text style={styles.circlePercent}>{Math.round(clampedProgress*100)}%</Text></View></View></View>
+      <View style={styles.progressTrack}><Animated.View style={[styles.progressFill,{width:progressWidth}]}/>
       </View>
     </GlassCard>
   );
@@ -58,7 +42,7 @@ export function MaintenanceStatusCard({ status }: MaintenanceStatusCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    gap: spacing.xl,
+    gap: spacing.lg,
     overflow: 'hidden',
     backgroundColor: '#08090B',
     borderColor: 'rgba(255, 255, 255, 0.16)',
@@ -68,6 +52,7 @@ const styles = StyleSheet.create({
     shadowRadius: 34,
     elevation: 10,
   },
+  statusHeading:{flexDirection:'row',alignItems:'center',gap:spacing.md},headingText:{...typography.subtitle,color:palette.text,fontWeight:'900'},bodyRow:{flexDirection:'row',alignItems:'center',gap:spacing.lg},copy:{flex:1,minWidth:0},estimate:{...typography.caption,color:palette.textMuted,marginTop:6},progressCircle:{width:92,height:92,alignItems:'center',justifyContent:'center',borderWidth:7,borderLeftColor:palette.accentOrange,borderTopColor:palette.accentOrange,borderRightColor:'rgba(255,106,0,.25)',borderBottomColor:'rgba(255,255,255,.08)',borderRadius:46,transform:[{rotate:'-35deg'}]},progressCircleInner:{transform:[{rotate:'35deg'}]},circlePercent:{fontSize:22,fontWeight:'900',color:palette.text},
   glow: {
     position: 'absolute',
     top: -80,

@@ -15,7 +15,8 @@ export type MotorcycleFormField =
   | 'purchaseDate'
   | 'purchasePrice'
   | 'odometerKm'
-  | 'notes';
+  | 'notes'
+  | 'imageUri';
 
 export type MotorcycleFormValues = {
   readonly nickname: string;
@@ -33,6 +34,7 @@ export type MotorcycleFormValues = {
   readonly purchasePrice: string;
   readonly odometerKm: string;
   readonly notes: string;
+  readonly imageUri: string;
 };
 
 export type MotorcycleFormErrors = Partial<Record<MotorcycleFormField, string>>;

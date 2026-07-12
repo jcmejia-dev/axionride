@@ -24,17 +24,13 @@ export class SearchService extends BaseService {
     const query = normalizeQuery(input.query);
     const limit = normalizeLimit(input.limit);
 
-    if (!query) {
-      return this.success({ query, results: [] });
-    }
-
     const [motorcycles, maintenanceRecords, rides] = await Promise.all([
       this.context.repositories.motorcycles.getAllMotorcycles(),
       this.context.repositories.maintenance.getAllMaintenance(),
       this.context.repositories.rides.getAllRides(),
     ]);
     const results = [
-      ...motorcycles.map((motorcycle) => searchMotorcycle(motorcycle, query)),
+      ...motorcycles.map((motorcycle) => query ? searchMotorcycle(motorcycle, query) : searchMotorcycle(motorcycle, motorcycle.brand.toLowerCase())),
       ...maintenanceRecords.map((maintenance) => searchMaintenance(maintenance, query)),
       ...rides.map((ride) => searchRide(ride, query)),
     ]

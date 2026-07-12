@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { PremiumButton } from '@/src/components/premium';
 import { MotorcycleCategory, FuelType, TransmissionType } from '@/src/domain/motorcycle';
@@ -25,6 +25,8 @@ type MotorcycleFormProps = {
   onCancel: () => void;
   onReset: () => void;
   onDelete?: () => void;
+  onChooseImage: () => void;
+  onRemoveImage: () => void;
 };
 
 export function MotorcycleForm({
@@ -39,6 +41,8 @@ export function MotorcycleForm({
   onCancel,
   onReset,
   onDelete,
+  onChooseImage,
+  onRemoveImage,
 }: MotorcycleFormProps) {
   const compact = useWindowDimensions().width < 390;
   return (
@@ -47,6 +51,11 @@ export function MotorcycleForm({
         <View style={[styles.unsavedDot, hasUnsavedChanges ? styles.unsavedDotActive : null]} />
         <Text style={styles.unsavedText}>{hasUnsavedChanges ? 'Unsaved changes' : 'No changes'}</Text>
       </View>
+
+      <MotorcycleSection title="Motorcycle Photo" description="Use a clear side photo so your garage is easy to recognize." delay={30}>
+        <View style={styles.photoCard}>{values.imageUri?<Image accessibilityIgnoresInvertColors resizeMode="contain" source={{uri:values.imageUri}} style={styles.photo}/>:<View style={styles.photoEmpty}><SymbolView name={{ios:'photo.fill',android:'image',web:'image'}} tintColor={premiumColors.textSecondary} size={38}/><Text style={styles.photoEmptyText}>No motorcycle photo selected</Text></View>}</View>
+        <View style={styles.photoActions}><Pressable accessibilityRole="button" onPress={onChooseImage} style={({pressed})=>[styles.photoButton,pressed&&styles.pressed]}><SymbolView name={{ios:'photo.badge.plus',android:'add_photo_alternate',web:'add_photo_alternate'}} tintColor={premiumColors.primary} size={20}/><Text style={styles.photoButtonText}>{values.imageUri?'Change Photo':'Upload Photo'}</Text></Pressable>{values.imageUri?<Pressable accessibilityRole="button" onPress={onRemoveImage} style={({pressed})=>[styles.removeButton,pressed&&styles.pressed]}><Text style={styles.removeText}>Remove</Text></Pressable>:null}</View>
+      </MotorcycleSection>
 
       <MotorcycleSection title="Identity" description="The details you use to recognize this motorcycle." delay={60}>
         <MotorcycleField
@@ -243,6 +252,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     paddingTop: spacing.sm,
   },
+  photoCard:{height:190,overflow:'hidden',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:premiumColors.border,borderRadius:radius.xl,backgroundColor:'rgba(255,255,255,.035)'},photo:{width:'100%',height:'100%'},photoEmpty:{alignItems:'center',gap:spacing.md},photoEmptyText:{...typography.caption,color:premiumColors.textSecondary},photoActions:{flexDirection:'row',gap:spacing.md},photoButton:{minHeight:48,flex:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,borderWidth:1,borderColor:'rgba(255,106,0,.3)',borderRadius:radius.lg,backgroundColor:'rgba(255,106,0,.08)'},photoButtonText:{...typography.body,color:premiumColors.primary,fontWeight:'900'},removeButton:{minHeight:48,justifyContent:'center',paddingHorizontal:spacing.lg},removeText:{...typography.body,color:premiumColors.danger,fontWeight:'800'},
   secondaryActions: { flexDirection: 'row', gap: spacing.md },
   actionButton: {
     minHeight: 52,
