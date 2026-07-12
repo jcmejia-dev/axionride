@@ -6,7 +6,7 @@ import { AppState, Platform } from 'react-native';
 import { getSupabaseClient } from '@/src/lib/supabase';
 import { AuthOperationLock, AuthService, type AuthResult, type RegistrationResult } from '@/src/services/auth';
 import { OnboardingService } from '@/src/services/onboarding';
-import { createWorkspaceService, type LocalWorkspace } from '@/src/services';
+import { createNotificationService, createWorkspaceService, type LocalWorkspace } from '@/src/services';
 import { PASSWORD_RECOVERY_WINDOW_SECONDS } from '@/src/features/auth/recoverySecurity';
 
 type AuthContextValue = {
@@ -38,6 +38,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const clientResult = useMemo(() => getSupabaseClient(), []);
   const authService = useMemo(() => clientResult.ok ? new AuthService(clientResult.value) : null, [clientResult]);
   const workspaceService = useMemo(() => createWorkspaceService(), []);
+  const notificationService = useMemo(() => createNotificationService(), []);
   const onboardingService = useMemo(() => new OnboardingService(), []);
   const [initialized, setInitialized] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -53,31 +54,45 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setRecoveryExpiresAt(Date.now() + PASSWORD_RECOVERY_WINDOW_SECONDS * 1000);
   }, []);
 
+  const switchWorkspace = useCallback(async (workspaceId: string) => {
+    const result = await workspaceService.switchActiveWorkspace(workspaceId);
+
+    if (result.ok) {
+      await notificationService.reconcileMaintenanceReminders();
+    }
+
+    return result;
+  }, [notificationService, workspaceService]);
+
   const activateWorkspaceForUser = useCallback(async (user: User) => {
     const linked = await workspaceService.findWorkspaceForExternalUser(user.id);
     if (linked.ok && linked.value) {
-      await workspaceService.switchActiveWorkspace(linked.value.id);
+      await switchWorkspace(linked.value.id);
       setWorkspaceDecisionRequired(false);
       return;
     }
     const claimable = await workspaceService.getClaimableAnonymousWorkspace();
-    if (claimable.ok && claimable.value) { setWorkspaceDecisionRequired(true); return; }
+    if (claimable.ok && claimable.value) {
+      await switchWorkspace(claimable.value.id);
+      setWorkspaceDecisionRequired(true);
+      return;
+    }
     const created = await workspaceService.createAuthenticatedWorkspace({ id: authenticatedWorkspaceId(user.id), displayName: displayNameForUser(user), externalUserId: user.id });
-    if (created.ok) await workspaceService.switchActiveWorkspace(created.value.id);
+    if (created.ok) await switchWorkspace(created.value.id);
     else {
       const retryLookup = await workspaceService.findWorkspaceForExternalUser(user.id);
-      if (retryLookup.ok && retryLookup.value) await workspaceService.switchActiveWorkspace(retryLookup.value.id);
+      if (retryLookup.ok && retryLookup.value) await switchWorkspace(retryLookup.value.id);
     }
     setWorkspaceDecisionRequired(false);
-  }, [workspaceService]);
+  }, [switchWorkspace, workspaceService]);
 
   const activateSafeAnonymousWorkspace = useCallback(async () => {
     const workspaces = await workspaceService.listLocalWorkspaces();
     const available = workspaces.ok ? workspaces.value.find((workspace) => workspace.kind === 'anonymous' && workspace.externalUserId === null) : null;
-    if (available) { await workspaceService.switchActiveWorkspace(available.id); return; }
+    if (available) { await switchWorkspace(available.id); return; }
     const created = await workspaceService.createAnonymousWorkspace({ id: `workspace-anonymous-${Date.now()}`, displayName: 'Local rider' });
-    if (created.ok) await workspaceService.switchActiveWorkspace(created.value.id);
-  }, [workspaceService]);
+    if (created.ok) await switchWorkspace(created.value.id);
+  }, [switchWorkspace, workspaceService]);
 
   useEffect(() => {
     let active = true;
@@ -161,26 +176,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const user = session?.user;
     if (!user) return unavailable<LocalWorkspace>();
     const existing = await workspaceService.findWorkspaceForExternalUser(user.id);
-    if (existing.ok && existing.value) { await workspaceService.switchActiveWorkspace(existing.value.id); setWorkspaceDecisionRequired(false); return authSuccess(existing.value); }
+    if (existing.ok && existing.value) { await switchWorkspace(existing.value.id); setWorkspaceDecisionRequired(false); return authSuccess(existing.value); }
     const claimable = await workspaceService.getClaimableAnonymousWorkspace();
     if (!claimable.ok || !claimable.value) return authFailure('No anonymous local data is available to attach.');
     const linked = await workspaceService.linkAnonymousWorkspaceToExternalUser({ workspaceId: claimable.value.id, externalUserId: user.id, explicitUserDecision: true });
     if (!linked.ok) return authFailure(linked.error.message);
-    await workspaceService.switchActiveWorkspace(linked.value.id); setWorkspaceDecisionRequired(false); return authSuccess(linked.value);
+    await switchWorkspace(linked.value.id); setWorkspaceDecisionRequired(false); return authSuccess(linked.value);
   });
 
   const startFreshWorkspace = () => exclusive<LocalWorkspace>(async () => {
     const user = session?.user;
     if (!user) return unavailable<LocalWorkspace>();
     const existing = await workspaceService.findWorkspaceForExternalUser(user.id);
-    if (existing.ok && existing.value) { await workspaceService.switchActiveWorkspace(existing.value.id); setWorkspaceDecisionRequired(false); return authSuccess(existing.value); }
+    if (existing.ok && existing.value) { await switchWorkspace(existing.value.id); setWorkspaceDecisionRequired(false); return authSuccess(existing.value); }
     const created = await workspaceService.createAuthenticatedWorkspace({ id: authenticatedWorkspaceId(user.id), displayName: displayNameForUser(user), externalUserId: user.id });
     if (!created.ok) {
       const retry = await workspaceService.findWorkspaceForExternalUser(user.id);
-      if (retry.ok && retry.value) { await workspaceService.switchActiveWorkspace(retry.value.id); setWorkspaceDecisionRequired(false); return authSuccess(retry.value); }
+      if (retry.ok && retry.value) { await switchWorkspace(retry.value.id); setWorkspaceDecisionRequired(false); return authSuccess(retry.value); }
       return authFailure(created.error.message);
     }
-    await workspaceService.switchActiveWorkspace(created.value.id); setWorkspaceDecisionRequired(false); return authSuccess(created.value);
+    await switchWorkspace(created.value.id); setWorkspaceDecisionRequired(false); return authSuccess(created.value);
   });
 
   async function completeOnboarding() { await onboardingService.markCompleted(); setOnboardingCompleted(true); }

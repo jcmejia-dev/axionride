@@ -1,2 +1,2 @@
 export { SettingsService } from './SettingsService';
-export type { SettingsItem, SettingsOverview, SettingsSection, SettingsUnits } from './SettingsServiceTypes';
+export type { MaintenanceReminderSettings,SettingsItem, SettingsOverview, SettingsSection, SettingsUnits } from './SettingsServiceTypes';

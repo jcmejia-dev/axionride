@@ -1,10 +1,21 @@
 import { BaseService } from '@/src/services/BaseService';
 import type { ServiceContext } from '@/src/services/ServiceContext';
 import type { ServiceResult } from '@/src/services/ServiceTypes';
+import { getFirst, runStatement } from '@/src/storage/sqlite';
 
-import type { SettingsOverview } from './SettingsServiceTypes';
+import type { MaintenanceReminderSettings, SettingsOverview } from './SettingsServiceTypes';
 
-let localNotificationsEnabled = true;
+const DEFAULT_REMINDER_SETTINGS: MaintenanceReminderSettings = {
+  enabled: false,
+  dueSoonKm: 500,
+  dueSoonDays: 7,
+  dailySummaryEnabled: false,
+};
+
+let localNotificationsEnabled = DEFAULT_REMINDER_SETTINGS.enabled;
+let dueSoonKm = DEFAULT_REMINDER_SETTINGS.dueSoonKm;
+let dueSoonDays = DEFAULT_REMINDER_SETTINGS.dueSoonDays;
+let dailySummaryEnabled = DEFAULT_REMINDER_SETTINGS.dailySummaryEnabled;
 
 /**
  * Local settings application service.
@@ -47,18 +58,30 @@ export class SettingsService extends BaseService {
               action: 'toggle-local-notifications',
             },
             {
+              id: 'maintenance-distance-threshold',
+              label: 'Due-soon distance',
+              value: `${dueSoonKm} km`,
+              action: 'set-maintenance-distance-threshold',
+            },
+            {
+              id: 'maintenance-date-threshold',
+              label: 'Due-soon date',
+              value: `${dueSoonDays} days`,
+              action: 'set-maintenance-date-threshold',
+            },
+            {
               id: 'notification-permission',
               label: 'Permission',
               value: 'Loading...',
               action: 'request-notification-permission',
             },
-            {
+            ...(__DEV__ ? [{
               id: 'test-notification',
               label: 'Test notification',
               value: 'Send local test',
-              action: 'test-notification',
+              action: 'test-notification' as const,
               disabled: !localNotificationsEnabled,
-            },
+            }] : []),
           ],
         },
         {
@@ -102,4 +125,24 @@ export class SettingsService extends BaseService {
     localNotificationsEnabled = enabled;
     return this.success(localNotificationsEnabled);
   }
+  async getMaintenanceReminderSettings(): Promise<ServiceResult<MaintenanceReminderSettings>> {
+    try {
+      const workspaceId = await this.context.repositories.workspaces.getActiveWorkspaceId();
+      const row = await getFirst<{ enabled: number; due_soon_km: number; due_soon_days: number; daily_summary_enabled: number }>(
+        'SELECT enabled, due_soon_km, due_soon_days, daily_summary_enabled FROM maintenance_notification_settings WHERE workspace_id = ?',
+        [workspaceId],
+      );
+
+      return this.success(row ? {
+        enabled: Boolean(row.enabled),
+        dueSoonKm: row.due_soon_km,
+        dueSoonDays: row.due_soon_days,
+        dailySummaryEnabled: Boolean(row.daily_summary_enabled),
+      } : DEFAULT_REMINDER_SETTINGS);
+    } catch (cause) {
+      return this.failure({ code: 'repository_error', message: 'Reminder settings could not be loaded.', cause });
+    }
+  }
+  async updateMaintenanceReminderSettings(patch:Partial<MaintenanceReminderSettings>):Promise<ServiceResult<MaintenanceReminderSettings>>{const current=await this.getMaintenanceReminderSettings();if(!current.ok)return current;const next={...current.value,...patch,dueSoonKm:Math.max(0,Math.round(patch.dueSoonKm??current.value.dueSoonKm)),dueSoonDays:Math.max(0,Math.round(patch.dueSoonDays??current.value.dueSoonDays))};try{const workspaceId=await this.context.repositories.workspaces.getActiveWorkspaceId();await runStatement(`INSERT INTO maintenance_notification_settings(workspace_id,enabled,due_soon_km,due_soon_days,daily_summary_enabled,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(workspace_id) DO UPDATE SET enabled=excluded.enabled,due_soon_km=excluded.due_soon_km,due_soon_days=excluded.due_soon_days,daily_summary_enabled=excluded.daily_summary_enabled,updated_at=excluded.updated_at`,[workspaceId,next.enabled?1:0,next.dueSoonKm,next.dueSoonDays,next.dailySummaryEnabled?1:0,new Date().toISOString()]);localNotificationsEnabled=next.enabled;dueSoonKm=next.dueSoonKm;dueSoonDays=next.dueSoonDays;dailySummaryEnabled=next.dailySummaryEnabled;return this.success(next)}catch(cause){return this.failure({code:'repository_error',message:'Reminder settings could not be saved.',cause})}}
+  async getSettingsOverviewAsync():Promise<ServiceResult<SettingsOverview>>{const reminder=await this.getMaintenanceReminderSettings();if(reminder.ok){localNotificationsEnabled=reminder.value.enabled;dueSoonKm=reminder.value.dueSoonKm;dueSoonDays=reminder.value.dueSoonDays;dailySummaryEnabled=reminder.value.dailySummaryEnabled}return this.getSettingsOverview()}
 }

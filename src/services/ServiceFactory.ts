@@ -42,7 +42,7 @@ export function createServiceContextWithRepositories(
  * Create the ride application service with default dependencies.
  */
 export function createRideService(overrides: Partial<ServiceDependencies> = {}) {
-  return new RideService(createServiceContext(overrides));
+  const context=createServiceContext(overrides);return new RideService(context,new NotificationService(context));
 }
 
 /**
@@ -53,7 +53,7 @@ export function createMaintenanceService(overrides: Partial<ServiceDependencies>
   return new MaintenanceService(context, new NotificationService(context));
 }
 
-export function createMotorcycleService(overrides: Partial<ServiceDependencies> = {}) { return new MotorcycleService(createServiceContext(overrides)); }
+export function createMotorcycleService(overrides: Partial<ServiceDependencies> = {}) { const context=createServiceContext(overrides);return new MotorcycleService(context,new NotificationService(context)); }
 export function createWorkspaceService(overrides: Partial<ServiceDependencies> = {}) { return new WorkspaceService(createServiceContext(overrides)); }
 
 /**

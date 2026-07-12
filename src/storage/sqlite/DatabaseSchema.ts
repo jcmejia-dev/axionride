@@ -9,6 +9,8 @@ export const SQLITE_TABLES = {
   rides: 'rides',
   ridePoints: 'ride_points',
   syncMetadata: 'sync_metadata',
+  maintenanceNotificationSettings: 'maintenance_notification_settings',
+  maintenanceNotificationState: 'maintenance_notification_state',
 } as const;
 
 export const DEFAULT_ANONYMOUS_WORKSPACE_ID = 'workspace-anonymous';

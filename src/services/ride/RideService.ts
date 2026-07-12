@@ -8,6 +8,7 @@ import {
 import { BaseService } from '@/src/services/BaseService';
 import type { ServiceContext } from '@/src/services/ServiceContext';
 import type { ServiceResult } from '@/src/services/ServiceTypes';
+import type { NotificationService } from '@/src/services/notifications';
 
 import type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './RideServiceTypes';
 
@@ -29,7 +30,7 @@ type ActiveRideSession = {
 export class RideService extends BaseService {
   private currentSession: ActiveRideSession | null = null;
 
-  constructor(context: ServiceContext) {
+  constructor(context: ServiceContext,private readonly notifications?:NotificationService) {
     super(context);
   }
 
@@ -168,6 +169,7 @@ export class RideService extends BaseService {
     }
 
     this.currentSession = null;
+    await this.notifications?.reconcileMaintenanceReminders();
     return this.success({
       ride: saveResult.value,
       summary: summarizeRide(saveResult.value),

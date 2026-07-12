@@ -2,11 +2,12 @@ import type { Motorcycle, MotorcycleId } from '@/src/domain/motorcycle';
 import { BaseService } from '@/src/services/BaseService';
 import type { ServiceContext } from '@/src/services/ServiceContext';
 import type { ServiceResult } from '@/src/services/ServiceTypes';
+import type { NotificationService } from '@/src/services/notifications';
 
 export type MotorcycleOverview = { readonly motorcycles: readonly Motorcycle[]; readonly primaryMotorcycleId: MotorcycleId | null };
 
 export class MotorcycleService extends BaseService {
-  constructor(context: ServiceContext) { super(context); }
+  constructor(context: ServiceContext,private readonly notifications?:NotificationService) { super(context); }
 
   async getOverview(): Promise<ServiceResult<MotorcycleOverview>> {
     const [motorcycles, primary] = await Promise.all([
@@ -26,16 +27,19 @@ export class MotorcycleService extends BaseService {
     const result = exists
       ? await this.context.repositories.motorcycles.updateMotorcycle(motorcycle)
       : await this.context.repositories.motorcycles.saveMotorcycle(motorcycle);
+    if(result.ok)await this.notifications?.reconcileMaintenanceReminders();
     return result.ok ? this.success(result.value) : this.failure({ code: result.error.code === 'validation_failed' ? 'validation_failed' : 'repository_error', message: result.error.message, cause: result.error });
   }
 
   async deleteMotorcycle(id: MotorcycleId): Promise<ServiceResult<{ readonly id: MotorcycleId }>> {
     const result = await this.context.repositories.motorcycles.deleteMotorcycle(id);
+    if(result.ok)await this.notifications?.reconcileMaintenanceReminders();
     return result.ok ? this.success(result.value) : this.failure({ code: result.error.code === 'not_found' ? 'not_found' : 'repository_error', message: result.error.message, cause: result.error });
   }
 
   async setPrimaryMotorcycle(id: MotorcycleId): Promise<ServiceResult<Motorcycle>> {
     const result = await this.context.repositories.motorcycles.setPrimaryMotorcycle(id);
+    if(result.ok)await this.notifications?.reconcileMaintenanceReminders();
     return result.ok ? this.success(result.value) : this.failure({ code: result.error.code === 'not_found' ? 'not_found' : 'repository_error', message: result.error.message, cause: result.error });
   }
 

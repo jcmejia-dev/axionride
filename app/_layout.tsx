@@ -1,13 +1,15 @@
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { AppState } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/src/components/useColorScheme';
 import { AppLoadingScreen, useAppBootstrap } from '@/src/features/app-shell';
 import { AuthProvider, useAuth } from '@/src/providers';
 import { getAuthRedirect } from '@/src/navigation/AuthRoutePolicy';
+import { createNotificationService } from '@/src/services';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -58,6 +60,7 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AuthRouteGuard />
+      <MaintenanceNotificationLifecycle />
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
@@ -69,6 +72,28 @@ function RootLayoutNav() {
       </Stack>
     </ThemeProvider>
   );
+}
+
+function MaintenanceNotificationLifecycle() {
+  const router = useRouter();
+  const service = useMemo(() => createNotificationService(), []);
+
+  useEffect(() => {
+    let response: { remove(): void } | undefined;
+    void service.reconcileMaintenanceReminders();
+    void service.addMaintenanceResponseListener(() => router.push('/maintenance')).then((result) => {
+      if (result.ok) response = result.value;
+    });
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void service.reconcileMaintenanceReminders();
+    });
+    return () => {
+      subscription.remove();
+      response?.remove();
+    };
+  }, [router, service]);
+
+  return null;
 }
 
 function AuthRouteGuard() {

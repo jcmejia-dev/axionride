@@ -3,7 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput, GlassCard, LoadingSpinner, Toast } from '@/src/components';
@@ -55,7 +55,7 @@ export function ProfileScreen() {
           email: user?.email ?? '',
           displayName: typeof user?.user_metadata.display_name === 'string' ? user.user_metadata.display_name : undefined,
         }),
-        Promise.resolve(settingsService.getSettingsOverview()),
+        settingsService.getSettingsOverviewAsync(),
       ]);
       const permissionResult = await notificationService.getPermissionStatus();
 
@@ -127,18 +127,18 @@ export function ProfileScreen() {
       return;
     }
 
-    const result = settingsService.setLocalNotificationsEnabled(!settingsOverview.localNotificationsEnabled);
+    const enabling=!settingsOverview.localNotificationsEnabled;
+    if(enabling){const permission=await notificationService.requestPermission();setNotificationPermission(permission.ok?permission.value:null);if(!permission.ok||!permission.value.granted){Alert.alert('Permission required','Enable notifications in system settings to receive maintenance reminders.');return;}}
+    const result = await settingsService.updateMaintenanceReminderSettings({enabled:enabling});
 
     if (!result.ok) {
       Alert.alert('Notification setting unavailable', result.error.message);
       return;
     }
 
-    if (!result.value) {
-      await notificationService.cancelAllNotifications();
-    }
+    await notificationService.reconcileMaintenanceReminders();
 
-    const overviewResult = settingsService.getSettingsOverview();
+    const overviewResult = await settingsService.getSettingsOverviewAsync();
 
     if (overviewResult.ok) {
       setSettingsOverview(overviewResult.value);
@@ -159,8 +159,36 @@ export function ProfileScreen() {
       Alert.alert(
         'Notifications not enabled',
         result.value.message ?? 'Local reminders will stay quiet until notification permission is granted.',
+        result.value.canAskAgain ? [{ text: 'OK' }] : [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open settings', onPress: () => { void Linking.openSettings(); } },
+        ],
       );
     }
+  }
+
+  function chooseReminderThreshold(kind: 'distance' | 'date') {
+    const values = kind === 'distance' ? [250, 500, 1000] : [3, 7, 14];
+    const unit = kind === 'distance' ? 'km' : 'days';
+    Alert.alert(`Due-soon ${kind}`, 'Choose when AxionRide should consider maintenance due soon.', [
+      ...values.map((value) => ({
+        text: `${value} ${unit}`,
+        onPress: () => {
+          void settingsService.updateMaintenanceReminderSettings(
+            kind === 'distance' ? { dueSoonKm: value } : { dueSoonDays: value },
+          ).then(async (result) => {
+            if (!result.ok) {
+              Alert.alert('Setting not saved', result.error.message);
+              return;
+            }
+            await notificationService.reconcileMaintenanceReminders();
+            const overview = await settingsService.getSettingsOverviewAsync();
+            if (overview.ok) setSettingsOverview(overview.value);
+          });
+        },
+      })),
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   async function handleSendTestNotification() {
@@ -256,6 +284,8 @@ export function ProfileScreen() {
               onImportBackup={handleImportBackup}
               onRequestNotificationPermission={handleRequestNotificationPermission}
               onSendTestNotification={handleSendTestNotification}
+              onSetMaintenanceDateThreshold={() => chooseReminderThreshold('date')}
+              onSetMaintenanceDistanceThreshold={() => chooseReminderThreshold('distance')}
               onToggleLocalNotifications={handleToggleLocalNotifications}
               onSignOut={handleLogout}
             />
@@ -384,6 +414,8 @@ type SettingsActions = {
   readonly onImportBackup: () => void;
   readonly onRequestNotificationPermission: () => void;
   readonly onSendTestNotification: () => void;
+  readonly onSetMaintenanceDateThreshold: () => void;
+  readonly onSetMaintenanceDistanceThreshold: () => void;
   readonly onToggleLocalNotifications: () => void;
   readonly onSignOut: () => void;
 };
@@ -397,6 +429,8 @@ function SettingsPanel({
   onImportBackup,
   onRequestNotificationPermission,
   onSendTestNotification,
+  onSetMaintenanceDateThreshold,
+  onSetMaintenanceDistanceThreshold,
   onToggleLocalNotifications,
   onSignOut,
 }: SettingsActions & {
@@ -423,6 +457,8 @@ function SettingsPanel({
             onImportBackup={onImportBackup}
             onRequestNotificationPermission={onRequestNotificationPermission}
             onSendTestNotification={onSendTestNotification}
+            onSetMaintenanceDateThreshold={onSetMaintenanceDateThreshold}
+            onSetMaintenanceDistanceThreshold={onSetMaintenanceDistanceThreshold}
             onToggleLocalNotifications={onToggleLocalNotifications}
             onSignOut={onSignOut}
           />
@@ -441,6 +477,8 @@ function SettingsSectionCard({
   onImportBackup,
   onRequestNotificationPermission,
   onSendTestNotification,
+  onSetMaintenanceDateThreshold,
+  onSetMaintenanceDistanceThreshold,
   onToggleLocalNotifications,
   onSignOut,
 }: SettingsActions & {
@@ -463,6 +501,8 @@ function SettingsSectionCard({
             onExportBackup,
             onImportBackup,
             onSendTestNotification,
+            onSetMaintenanceDateThreshold,
+            onSetMaintenanceDistanceThreshold,
             onToggleLocalNotifications,
             onSignOut,
           });
@@ -496,6 +536,12 @@ function SettingsSectionCard({
 }
 
 function getSettingsItemValue(item: SettingsItem, notificationPermission: NotificationPermissionStatus | null) {
+  if (item.id === 'local-notifications' && item.value === 'Enabled' && !notificationPermission?.granted) {
+    return notificationPermission?.state === 'denied' && !notificationPermission.canAskAgain
+      ? 'Disabled in system settings'
+      : 'Permission required';
+  }
+
   if (item.id !== 'notification-permission') {
     return item.value;
   }
@@ -505,20 +551,28 @@ function getSettingsItemValue(item: SettingsItem, notificationPermission: Notifi
   }
 
   if (notificationPermission.granted) {
-    return 'Granted';
+    return 'Enabled';
   }
 
   if (notificationPermission.state === 'unavailable') {
     return 'Dev build required';
   }
 
-  return notificationPermission.state === 'denied' ? 'Denied' : 'Not requested';
+  if (notificationPermission.state === 'denied' && !notificationPermission.canAskAgain) {
+    return 'Disabled in system settings';
+  }
+
+  return 'Permission required';
 }
 
 function getSettingsItemAction(item: SettingsItem, actions: SettingsActions) {
   switch (item.action) {
     case 'toggle-local-notifications':
       return actions.onToggleLocalNotifications;
+    case 'set-maintenance-distance-threshold':
+      return actions.onSetMaintenanceDistanceThreshold;
+    case 'set-maintenance-date-threshold':
+      return actions.onSetMaintenanceDateThreshold;
     case 'export-backup':
       return actions.onExportBackup;
     case 'import-backup':

@@ -14,6 +14,10 @@ Migration 1 creates `motorcycles`, `maintenance_records`, `rides`, `ride_points`
 
 Migration 2 creates `workspaces` and `app_state`, creates a stable `workspace-anonymous` workspace, and adds `workspace_id` to every owned table. It also adds `is_primary` to motorcycles, enforces one live primary motorcycle per workspace, and installs relationship guards so maintenance, rides, and ride points cannot reference records in another workspace.
 
+Migration 3 adds workspace-local profile customization fields.
+
+Migration 4 creates `maintenance_notification_settings` and `maintenance_notification_state`. Reminder preferences and operating-system schedule identifiers are keyed by `workspace_id`; they do not contain cloud data or notification tokens. The migration defaults reminders to disabled, with due-soon thresholds of 500 km and 7 days. Existing rider records are unchanged.
+
 The active workspace is the local isolation boundary. Repositories resolve it for every read and write; screens never query SQLite directly. A workspace may later hold an external authentication user ID, but the local schema does not depend on a specific authentication provider.
 
 Supabase Auth user IDs are stored only as `workspaces.external_user_id` mappings. They select local isolation boundaries; they do not make Supabase a storage source and do not upload local records.
@@ -39,7 +43,7 @@ Backup format version 2 contains workspace metadata and only records visible to 
 - Fuel logs
 - Maintenance logs
 - Service history
-- Notification preferences
+- Additional notification preferences beyond local maintenance reminders
 - Sync metadata
 - OBD-II readings
 - Marketplace and community records

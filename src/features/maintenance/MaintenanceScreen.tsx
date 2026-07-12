@@ -2,11 +2,11 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Alert, Animated, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Animated, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Motorcycle } from '@/src/domain/motorcycle';
-import { createMaintenanceService, createMotorcycleService, createSettingsService, type CreateMaintenanceInput, type MaintenanceListItem } from '@/src/services';
+import { createMaintenanceService, createMotorcycleService, createNotificationService, createSettingsService, type CreateMaintenanceInput, type MaintenanceListItem } from '@/src/services';
 import { layout, palette, radius, spacing, typography } from '@/src/theme';
 
 import { MaintenanceCreateSheet } from './components/MaintenanceCreateSheet';
@@ -22,9 +22,11 @@ export function MaintenanceScreen() {
   const maintenanceService = useMemo(() => createMaintenanceService(), []);
   const motorcycleService=useMemo(()=>createMotorcycleService(),[]);
   const settingsService=useMemo(()=>createSettingsService(),[]);
+  const notificationService=useMemo(()=>createNotificationService(),[]);
   const [primaryMotorcycle,setPrimaryMotorcycle]=useState<Motorcycle|null>(null);
   const [activeTab,setActiveTab]=useState<'Upcoming'|'Completed'|'All Tasks'>('Upcoming');
   const [remindersEnabled,setRemindersEnabled]=useState(false);
+  const [reminderThresholds, setReminderThresholds] = useState({ km: 500, days: 7 });
   const [refreshing,setRefreshing]=useState(false);
   const [upcomingMaintenance, setUpcomingMaintenance] = useState<readonly MaintenanceListItem[]>([]);
   const [maintenanceHistory, setMaintenanceHistory] = useState<readonly MaintenanceListItem[]>([]);
@@ -41,7 +43,14 @@ export function MaintenanceScreen() {
       motorcycleService.requirePrimaryMotorcycle(),
     ]);
     if(motorcycleResult.ok)setPrimaryMotorcycle(motorcycleResult.value);else setPrimaryMotorcycle(null);
-    const settingsResult=settingsService.getSettingsOverview();if(settingsResult.ok)setRemindersEnabled(settingsResult.value.localNotificationsEnabled);
+    const [settingsResult, permissionResult] = await Promise.all([
+      settingsService.getMaintenanceReminderSettings(),
+      notificationService.getPermissionStatus(),
+    ]);
+    if (settingsResult.ok) {
+      setRemindersEnabled(settingsResult.value.enabled && permissionResult.ok && permissionResult.value.granted);
+      setReminderThresholds({ km: settingsResult.value.dueSoonKm, days: settingsResult.value.dueSoonDays });
+    }
 
     if (upcomingResult.ok) {
       setUpcomingMaintenance(upcomingResult.value);
@@ -54,7 +63,42 @@ export function MaintenanceScreen() {
     } else {
       Alert.alert('Maintenance history unavailable', historyResult.error.message);
     }
-  }, [maintenanceService,motorcycleService,settingsService]);
+  }, [maintenanceService,motorcycleService,notificationService,settingsService]);
+  async function toggleReminders(value: boolean) {
+    if (value) {
+      Alert.alert('Enable maintenance reminders?', 'Get reminders before maintenance becomes overdue.', [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Enable', onPress: () => { void enableReminders(); } },
+      ]);
+      return;
+    }
+    const saved = await settingsService.updateMaintenanceReminderSettings({ enabled: false });
+    if (saved.ok) {
+      setRemindersEnabled(false);
+      await notificationService.reconcileMaintenanceReminders();
+    }
+  }
+
+  async function enableReminders() {
+    const permission = await notificationService.requestPermission();
+    if (!permission.ok || !permission.value.granted) {
+      const canOpenSettings = permission.ok && !permission.value.canAskAgain;
+      Alert.alert(
+        'Permission required',
+        'Notifications are disabled. Enable them in system settings to receive reminders.',
+        canOpenSettings ? [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open settings', onPress: () => { void Linking.openSettings(); } },
+        ] : [{ text: 'OK' }],
+      );
+      return;
+    }
+    const saved = await settingsService.updateMaintenanceReminderSettings({ enabled: true });
+    if (saved.ok) {
+      setRemindersEnabled(true);
+      await notificationService.reconcileMaintenanceReminders();
+    }
+  }
 
   useFocusEffect(useCallback(() => { void refreshMaintenance(); }, [refreshMaintenance]));
   async function handleRefresh(){setRefreshing(true);await refreshMaintenance();setRefreshing(false)}
@@ -139,7 +183,7 @@ export function MaintenanceScreen() {
         </AnimatedEntrance>
 
         <Pressable onPress={()=>setActiveTab('Completed')} style={({pressed})=>[styles.actionCard,pressed&&styles.pressed]}><View style={styles.actionIcon}><SymbolView name={{ios:'calendar',android:'calendar_month',web:'calendar_month'}} tintColor="#FFD18A" size={24}/></View><View style={styles.actionCopy}><Text style={styles.actionTitle}>Maintenance History</Text><Text style={styles.actionSubtitle}>View all completed maintenance records</Text></View><SymbolView name={{ios:'chevron.right',android:'chevron_right',web:'chevron_right'}} tintColor={palette.textMuted} size={22}/></Pressable>
-        <View style={styles.reminderCard}><View style={styles.actionCopy}><Text style={styles.actionTitle}>Maintenance Reminders</Text><Text style={styles.actionSubtitle}>Get notified before your maintenance is due</Text></View><Switch value={remindersEnabled} onValueChange={(value)=>{const result=settingsService.setLocalNotificationsEnabled(value);if(result.ok)setRemindersEnabled(result.value)}} trackColor={{false:'rgba(255,255,255,.12)',true:palette.accentOrange}} thumbColor="#fff"/></View>
+        <View style={styles.reminderCard}><View style={styles.actionCopy}><Text style={styles.actionTitle}>Maintenance Reminders</Text><Text style={styles.actionSubtitle}>Get notified before your maintenance is due · {reminderThresholds.km} km / {reminderThresholds.days} days</Text></View><Switch value={remindersEnabled} onValueChange={(value)=>{void toggleReminders(value)}} trackColor={{false:'rgba(255,255,255,.12)',true:palette.accentOrange}} thumbColor="#fff"/></View>
       </ScrollView>
       <MaintenanceCreateSheet
         visible={createSheetVisible}

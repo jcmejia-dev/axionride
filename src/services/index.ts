@@ -62,7 +62,7 @@ export type {
 export { ProfileService } from './profile';
 export type { LocalProfile, ProfileIdentity, ProfileOverview, UpdateLocalProfileInput } from './profile';
 export { SettingsService } from './settings';
-export type { SettingsItem, SettingsOverview, SettingsSection, SettingsUnits } from './settings';
+export type { MaintenanceReminderSettings,SettingsItem, SettingsOverview, SettingsSection, SettingsUnits } from './settings';
 export { SearchService } from './search';
 export type { SearchInput, SearchResponse, SearchResult, SearchResultType } from './search';
 export { LocationService } from './location';

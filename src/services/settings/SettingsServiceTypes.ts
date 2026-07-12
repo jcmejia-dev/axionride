@@ -15,6 +15,8 @@ export type SettingsItem = {
   readonly value: string;
   readonly action?:
     | 'toggle-local-notifications'
+    | 'set-maintenance-distance-threshold'
+    | 'set-maintenance-date-threshold'
     | 'request-notification-permission'
     | 'test-notification'
     | 'export-backup'
@@ -40,4 +42,10 @@ export type SettingsOverview = {
   readonly units: SettingsUnits;
   readonly localNotificationsEnabled: boolean;
   readonly sections: readonly SettingsSection[];
+};
+export type MaintenanceReminderSettings = {
+  readonly enabled: boolean;
+  readonly dueSoonKm: number;
+  readonly dueSoonDays: number;
+  readonly dailySummaryEnabled: boolean;
 };
