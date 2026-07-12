@@ -117,8 +117,8 @@ function withAlpha(hex: string, alpha: number) {
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    minHeight: 205,
-    paddingVertical: 22,
+    minHeight: 164,
+    paddingVertical: 16,
     paddingHorizontal: 6,
     backgroundColor: 'rgba(17, 21, 28, 0.82)',
   },
@@ -127,16 +127,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
+    gap: 5,
     paddingHorizontal: 3,
   },
   iconRing: {
-    width: 58,
-    height: 58,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.4,
-    borderRadius: 29,
+    borderRadius: 24,
   },
   label: {
     ...typography.label,
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   },
   value: {
     width: '100%',
-    fontSize: 20,
+    fontSize: 17,
     lineHeight: 25,
     fontWeight: '900',
     color: premiumColors.textPrimary,
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   detail: {
     width: '100%',
     ...typography.caption,
-    fontSize: 15,
+    fontSize: 12,
     color: premiumColors.textSecondary,
     textAlign: 'center',
   },

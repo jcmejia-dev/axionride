@@ -40,9 +40,9 @@ const styles = StyleSheet.create({
   },
   accent: {
     width: 5,
-    height: 44,
+    height: 38,
     marginTop: 2,
-    borderRadius: radius.pill,
+    borderRadius: 2,
     backgroundColor: premiumColors.primary,
   },
   copy: {
@@ -51,8 +51,9 @@ const styles = StyleSheet.create({
   title: {
     ...typography.heading,
     color: premiumColors.textPrimary,
-    fontSize: 34,
-    lineHeight: 38,
+    fontSize: 36,
+    lineHeight: 40,
+    letterSpacing: -1.2,
   },
   subtitle: {
     ...typography.subtitle,
@@ -67,8 +68,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: premiumColors.border,
-    borderRadius: radius.pill,
-    backgroundColor: premiumColors.surfaceGlassStrong,
+    borderRadius: radius.md,
+    backgroundColor: '#11151B',
   },
   pressed: {
     opacity: 0.76,

@@ -1,8 +1,9 @@
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import MapView, { Marker, Polyline, type LatLng, type Region } from 'react-native-maps';
 
 import { GlassCard } from '@/src/components/premium';
-import type { Ride } from '@/src/domain/ride';
+import type { Ride, RidePoint } from '@/src/domain/ride';
 import { iconSizes, motion, opacity, premiumColors, radius, spacing, typography } from '@/src/theme';
 
 type RecentRideCardProps = {
@@ -37,7 +38,7 @@ export function RecentRideCard({ ride, loading = false, onPress }: RecentRideCar
           </View>
         </View>
 
-        <RoutePreview hasRoute={Boolean(ride?.route.length)} />
+        <RoutePreview points={ride?.route ?? []} />
 
         <View style={styles.metrics}>
           <RideMetric label="Distance" value={loading ? '-' : ride ? `${formatNumber(ride.distanceKm, 1)} km` : '0 km'} />
@@ -54,20 +55,80 @@ export function RecentRideCard({ ride, loading = false, onPress }: RecentRideCar
   );
 }
 
-function RoutePreview({ hasRoute }: { readonly hasRoute: boolean }) {
+const DASHBOARD_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#111417' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#70777d' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#111417' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#272c31' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#14181b' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#292e33' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#0e1113' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#363c42' }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#8b9298' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#090d10' }] },
+];
+
+const DEFAULT_PREVIEW_REGION: Region = {
+  latitude: 14.5995,
+  longitude: 120.9842,
+  latitudeDelta: 0.04,
+  longitudeDelta: 0.04,
+};
+
+function RoutePreview({ points }: { readonly points: readonly RidePoint[] }) {
+  const coordinates = points.map(toCoordinate);
+  const hasRoute = coordinates.length >= 2;
+  const region = createPreviewRegion(coordinates);
+
   return (
     <View style={styles.routePreview}>
-      <View style={styles.mapGrid} />
-      <View style={[styles.routeSegment, styles.routeSegmentOne]} />
-      <View style={[styles.routeSegment, styles.routeSegmentTwo]} />
-      <View style={[styles.routeSegment, styles.routeSegmentThree]} />
-      <View style={styles.startPin} />
-      <View style={styles.endPin}>
-        <View style={styles.endPinInner} />
-      </View>
-      {!hasRoute ? <Text style={styles.routePlaceholder}>Route preview</Text> : null}
+      <MapView
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        region={region}
+        customMapStyle={DASHBOARD_MAP_STYLE}
+        mapType="standard"
+        pitchEnabled={false}
+        rotateEnabled={false}
+        scrollEnabled={false}
+        zoomEnabled={false}
+        showsBuildings={false}
+        showsCompass={false}
+        showsIndoors={false}
+        showsPointsOfInterests={false}
+        toolbarEnabled={false}>
+        {hasRoute ? <Polyline coordinates={coordinates} strokeColor="rgba(0,0,0,.72)" strokeWidth={8} lineCap="round" lineJoin="round" /> : null}
+        {hasRoute ? <Polyline coordinates={coordinates} strokeColor={premiumColors.primaryBright} strokeWidth={4.5} lineCap="round" lineJoin="round" /> : null}
+        {hasRoute ? <Marker coordinate={coordinates[0]} anchor={{ x: 0.5, y: 0.5 }}><View style={styles.startPin} /></Marker> : null}
+        {hasRoute ? <Marker coordinate={coordinates[coordinates.length - 1]} anchor={{ x: 0.5, y: 0.5 }}><View style={styles.endPin}><View style={styles.endPinInner} /></View></Marker> : null}
+      </MapView>
+      <View pointerEvents="none" style={styles.mapVignette} />
+      {!hasRoute ? <View style={styles.emptyRoute}><View style={styles.emptyLocation}><SymbolView name={{ios:'location.fill',android:'location_on',web:'location_on'}} tintColor={premiumColors.textSecondary} size={20}/></View><Text style={styles.emptyRouteTitle}>No route recorded yet</Text><Text style={styles.emptyRouteCopy}>Your latest GPS route will appear here.</Text></View> : null}
     </View>
   );
+}
+
+function toCoordinate(point: RidePoint): LatLng {
+  return { latitude: point.latitude, longitude: point.longitude };
+}
+
+function createPreviewRegion(coordinates: readonly LatLng[]): Region {
+  if (coordinates.length === 0) return DEFAULT_PREVIEW_REGION;
+  const latitudes = coordinates.map((point) => point.latitude);
+  const longitudes = coordinates.map((point) => point.longitude);
+  const minimumLatitude = Math.min(...latitudes);
+  const maximumLatitude = Math.max(...latitudes);
+  const minimumLongitude = Math.min(...longitudes);
+  const maximumLongitude = Math.max(...longitudes);
+
+  return {
+    latitude: (minimumLatitude + maximumLatitude) / 2,
+    longitude: (minimumLongitude + maximumLongitude) / 2,
+    latitudeDelta: Math.max((maximumLatitude - minimumLatitude) * 1.45, 0.008),
+    longitudeDelta: Math.max((maximumLongitude - minimumLongitude) * 1.45, 0.008),
+  };
 }
 
 type RideMetricProps = {
@@ -124,7 +185,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     minWidth: 0,
-    minHeight: 340,
+    minHeight: 356,
     padding: 0,
     backgroundColor: 'rgba(17, 21, 28, 0.82)',
   },
@@ -160,71 +221,46 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.09)',
   },
   routePreview: {
-    height: 108,
+    height: 168,
     overflow: 'hidden',
     marginHorizontal: 18,
-    borderRadius: 6,
-    backgroundColor: '#0A1114',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 16,
+    backgroundColor: '#111417',
   },
-  mapGrid: {
+  mapVignette: {
     position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    opacity: 0.5,
-    backgroundColor: 'rgba(37, 211, 102, 0.08)',
-  },
-  routeSegment: {
-    position: 'absolute',
-    height: 5,
-    borderRadius: radius.pill,
-    backgroundColor: premiumColors.primaryBright,
-  },
-  routeSegmentOne: {
-    top: 68,
-    left: 42,
-    width: 96,
-    transform: [{ rotate: '-18deg' }],
-  },
-  routeSegmentTwo: {
-    top: 59,
-    left: 124,
-    width: 86,
-    transform: [{ rotate: '20deg' }],
-  },
-  routeSegmentThree: {
-    top: 78,
-    right: 34,
-    width: 116,
-    transform: [{ rotate: '-11deg' }],
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(3, 5, 7, 0.08)',
   },
   startPin: {
-    position: 'absolute',
-    bottom: 31,
-    left: 35,
-    width: 24,
-    height: 24,
+    width: 13,
+    height: 13,
     borderWidth: 3,
-    borderColor: '#0A1114',
-    borderRadius: 12,
-    backgroundColor: premiumColors.success,
+    borderColor: '#F7F8FA',
+    borderRadius: radius.pill,
+    backgroundColor: '#111417',
   },
   endPin: {
-    position: 'absolute',
-    right: 28,
-    bottom: 36,
-    width: 30,
-    height: 30,
+    width: 17,
+    height: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 15,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderColor: '#111417',
     backgroundColor: premiumColors.primaryBright,
   },
   endPinInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 5,
+    height: 5,
+    borderRadius: radius.pill,
     backgroundColor: premiumColors.textPrimary,
   },
   routePlaceholder: {
@@ -232,9 +268,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.md,
     left: spacing.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(7, 10, 15, 0.78)',
     color: premiumColors.textTertiary,
     textTransform: 'uppercase',
   },
+  emptyRoute:{position:'absolute',top:0,right:0,bottom:0,left:0,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(7,10,15,.44)'},
+  emptyLocation:{width:42,height:42,alignItems:'center',justifyContent:'center',borderRadius:21,backgroundColor:'rgba(255,255,255,.07)',marginBottom:8},
+  emptyRouteTitle:{...typography.caption,color:premiumColors.textPrimary,fontWeight:'900'},
+  emptyRouteCopy:{...typography.label,color:premiumColors.textTertiary,marginTop:3,textTransform:'none'},
   metrics: {
     flexDirection: 'row',
     padding: 18,

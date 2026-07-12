@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { createStatisticsService, type StatisticsDashboardSummary } from '@/src/services';
+import { useAuth } from '@/src/providers';
 import { layout, premiumColors, spacing } from '@/src/theme';
 
 import { DashboardMetricStrip } from './components/DashboardMetricStrip';
@@ -13,11 +14,13 @@ import { MonthlyStatsCard } from './components/MonthlyStatsCard';
 import { MotorcycleHeroSection } from './components/MotorcycleHeroSection';
 import { RecentRideCard } from './components/RecentRideCard';
 import { SearchSheet } from './components/SearchSheet';
-import { WeatherRideCard } from './components/WeatherRideCard';
-import { mockDashboardData } from './data/mockDashboardData';
 
 export function DashboardScreen() {
   const greeting = getGreeting(new Date());
+  const { user } = useAuth();
+  const riderName = typeof user?.user_metadata.display_name === 'string' && user.user_metadata.display_name.trim()
+    ? user.user_metadata.display_name.trim()
+    : user?.email?.split('@')[0] ?? 'Rider';
   const router = useRouter();
   const { width } = useWindowDimensions();
   const statisticsService = useMemo(() => createStatisticsService(), []);
@@ -46,7 +49,7 @@ export function DashboardScreen() {
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <DashboardTopHeader greeting={greeting} riderName="Rider" onOpenSettings={() => setSearchVisible(true)} />
+        <DashboardTopHeader greeting={greeting} riderName={riderName} onOpenSettings={() => setSearchVisible(true)} />
 
         <View style={styles.stack}>
           <AnimatedEntrance delay={80}>
@@ -57,17 +60,11 @@ export function DashboardScreen() {
             />
           </AnimatedEntrance>
 
-          {mockDashboardData.weather ? (
-            <AnimatedEntrance delay={170}>
-              <WeatherRideCard weather={mockDashboardData.weather} />
-            </AnimatedEntrance>
-          ) : null}
-
-          <AnimatedEntrance delay={230}>
+          <AnimatedEntrance delay={170}>
             <DashboardMetricStrip loading={statisticsLoading} summary={statisticsSummary} />
           </AnimatedEntrance>
 
-          <AnimatedEntrance delay={310} style={[styles.cardGrid, stackCards ? styles.cardGridStacked : null]}>
+          <AnimatedEntrance delay={250} style={[styles.cardGrid, stackCards ? styles.cardGridStacked : null]}>
             <RecentRideCard loading={statisticsLoading} ride={statisticsSummary?.recentRide ?? null} onPress={() => router.push('/rides')} />
             <MonthlyStatsCard loading={statisticsLoading} summary={statisticsSummary} />
           </AnimatedEntrance>

@@ -19,6 +19,7 @@ export type RecentRide = {
   readonly duration: string;
   readonly averageSpeed: string;
   readonly date: string;
+  readonly timestamp?: string;
 };
 
 export type RidesData = {

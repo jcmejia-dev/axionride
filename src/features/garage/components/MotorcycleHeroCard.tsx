@@ -83,15 +83,15 @@ const statusColors = { success: premiumColors.success, warning: premiumColors.wa
 function formatNumber(value: number) { return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value); }
 
 const styles = StyleSheet.create({
-  card: { overflow: 'hidden', paddingTop: spacing.lg, borderWidth: 1, borderColor: premiumColors.borderStrong, borderRadius: radius.xl, backgroundColor: 'rgba(13, 17, 23, 0.96)', shadowColor: '#000000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.4, shadowRadius: 30, elevation: 9 },
+  card: { overflow: 'hidden', paddingTop: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: radius.md, backgroundColor: '#0D1117', shadowColor: '#000000', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.44, shadowRadius: 26, elevation: 9 },
   ambientGlow: { position: 'absolute', top: 70, right: -60, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(255, 106, 0, 0.055)' },
   cardHeader: { minHeight: touchSizes.compact, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
-  primaryBadge: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: 'rgba(255, 106, 0, 0.08)' },
+  primaryBadge: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: premiumColors.borderOrange, borderRadius: radius.sm, backgroundColor: 'rgba(255, 106, 0, 0.08)' },
   primaryText: { ...typography.label, color: premiumColors.primaryBright, fontSize: 13, textTransform: 'uppercase' },
   menuButton: { width: touchSizes.compact, height: touchSizes.compact, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill },
   identity: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   identityPressed: { opacity: 0.76 },
-  name: { ...typography.title, color: premiumColors.textPrimary, fontSize: 27, lineHeight: 33 },
+  name: { ...typography.title, color: premiumColors.textPrimary, fontSize: 29, lineHeight: 34, letterSpacing: -0.7 },
   specification: { ...typography.body, marginTop: spacing.xs, color: premiumColors.textSecondary, fontSize: 15 },
   imageStage: { height: 224, marginTop: -spacing.sm, marginHorizontal: spacing.md },
   imageStageCompact: { height: 190 },

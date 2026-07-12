@@ -20,7 +20,7 @@ export function RideStatsGrid({ currentRide, insights }: RideStatsGridProps) {
 
   return (
     <View style={styles.section}>
-      <SectionTitle title="Current Ride" subtitle="Live statistics from foreground GPS" />
+      <SectionTitle title="Ride Metrics" subtitle="Live statistics from foreground GPS" />
       <View style={styles.grid}>
         {currentStats.map((stat, index) => (
           <RideStatCard key={stat.label} stat={stat} index={index} />
@@ -119,20 +119,23 @@ const styles = StyleSheet.create({
   },
   grid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: 0,
     marginBottom: spacing.md,
+    overflow:'hidden',
+    borderWidth:1,
+    borderColor:'rgba(255,255,255,.1)',
+    borderRadius:radius.xl,
+    backgroundColor:'rgba(17,21,28,.88)',
   },
   card: {
-    flexGrow: 1,
-    flexBasis: '47%',
+    flex:1,
     minWidth: 0,
-    minHeight: 124,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.13)',
-    borderRadius: radius.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.075)',
+    minHeight: 112,
+    alignItems:'center',
+    paddingHorizontal: spacing.xs,
+    paddingVertical:spacing.md,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.08)',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.28,
@@ -142,7 +145,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 8,
     height: 8,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
     borderRadius: 4,
   },
   label: {
@@ -154,12 +157,13 @@ const styles = StyleSheet.create({
     ...typography.subheading,
     marginTop: spacing.sm,
     color: palette.text,
-    fontSize: 24,
+    fontSize: 15,
     lineHeight: 29,
   },
   detail: {
     ...typography.caption,
     marginTop: spacing.xs,
     color: 'rgba(248, 250, 252, 0.58)',
+    textAlign:'center',
   },
 });
