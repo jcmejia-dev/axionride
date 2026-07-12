@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View, type ViewProps } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, View, type ViewProps } from 'react-native';
 
 import { elevation, palette, radius, semanticColors, spacing, typography } from '@/src/theme';
 
@@ -103,7 +103,7 @@ const toastAccent = {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    top: spacing.xl,
+    top: Platform.OS === 'ios' ? 62 : 48,
     left: spacing.xl,
     right: spacing.xl,
     zIndex: 20,

@@ -1,75 +1,11 @@
+import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { Body, EmptyState, GlassCard, GhostButton, PrimaryButton, SectionHeader, Title } from '@/src/components';
-import { palette, spacing } from '@/src/theme';
+import { palette, radius, spacing, typography } from '@/src/theme';
 import { useAuth } from '@/src/providers';
 
-export function FirstMotorcycleScreen() {
-  const router = useRouter();
-  const { completeOnboarding } = useAuth();
-
-  async function continueToAuthentication() {
-    await completeOnboarding();
-    router.replace('/login');
-  }
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <Title>Add First Motorcycle</Title>
-          <Body muted>Motorcycle setup will be built later. For now, continue into the dashboard shell.</Body>
-        </View>
-
-        <GlassCard style={styles.card}>
-          <SectionHeader title="Garage setup" subtitle="Placeholder step" />
-          <EmptyState
-            icon={
-              <SymbolView
-                name={{ ios: 'motorcycle.fill', android: 'two_wheeler', web: 'two_wheeler' }}
-                tintColor={palette.accentOrange}
-                size={36}
-              />
-            }
-            title="Motorcycle setup is coming later"
-            description="This onboarding step will eventually collect motorcycle details. No forms or saved state are included yet."
-          />
-        </GlassCard>
-
-        <View style={styles.actions}>
-          <PrimaryButton title="Continue to Sign In" onPress={() => { void continueToAuthentication(); }} />
-          <GhostButton title="Skip for now" onPress={() => { void continueToAuthentication(); }} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: palette.darkBackground,
-  },
-  screen: {
-    flex: 1,
-    backgroundColor: palette.darkBackground,
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: spacing.xl,
-    gap: spacing.xl,
-  },
-  hero: {
-    gap: spacing.sm,
-  },
-  card: {
-    gap: spacing.lg,
-  },
-  actions: {
-    gap: spacing.md,
-  },
-});
+export function FirstMotorcycleScreen(){const router=useRouter();const{completeOnboarding}=useAuth();async function finish(){await completeOnboarding();router.replace('/login')}return <SafeAreaView style={styles.safeArea}><View style={styles.glow}/><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><View style={styles.hero}><Text style={styles.eyebrow}>One last step</Text><Text style={styles.title}>Build your garage after sign in.</Text><Text style={styles.description}>Your motorcycles stay private and available offline inside your isolated local workspace.</Text></View><View style={styles.visual}><View style={styles.ringOuter}><View style={styles.ringInner}><SymbolView name={{ios:'motorcycle.fill',android:'two_wheeler',web:'two_wheeler'}} tintColor={palette.accentOrange} size={52}/></View></View><Text style={styles.visualTitle}>Your ride. Your records.</Text><Text style={styles.visualCopy}>Add motorcycle details, choose a primary bike, and start tracking maintenance when you enter AxionRide.</Text><View style={styles.pills}><Pill icon={<SymbolView name={{ios:'lock.shield.fill',android:'lock',web:'lock'}} tintColor={palette.success} size={16}/>} label="Private"/><Pill icon={<SymbolView name={{ios:'externaldrive.fill',android:'storage',web:'storage'}} tintColor={palette.success} size={16}/>} label="Offline-first"/></View></View><Pressable accessibilityRole="button" onPress={()=>{void finish()}} style={({pressed})=>[styles.button,pressed&&styles.pressed]}><Text style={styles.buttonText}>Continue to Sign In</Text><SymbolView name={{ios:'arrow.right',android:'arrow_forward',web:'arrow_forward'}} tintColor="#fff" size={20}/></Pressable></ScrollView></SafeAreaView>}
+function Pill({icon,label}:{readonly icon:ReactNode;readonly label:string}){return <View style={styles.pill}>{icon}<Text style={styles.pillText}>{label}</Text></View>}
+const styles=StyleSheet.create({safeArea:{flex:1,backgroundColor:palette.darkBackground},glow:{position:'absolute',top:80,right:-150,width:340,height:340,borderRadius:170,backgroundColor:'rgba(255,106,0,.07)'},content:{flexGrow:1,justifyContent:'center',paddingHorizontal:spacing.xl,paddingVertical:spacing.xxl,gap:spacing.xxl},hero:{gap:spacing.sm},eyebrow:{...typography.label,color:palette.accentOrange,textTransform:'uppercase',letterSpacing:1.4},title:{color:palette.text,fontSize:34,lineHeight:40,fontWeight:'900',letterSpacing:-1},description:{...typography.body,color:palette.textMuted,lineHeight:24},visual:{alignItems:'center',padding:spacing.xl,borderWidth:1,borderColor:'rgba(255,255,255,.10)',borderRadius:radius.xl,backgroundColor:'rgba(17,21,28,.9)'},ringOuter:{width:126,height:126,alignItems:'center',justifyContent:'center',borderRadius:63,backgroundColor:'rgba(255,106,0,.06)',borderWidth:1,borderColor:'rgba(255,106,0,.16)'},ringInner:{width:92,height:92,alignItems:'center',justifyContent:'center',borderRadius:46,backgroundColor:'rgba(255,106,0,.12)'},visualTitle:{...typography.title,color:palette.text,marginTop:spacing.xl,textAlign:'center',fontWeight:'900'},visualCopy:{...typography.body,color:palette.textMuted,marginTop:spacing.sm,textAlign:'center',lineHeight:23},pills:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:spacing.sm,marginTop:spacing.xl},pill:{minHeight:38,flexDirection:'row',alignItems:'center',gap:7,paddingHorizontal:spacing.md,borderRadius:radius.pill,backgroundColor:'rgba(255,255,255,.055)'},pillText:{...typography.caption,color:palette.text,fontWeight:'800'},button:{minHeight:58,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,borderRadius:radius.lg,backgroundColor:palette.accentOrange},buttonText:{...typography.button,color:'#fff'},pressed:{opacity:.86,transform:[{scale:.985}]}});

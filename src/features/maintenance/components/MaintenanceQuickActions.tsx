@@ -38,7 +38,7 @@ export function MaintenanceQuickActions({
     <View style={styles.section}>
       <View>
         <Text style={styles.title}>Quick Actions</Text>
-        <Text style={styles.subtitle}>Placeholder commands for future service workflows</Text>
+        <Text style={styles.subtitle}>Manage local service records</Text>
       </View>
       <View style={styles.actions}>
         {quickActions.map((action, index) => (

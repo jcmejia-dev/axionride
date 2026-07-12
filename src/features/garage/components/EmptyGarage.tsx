@@ -1,10 +1,10 @@
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GlassCard } from '@/src/components';
 import { palette, radius, spacing, typography } from '@/src/theme';
 
-export function EmptyGarage() {
+export function EmptyGarage({ onAdd }: { readonly onAdd: () => void }) {
   return (
     <GlassCard style={styles.card}>
       <View style={styles.iconShell}>
@@ -16,6 +16,7 @@ export function EmptyGarage() {
       </View>
       <Text style={styles.title}>No motorcycles yet</Text>
       <Text style={styles.description}>Add your first motorcycle to begin tracking rides and maintenance.</Text>
+      <Pressable accessibilityRole="button" onPress={onAdd} style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}><Text style={styles.buttonText}>Add Motorcycle</Text></Pressable>
     </GlassCard>
   );
 }
@@ -48,4 +49,7 @@ const styles = StyleSheet.create({
     color: 'rgba(248, 250, 252, 0.66)',
     textAlign: 'center',
   },
+  button: { minHeight: 52, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', marginTop: spacing.sm, borderRadius: radius.lg, backgroundColor: palette.accentOrange },
+  buttonText: { ...typography.button, color: '#FFFFFF' },
+  pressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
 });

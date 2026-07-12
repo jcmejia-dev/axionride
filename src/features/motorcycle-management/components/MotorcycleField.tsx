@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 
-import { palette, radius, spacing, typography } from '@/src/theme';
+import { motion, premiumColors, radius, spacing, typography } from '@/src/theme';
 
 type MotorcycleFieldProps = TextInputProps & {
   label: string;
@@ -42,14 +42,14 @@ export function MotorcycleField({
   useEffect(() => {
     Animated.timing(focusProgress, {
       toValue: focused ? 1 : 0,
-      duration: 160,
+      duration: motion.duration.base,
       useNativeDriver: false,
     }).start();
   }, [focused, focusProgress]);
 
   const borderColor = focusProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [error ? palette.danger : 'rgba(255, 255, 255, 0.13)', error ? palette.danger : 'rgba(249, 115, 22, 0.7)'],
+    outputRange: [error ? premiumColors.danger : premiumColors.border, error ? premiumColors.danger : premiumColors.borderOrange],
   });
 
   return (
@@ -65,7 +65,6 @@ export function MotorcycleField({
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholderTextColor="rgba(248, 250, 252, 0.38)"
           multiline={multiline}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -92,21 +91,21 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.label,
-    color: 'rgba(248, 250, 252, 0.64)',
+    color: premiumColors.textSecondary,
     textTransform: 'uppercase',
   },
   required: {
-    color: palette.accentOrange,
+    color: premiumColors.primary,
   },
   counter: {
     ...typography.caption,
-    color: 'rgba(248, 250, 252, 0.46)',
+    color: premiumColors.textTertiary,
   },
   inputShell: {
     minHeight: 54,
     borderWidth: 1,
     borderRadius: radius.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.075)',
+    backgroundColor: 'rgba(255,255,255,0.045)',
   },
   multilineShell: {
     minHeight: 132,
@@ -114,7 +113,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 54,
     paddingHorizontal: spacing.lg,
-    color: palette.text,
+    color: premiumColors.textPrimary,
     ...typography.body,
   },
   multilineInput: {
@@ -124,9 +123,9 @@ const styles = StyleSheet.create({
   },
   supportingText: {
     ...typography.caption,
-    color: 'rgba(248, 250, 252, 0.5)',
+    color: premiumColors.textTertiary,
   },
   errorText: {
-    color: palette.danger,
+    color: premiumColors.danger,
   },
 });

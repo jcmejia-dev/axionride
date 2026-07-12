@@ -11,7 +11,7 @@ export function EmptyRidesState() {
         <SymbolView name={{ ios: 'road.lanes', android: 'route', web: 'route' }} tintColor={palette.text} size={34} />
       </View>
       <Text style={styles.title}>No rides recorded</Text>
-      <Text style={styles.description}>Completed rides will appear here after ride tracking is implemented.</Text>
+      <Text style={styles.description}>Start a ride to map your route and build your private ride history.</Text>
     </GlassCard>
   );
 }

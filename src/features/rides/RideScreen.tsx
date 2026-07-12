@@ -21,7 +21,6 @@ import { RideHeader } from './components/RideHeader';
 import { RideModeCard } from './components/RideModeCard';
 import { RideQuickActions } from './components/RideQuickActions';
 import { RideStatsGrid } from './components/RideStatsGrid';
-import { mockRides } from './data/mockRides';
 import type { CurrentRidePreview, RecentRide } from './types';
 
 export function RideScreen() {
@@ -33,7 +32,7 @@ export function RideScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [completedRide, setCompletedRide] = useState<CompletedRideResult | null>(null);
   const [liveRidePoints, setLiveRidePoints] = useState<readonly RidePoint[]>([]);
-  const [rideHistory, setRideHistory] = useState<readonly RecentRide[]>(mockRides.recentRides);
+  const [rideHistory, setRideHistory] = useState<readonly RecentRide[]>([]);
   const currentRidePreview = toCurrentRidePreview(currentRide);
   const activeMapPoints = completedRide ? completedRide.ride.route : liveRidePoints;
   const currentMapPoint = completedRide ? null : liveRidePoints[liveRidePoints.length - 1] ?? null;
@@ -178,7 +177,7 @@ export function RideScreen() {
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <RideHeader />
+        <RideHeader onStartRide={() => { void handleStartRide(); }} />
 
         <AnimatedEntrance delay={80}>
           <RideModeCard
@@ -221,7 +220,7 @@ export function RideScreen() {
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={180}>
-          <RideStatsGrid currentRide={currentRidePreview} insights={mockRides.insights} />
+          <RideStatsGrid currentRide={currentRidePreview} insights={[]} />
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={280}>
@@ -257,8 +256,8 @@ async function refreshRideHistory(
 ) {
   const result = await rideService.getRideHistory();
 
-  if (!result.ok || result.value.length === 0) {
-    setRideHistory(mockRides.recentRides);
+  if (!result.ok) {
+    setRideHistory([]);
     return;
   }
 
@@ -315,7 +314,7 @@ function getPermissionLabel(permissionState: ForegroundLocationPermissionState, 
   }
 
   if (permissionState === 'denied') {
-    return 'GPS denied. Demo ride mode active.';
+    return 'Location access is off';
   }
 
   if (permissionState === 'granted') {
@@ -331,7 +330,7 @@ function getMapSubtitle(permissionState: ForegroundLocationPermissionState, gpsA
   }
 
   if (permissionState === 'denied') {
-    return 'GPS denied. Map will show saved demo route after finish.';
+    return 'Enable location access to draw your route.';
   }
 
   return 'Start a ride to request GPS and draw the live route.';
@@ -419,7 +418,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     borderRadius: 140,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(249, 115, 22, 0.09)',
   },
   backgroundGlowBottom: {
     position: 'absolute',
@@ -428,7 +427,7 @@ const styles = StyleSheet.create({
     width: 330,
     height: 330,
     borderRadius: 165,
-    backgroundColor: 'rgba(34, 211, 238, 0.08)',
+    backgroundColor: 'rgba(249, 115, 22, 0.04)',
   },
   screen: {
     flex: 1,

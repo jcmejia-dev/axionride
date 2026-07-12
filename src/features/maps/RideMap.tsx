@@ -27,6 +27,20 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.018,
 };
 
+const PREMIUM_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#0b0f13' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#7f8996' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0b0f13' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#20262e' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#0d1116' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#222831' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#11161c' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#323944' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#080b0f' }] },
+];
+
 export function RideMap({
   title,
   subtitle,
@@ -81,6 +95,8 @@ export function RideMap({
           ref={mapRef}
           style={styles.map}
           initialRegion={region}
+          customMapStyle={PREMIUM_MAP_STYLE}
+          mapType="standard"
           showsUserLocation={false}
           showsCompass={false}
           toolbarEnabled={false}>

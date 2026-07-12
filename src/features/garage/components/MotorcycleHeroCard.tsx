@@ -1,243 +1,118 @@
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState, type ComponentProps } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Motorcycle } from '@/src/domain/motorcycle';
-import { Badge, GlassCard } from '@/src/components';
-import { palette, radius, spacing, typography } from '@/src/theme';
+import { iconSizes, motion, premiumColors, radius, spacing, touchSizes, typography } from '@/src/theme';
 
-import type { GarageMotorcycleStatus } from '../types';
-import { MotorcycleSpecs } from './MotorcycleSpecs';
+import type { GarageMaintenanceSummary } from '../types';
 
-type MotorcycleHeroCardProps = {
-  motorcycle: Motorcycle;
-  status?: GarageMotorcycleStatus;
-  width: number;
-  primary: boolean;
-  onPress: () => void;
-  onSetPrimary: () => void;
+const fallbackMotorcycle = require('../../../../assets/images/dashboard-motorcycle-fallback.png');
+
+type Props = {
+  readonly motorcycle: Motorcycle;
+  readonly maintenance: GarageMaintenanceSummary;
+  readonly compact: boolean;
+  readonly onEdit: () => void;
+  readonly onMenu: () => void;
 };
 
-export function MotorcycleHeroCard({ motorcycle, status, width, primary, onPress, onSetPrimary }: MotorcycleHeroCardProps) {
+export function MotorcycleHeroCard({ motorcycle, maintenance, compact, onEdit, onMenu }: Props) {
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [motorcycle.imageUri]);
+  const imageSource = motorcycle.imageUri && !imageFailed ? { uri: motorcycle.imageUri } : fallbackMotorcycle;
+  const usingFallback = !motorcycle.imageUri || imageFailed;
+
   return (
-    <Pressable accessibilityLabel={`${motorcycle.nickname}. Tap to edit. Long press to make primary.`} onPress={onPress} onLongPress={onSetPrimary} style={({ pressed }) => [styles.pressable, { width }, pressed ? styles.pressed : null]}>
-      <GlassCard style={styles.card}>
-        <View style={styles.lightBeam} />
-        <View style={styles.topRow}>
-          <View>
-            <Text style={styles.nickname}>{motorcycle.nickname}</Text>
-            <Text style={styles.model}>
-              {motorcycle.brand} {motorcycle.model}
-            </Text>
-            <Text style={styles.year}>{motorcycle.year}</Text>
-          </View>
-          <Badge variant={primary ? 'success' : 'neutral'}>
-            {primary ? 'Primary' : 'Hold for Primary'}
-          </Badge>
+    <View style={styles.card}>
+      <View style={styles.ambientGlow} />
+      <View style={styles.cardHeader}>
+        <View style={styles.primaryBadge}>
+          <SymbolView name={{ ios: 'star.fill', android: 'star', web: 'star' }} tintColor={premiumColors.primary} size={iconSizes.sm} />
+          <Text style={styles.primaryText}>Primary</Text>
         </View>
+        <Pressable accessibilityLabel={`Open actions for ${motorcycle.nickname}`} accessibilityRole="button" hitSlop={spacing.sm} onPress={onMenu} style={({ pressed }) => [styles.menuButton, pressed ? styles.pressed : null]}>
+          <SymbolView name={{ ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' }} tintColor={premiumColors.textSecondary} size={iconSizes.md} />
+        </Pressable>
+      </View>
 
-        <MotorcycleSilhouette />
+      <Pressable accessibilityLabel={`Edit ${motorcycle.nickname}`} accessibilityRole="button" onPress={onEdit} style={({ pressed }) => [styles.identity, pressed ? styles.identityPressed : null]}>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78} style={styles.name}>{motorcycle.nickname}</Text>
+        <Text numberOfLines={1} style={styles.specification}>{motorcycle.engineCc}cc • {motorcycle.category} • {motorcycle.fuelType}</Text>
+      </Pressable>
 
-        <View style={styles.metrics}>
-          <HeroMetric label="Mileage" value={`${motorcycle.odometerKm.toLocaleString()} km`} />
-          <HeroMetric label="Engine" value={`${motorcycle.engineCc}cc`} />
-          <HeroMetric label="Fuel" value={motorcycle.fuelType} />
-          <HeroMetric label="Oil" value={status?.oilStatus ?? 'Not set'} />
-          <HeroMetric label="Last Ride" value={status?.lastRide ?? 'No rides'} wide />
-        </View>
+      <View style={[styles.imageStage, compact ? styles.imageStageCompact : null]}>
+        <Image accessibilityLabel={`${motorcycle.brand} ${motorcycle.model} motorcycle`} source={imageSource} resizeMode="contain" onError={() => setImageFailed(true)} style={styles.image} />
+        {usingFallback ? <View style={styles.fallbackVeil} pointerEvents="none" /> : null}
+        <View style={styles.imageShade} pointerEvents="none" />
+      </View>
 
-        <MotorcycleSpecs motorcycle={motorcycle} />
-      </GlassCard>
-    </Pressable>
-  );
-}
+      <View style={styles.statusRow}>
+        <View style={[styles.statusDot, { backgroundColor: statusColors[maintenance.statusTone] }]} />
+        <Text style={[styles.statusText, { color: statusColors[maintenance.statusTone] }]}>{maintenance.statusLabel}</Text>
+      </View>
 
-type HeroMetricProps = {
-  label: string;
-  value: string;
-  wide?: boolean;
-};
+      <View style={styles.divider} />
+      <View style={[styles.metrics, compact ? styles.metricsCompact : null]}>
+        <Metric icon={{ ios: 'gauge.with.dots.needle.67percent', android: 'speed', web: 'speed' }} label="Odometer" value={`${formatNumber(motorcycle.odometerKm)} km`} />
+        <Metric icon={{ ios: 'calendar', android: 'event', web: 'event' }} label="Next maintenance" value={maintenance.nextMaintenanceLabel} emphasized />
+        <Metric icon={{ ios: 'drop.fill', android: 'water_drop', web: 'water_drop' }} label="Last oil change" value={maintenance.lastOilChangeLabel} last />
+      </View>
 
-function HeroMetric({ label, value, wide = false }: HeroMetricProps) {
-  return (
-    <View style={[styles.metric, wide ? styles.wideMetric : null]}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text adjustsFontSizeToFit numberOfLines={1} style={styles.metricValue}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function MotorcycleSilhouette() {
-  return (
-    <View style={styles.visual}>
-      <View style={styles.visualGlow} />
-      <View style={styles.wheelLeft} />
-      <View style={styles.wheelRight} />
-      <View style={styles.bodyLine} />
-      <View style={styles.seatLine} />
-      <View style={styles.handleLine} />
-      <View style={styles.engineBlock}>
-        <SymbolView
-          name={{ ios: 'bolt.fill', android: 'bolt', web: 'bolt' }}
-          tintColor={palette.accentOrange}
-          size={18}
-        />
+      <View style={styles.progressRow}>
+        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${maintenance.progressPercent ?? 0}%` }]} /></View>
+        <Text style={styles.progressValue}>{maintenance.progressPercent === null ? '—' : `${maintenance.progressPercent}%`}</Text>
       </View>
     </View>
   );
 }
 
+type MetricProps = {
+  readonly icon: ComponentProps<typeof SymbolView>['name'];
+  readonly label: string;
+  readonly value: string;
+  readonly emphasized?: boolean;
+  readonly last?: boolean;
+};
+
+function Metric({ icon, label, value, emphasized = false, last = false }: MetricProps) {
+  return <View style={[styles.metric, last ? styles.metricLast : null]}><View style={styles.metricTitle}><SymbolView name={icon} tintColor={premiumColors.primary} size={iconSizes.md} /><Text numberOfLines={2} style={styles.metricLabel}>{label}</Text></View><Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.72} style={[styles.metricValue, emphasized ? styles.metricValueEmphasized : null]}>{value}</Text></View>;
+}
+
+const statusColors = { success: premiumColors.success, warning: premiumColors.warning, danger: premiumColors.danger, neutral: premiumColors.textSecondary };
+function formatNumber(value: number) { return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value); }
+
 const styles = StyleSheet.create({
-  pressable: {
-    flexShrink: 0,
-  },
-  card: {
-    minHeight: 620,
-    gap: spacing.xl,
-    overflow: 'hidden',
-    backgroundColor: '#08090B',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.46,
-    shadowRadius: 34,
-    elevation: 10,
-  },
-  lightBeam: {
-    position: 'absolute',
-    top: -110,
-    right: -42,
-    width: 190,
-    height: 420,
-    transform: [{ rotate: '17deg' }],
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  nickname: {
-    ...typography.heading,
-    color: palette.text,
-    fontSize: 34,
-    lineHeight: 39,
-  },
-  model: {
-    ...typography.body,
-    marginTop: spacing.xs,
-    color: 'rgba(248, 250, 252, 0.72)',
-    fontWeight: '700',
-  },
-  year: {
-    ...typography.label,
-    marginTop: spacing.xs,
-    color: 'rgba(248, 250, 252, 0.48)',
-  },
-  visual: {
-    height: 146,
-    justifyContent: 'flex-end',
-  },
-  visualGlow: {
-    position: 'absolute',
-    right: 40,
-    bottom: 10,
-    width: 170,
-    height: 90,
-    borderRadius: 85,
-    backgroundColor: 'rgba(249, 115, 22, 0.12)',
-  },
-  wheelLeft: {
-    position: 'absolute',
-    bottom: 8,
-    left: 28,
-    width: 68,
-    height: 68,
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.64)',
-    borderRadius: 34,
-  },
-  wheelRight: {
-    position: 'absolute',
-    right: 28,
-    bottom: 8,
-    width: 68,
-    height: 68,
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.64)',
-    borderRadius: 34,
-  },
-  bodyLine: {
-    position: 'absolute',
-    right: 78,
-    bottom: 54,
-    left: 82,
-    height: 5,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(249, 115, 22, 0.74)',
-  },
-  seatLine: {
-    position: 'absolute',
-    left: 130,
-    bottom: 78,
-    width: 86,
-    height: 5,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.78)',
-  },
-  handleLine: {
-    position: 'absolute',
-    right: 46,
-    bottom: 82,
-    width: 54,
-    height: 4,
-    transform: [{ rotate: '-25deg' }],
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-  },
-  engineBlock: {
-    position: 'absolute',
-    right: 126,
-    bottom: 36,
-    width: 44,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.09)',
-  },
-  metrics: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  metric: {
-    flexGrow: 1,
-    flexBasis: '46%',
-    minWidth: 0,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.075)',
-  },
-  wideMetric: {
-    flexBasis: '100%',
-  },
-  metricLabel: {
-    ...typography.label,
-    color: 'rgba(248, 250, 252, 0.54)',
-    textTransform: 'uppercase',
-  },
-  metricValue: {
-    ...typography.subtitle,
-    marginTop: spacing.xs,
-    color: palette.text,
-  },
-  pressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.985 }],
-  },
+  card: { overflow: 'hidden', paddingTop: spacing.lg, borderWidth: 1, borderColor: premiumColors.borderStrong, borderRadius: radius.xl, backgroundColor: 'rgba(13, 17, 23, 0.96)', shadowColor: '#000000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.4, shadowRadius: 30, elevation: 9 },
+  ambientGlow: { position: 'absolute', top: 70, right: -60, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(255, 106, 0, 0.055)' },
+  cardHeader: { minHeight: touchSizes.compact, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  primaryBadge: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: 'rgba(255, 106, 0, 0.08)' },
+  primaryText: { ...typography.label, color: premiumColors.primaryBright, fontSize: 13, textTransform: 'uppercase' },
+  menuButton: { width: touchSizes.compact, height: touchSizes.compact, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill },
+  identity: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  identityPressed: { opacity: 0.76 },
+  name: { ...typography.title, color: premiumColors.textPrimary, fontSize: 27, lineHeight: 33 },
+  specification: { ...typography.body, marginTop: spacing.xs, color: premiumColors.textSecondary, fontSize: 15 },
+  imageStage: { height: 224, marginTop: -spacing.sm, marginHorizontal: spacing.md },
+  imageStageCompact: { height: 190 },
+  image: { width: '100%', height: '100%' },
+  fallbackVeil: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(7, 10, 15, 0.62)' },
+  imageShade: { position: 'absolute', right: 0, bottom: 0, left: 0, height: 42, backgroundColor: 'rgba(13, 17, 23, 0.34)' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 42, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  statusDot: { width: 10, height: 10, borderRadius: radius.pill },
+  statusText: { ...typography.body, fontWeight: '600' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: premiumColors.border },
+  metrics: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  metricsCompact: { paddingHorizontal: spacing.md },
+  metric: { flex: 1, minWidth: 0, minHeight: 92, paddingHorizontal: spacing.md, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: premiumColors.border },
+  metricLast: { borderRightWidth: 0 },
+  metricTitle: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  metricLabel: { ...typography.label, flex: 1, color: premiumColors.textSecondary, fontSize: 10, lineHeight: 13, textTransform: 'uppercase' },
+  metricValue: { ...typography.subtitle, marginTop: spacing.sm, color: premiumColors.textPrimary, fontSize: 17, lineHeight: 22 },
+  metricValueEmphasized: { color: premiumColors.primaryBright },
+  progressRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg },
+  progressTrack: { flex: 1, height: 7, overflow: 'hidden', borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.06)' },
+  progressFill: { height: '100%', borderRadius: radius.pill, backgroundColor: premiumColors.primary },
+  progressValue: { ...typography.subtitle, minWidth: 42, color: premiumColors.primaryBright, textAlign: 'right' },
+  pressed: { opacity: 0.7, transform: [{ scale: motion.scale.pressed }] },
 });

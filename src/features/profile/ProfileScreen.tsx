@@ -1,9 +1,10 @@
 import { SymbolView } from 'expo-symbols';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Badge, GlassCard, LoadingSpinner } from '@/src/components';
+import { GlassCard, LoadingSpinner, Toast } from '@/src/components';
 import {
   createBackupService,
   createNotificationService,
@@ -22,6 +23,7 @@ import { layout, palette, radius, spacing, typography } from '@/src/theme';
 import { useAuth } from '@/src/providers';
 
 export function ProfileScreen() {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const profileService = useMemo(() => createProfileService(), []);
   const settingsService = useMemo(() => createSettingsService(), []);
@@ -33,6 +35,7 @@ export function ProfileScreen() {
   const [backupBusy, setBackupBusy] = useState(false);
   const [lastBackupResult, setLastBackupResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -76,7 +79,7 @@ export function ProfileScreen() {
   function handleLogout() {
     Alert.alert('Sign out?', 'Your local records stay on this device and will be isolated from the next account.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => { void logout().then((result) => { if (!result.ok) Alert.alert('Sign out failed', result.error.message); }); } },
+      { text: 'Sign out', style: 'destructive', onPress: () => { setLogoutMessage('Signing out securely…'); void logout().then((result) => { if (!result.ok) { setLogoutMessage(result.error.message); } }); } },
     ]);
   }
 
@@ -196,11 +199,7 @@ export function ProfileScreen() {
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.kicker}>Local Rider Profile</Text>
-          <Text style={styles.title}>Profile</Text>
-          <Text style={styles.subtitle}>Settings, storage, and rider intelligence.</Text>
-        </View>
+        <View style={styles.header}><View style={styles.headerRow}><View style={styles.headerAccent}/><View><Text style={styles.title}>Profile</Text><Text style={styles.subtitle}>Your account &amp; preferences</Text></View></View></View>
 
         {loading ? (
           <LoadingSpinner label="Loading local profile..." />
@@ -208,6 +207,7 @@ export function ProfileScreen() {
           <>
             <ProfileHero overview={profileOverview} />
             <ProfileStats overview={profileOverview} />
+            <MotorcyclePanel overview={profileOverview} onAdd={() => router.push('/motorcycle-management')} onViewAll={() => router.push('/garage')} />
             <SettingsPanel
               backupBusy={backupBusy}
               lastBackupResult={lastBackupResult}
@@ -220,6 +220,7 @@ export function ProfileScreen() {
               onToggleLocalNotifications={handleToggleLocalNotifications}
               onSignOut={handleLogout}
             />
+            <Pressable accessibilityRole="button" accessibilityLabel="Log out of AxionRide" onPress={handleLogout} style={({pressed})=>[styles.logoutCard,pressed&&styles.pressed]}><View style={styles.logoutIcon}><SymbolView name={{ios:'rectangle.portrait.and.arrow.right',android:'logout',web:'logout'}} tintColor={palette.danger} size={23}/></View><View style={styles.logoutCopy}><Text style={styles.logoutTitle}>Log Out</Text><Text style={styles.logoutSubtitle}>Sign out from your account</Text></View><SymbolView name={{ios:'chevron.right',android:'chevron_right',web:'chevron_right'}} tintColor={palette.textMuted} size={22}/></Pressable>
           </>
         ) : (
           <GlassCard style={styles.card}>
@@ -228,29 +229,21 @@ export function ProfileScreen() {
           </GlassCard>
         )}
       </ScrollView>
+      <Toast visible={Boolean(logoutMessage)} message={logoutMessage ?? ''} variant="info" onHide={() => setLogoutMessage(null)} />
     </SafeAreaView>
   );
 }
 
 function ProfileHero({ overview }: { readonly overview: ProfileOverview }) {
   const motorcycle = overview.statistics.motorcycles.defaultMotorcycle;
-
   return (
-    <GlassCard style={styles.heroCard}>
-      <View style={styles.heroGlow} />
-      <View style={styles.heroTop}>
-        <View style={styles.avatar}>
-          <SymbolView
-            name={{ ios: 'person.crop.circle.fill', android: 'person', web: 'person' }}
-            tintColor={palette.text}
-            size={34}
-          />
-        </View>
-        <Badge variant="neutral">{overview.profile.membershipStatus}</Badge>
-      </View>
+    <View style={styles.heroCard}>
+      <View style={styles.avatar}><SymbolView name={{ ios: 'person.crop.circle.fill', android: 'person', web: 'person' }} tintColor={palette.text} size={50} /></View>
 
       <View>
         <Text style={styles.heroName}>{overview.profile.riderName}</Text>
+        <Text style={styles.rideMotto}>Ride safe. Ride smart.</Text>
+        <View style={styles.riderBadge}><SymbolView name={{ios:'shield.fill',android:'shield',web:'shield'}} tintColor={palette.accentOrange} size={13}/><Text style={styles.riderBadgeText}>AXION RIDER</Text></View>
         <Text style={styles.heroSubtitle}>
           {motorcycle ? `${overview.profile.email} • ${motorcycle.nickname}` : overview.profile.email}
         </Text>
@@ -264,7 +257,7 @@ function ProfileHero({ overview }: { readonly overview: ProfileOverview }) {
         />
         <Text style={styles.noticeText}>{overview.profile.notice}</Text>
       </View>
-    </GlassCard>
+    </View>
   );
 }
 
@@ -321,6 +314,11 @@ function ProfileStats({ overview }: { readonly overview: ProfileOverview }) {
       </View>
     </View>
   );
+}
+
+function MotorcyclePanel({overview,onAdd,onViewAll}:{readonly overview:ProfileOverview;readonly onAdd:()=>void;readonly onViewAll:()=>void}) {
+  const motorcycle=overview.statistics.motorcycles.defaultMotorcycle;
+  return <GlassCard style={styles.motorcyclePanel}><View style={styles.panelHeader}><Text style={styles.panelTitle}>My Motorcycles</Text><Pressable accessibilityRole="button" onPress={onViewAll} hitSlop={12}><Text style={styles.viewAll}>View all</Text></Pressable></View>{motorcycle?<Pressable accessibilityRole="button" onPress={onViewAll} style={({pressed})=>[styles.motorcycleRow,pressed&&styles.pressed]}><View style={styles.bikeImageShell}><Image resizeMode="contain" source={motorcycle.imageUri?{uri:motorcycle.imageUri}:require('../../../assets/images/dashboard-motorcycle-fallback.png')} style={styles.bikeImage}/></View><View style={styles.bikeCopy}><Text numberOfLines={1} style={styles.bikeName}>{motorcycle.nickname}</Text><Text numberOfLines={1} style={styles.bikeSpec}>{motorcycle.engineCc}cc · {motorcycle.brand} {motorcycle.model}</Text><Text style={styles.ready}>●  Ready to ride</Text></View><SymbolView name={{ios:'chevron.right',android:'chevron_right',web:'chevron_right'}} tintColor={palette.textMuted} size={22}/></Pressable>:<Text style={styles.emptyBike}>No motorcycle added yet.</Text>}<Pressable accessibilityRole="button" onPress={onAdd} style={({pressed})=>[styles.addBike,pressed&&styles.pressed]}><SymbolView name={{ios:'plus',android:'add',web:'add'}} tintColor={palette.accentOrange} size={26}/><View><Text style={styles.addBikeTitle}>Add Motorcycle</Text><Text style={styles.addBikeCopy}>Track and manage another motorcycle</Text></View></Pressable></GlassCard>
 }
 
 type SettingsActions = {
@@ -400,7 +398,7 @@ function SettingsSectionCard({
         <Text style={styles.mutedText}>{section.subtitle}</Text>
       </View>
       <View style={styles.settingsRows}>
-        {section.items.map((item) => {
+        {section.items.filter((item) => item.action !== 'sign-out').map((item) => {
           const value = getSettingsItemValue(item, notificationPermission);
           const onPress = getSettingsItemAction(item, {
             onRequestNotificationPermission,
@@ -566,13 +564,24 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.xs,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  headerAccent: {
+    width: 5,
+    height: 34,
+    borderRadius: 3,
+    backgroundColor: palette.accentOrange,
+  },
   kicker: {
     ...typography.label,
     color: 'rgba(248, 250, 252, 0.52)',
     textTransform: 'uppercase',
   },
   title: {
-    ...typography.display,
+    ...typography.heading,
     color: palette.text,
   },
   subtitle: {
@@ -581,15 +590,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   heroCard: {
-    gap: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
     overflow: 'hidden',
-    backgroundColor: '#08090B',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.42,
-    shadowRadius: 34,
-    elevation: 10,
+    paddingVertical: spacing.sm,
   },
   heroGlow: {
     position: 'absolute',
@@ -606,15 +611,16 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   avatar: {
-    width: 64,
-    height: 64,
+    width: 88,
+    height: 88,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
-    borderRadius: radius.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 44,
+    backgroundColor: 'rgba(255, 106, 0, 0.10)',
   },
+  heroCopy:{flex:1,minWidth:0},
   heroName: {
     ...typography.heading,
     color: palette.text,
@@ -626,6 +632,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   notice: {
+    display: 'none',
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
@@ -654,19 +661,23 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
+    padding: 0,
+    gap: 0,
+    overflow:'hidden',
+    backgroundColor:'rgba(17,21,28,.88)',
   },
+  rideMotto:{...typography.body,color:palette.textMuted,marginTop:3},
+  riderBadge:{alignSelf:'flex-start',flexDirection:'row',alignItems:'center',gap:6,marginTop:8,paddingHorizontal:10,paddingVertical:6,borderWidth:1,borderColor:'rgba(255,106,0,.35)',borderRadius:8,backgroundColor:'rgba(255,106,0,.07)'},
+  riderBadgeText:{fontSize:11,fontWeight:'900',letterSpacing:.6,color:palette.accentOrange},
   statCard: {
-    flexGrow: 1,
-    flexBasis: '47%',
-    minHeight: 122,
+    flex: 1,
+    minHeight: 112,
     minWidth: 0,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.13)',
-    borderRadius: radius.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.075)',
+    alignItems:'center',
+    paddingHorizontal: spacing.xs,
+    paddingVertical:spacing.lg,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.08)',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.26,
@@ -676,19 +687,20 @@ const styles = StyleSheet.create({
   statDot: {
     width: 8,
     height: 8,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
     borderRadius: 4,
   },
   statLabel: {
     ...typography.label,
     color: 'rgba(248, 250, 252, 0.56)',
     textTransform: 'uppercase',
+    textAlign:'center',
   },
   statValue: {
     ...typography.subheading,
     marginTop: spacing.sm,
     color: palette.text,
-    fontSize: 24,
+    fontSize: 18,
     lineHeight: 29,
   },
   statDetail: {
@@ -767,4 +779,9 @@ const styles = StyleSheet.create({
     opacity: 0.78,
     transform: [{ scale: 0.99 }],
   },
+  motorcyclePanel:{gap:spacing.md,backgroundColor:'rgba(17,21,28,.88)',borderColor:'rgba(255,255,255,.11)'},
+  panelHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},panelTitle:{...typography.subtitle,color:palette.text,fontWeight:'900'},viewAll:{...typography.body,color:palette.accentOrange,fontWeight:'800'},
+  motorcycleRow:{minHeight:96,flexDirection:'row',alignItems:'center',gap:spacing.md},bikeImageShell:{width:104,height:78,overflow:'hidden',borderRadius:radius.lg,backgroundColor:'rgba(255,255,255,.04)'},bikeImage:{width:'100%',height:'100%'},bikeCopy:{flex:1,minWidth:0},bikeName:{...typography.subtitle,color:palette.text,fontWeight:'900'},bikeSpec:{...typography.caption,color:palette.textMuted,marginTop:4},ready:{...typography.caption,color:palette.success,marginTop:8,fontWeight:'700'},emptyBike:{...typography.body,color:palette.textMuted},
+  addBike:{minHeight:70,flexDirection:'row',alignItems:'center',gap:spacing.lg,paddingHorizontal:spacing.lg,borderWidth:1,borderStyle:'dashed',borderColor:'rgba(255,255,255,.15)',borderRadius:radius.lg},addBikeTitle:{...typography.body,color:palette.text,fontWeight:'800'},addBikeCopy:{...typography.caption,color:palette.textMuted,marginTop:2},
+  logoutCard:{minHeight:86,flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.lg,borderWidth:1,borderColor:'rgba(255,255,255,.1)',borderRadius:radius.xl,backgroundColor:'rgba(17,21,28,.88)'},logoutIcon:{width:46,height:46,alignItems:'center',justifyContent:'center',borderRadius:14,backgroundColor:'rgba(255,77,79,.1)'},logoutCopy:{flex:1},logoutTitle:{...typography.body,color:palette.text,fontWeight:'900'},logoutSubtitle:{...typography.caption,color:palette.textMuted,marginTop:3},
 });
