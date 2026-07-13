@@ -3,6 +3,7 @@ import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/sr
 import { BackupService } from './backup';
 import { LocationService } from './location';
 import { MaintenanceService } from './maintenance';
+import { NearbyServicesService } from './nearby-services';
 import { MotorcycleService } from './motorcycle';
 import { NotificationService } from './notifications';
 import { ProfileService } from './profile';
@@ -97,6 +98,7 @@ export function createSearchService(overrides: Partial<ServiceDependencies> = {}
 export function createLocationService(overrides: Partial<ServiceDependencies> = {}) {
   return new LocationService(createServiceContext(overrides));
 }
+export function createNearbyServicesService() { return new NearbyServicesService(); }
 export function createWeatherService(overrides: Partial<ServiceDependencies> = {}) { return new WeatherService(createServiceContext(overrides)); }
 
 /**

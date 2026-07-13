@@ -3,7 +3,7 @@ import type { RidePoint } from '@/src/domain/ride';
 /**
  * Foreground location permission state used by UI and services.
  */
-export type ForegroundLocationPermissionState = 'unknown' | 'granted' | 'denied';
+export type ForegroundLocationPermissionState = 'unknown' | 'granted' | 'denied' | 'unavailable';
 
 /**
  * Normalized foreground location permission result.
@@ -11,6 +11,7 @@ export type ForegroundLocationPermissionState = 'unknown' | 'granted' | 'denied'
 export type ForegroundLocationPermissionResult = {
   readonly state: ForegroundLocationPermissionState;
   readonly canAskAgain: boolean;
+  readonly servicesEnabled?: boolean;
 };
 
 /**

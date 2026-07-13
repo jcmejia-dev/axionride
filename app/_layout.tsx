@@ -65,6 +65,7 @@ function RootLayoutNav() {
         <Stack.Screen name="motorcycle-management" options={{ headerShown: false }} />
         <Stack.Screen name="workspace-setup" options={{ headerShown: false }} />
         <Stack.Screen name="reset-password" options={{ headerShown: false }} />
+        <Stack.Screen name="nearby-services" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'AxionRide' }} />
       </Stack>
     </ThemeProvider>
