@@ -1,4 +1,4 @@
-import { DOMAIN_SCHEMA_SQL, WORKSPACE_SCHEMA_SQL } from './DatabaseSchema';
+import { DOMAIN_SCHEMA_SQL, RIDER_PROGRESS_SCHEMA_SQL, WORKSPACE_SCHEMA_SQL } from './DatabaseSchema';
 import type { DatabaseMigration } from './SQLiteTypes';
 
 export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
@@ -19,6 +19,11 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       `ALTER TABLE workspaces ADD COLUMN profile_nickname TEXT;`,
       `ALTER TABLE workspaces ADD COLUMN profile_image_uri TEXT;`,
     ],
+  },
+  {
+    version: 4,
+    name: 'add_local_rider_progress',
+    statements: RIDER_PROGRESS_SCHEMA_SQL,
   },
 ] as const;
 

@@ -17,6 +17,7 @@ import { BaseService } from '@/src/services/BaseService';
 import type { NotificationService } from '@/src/services/notifications';
 import type { ServiceContext } from '@/src/services/ServiceContext';
 import type { ServiceResult } from '@/src/services/ServiceTypes';
+import { RiderProgressService } from '@/src/services/rider-progress';
 
 import type {
   CompleteMaintenanceInput,
@@ -34,10 +35,16 @@ import type {
  */
 export class MaintenanceService extends BaseService {
   private readonly notificationService?: NotificationService;
+  private readonly riderProgressService: RiderProgressService;
 
-  constructor(context: ServiceContext, notificationService?: NotificationService) {
+  constructor(
+    context: ServiceContext,
+    notificationService?: NotificationService,
+    riderProgressService = new RiderProgressService(context),
+  ) {
     super(context);
     this.notificationService = notificationService;
+    this.riderProgressService = riderProgressService;
   }
 
   async createMaintenance(input: CreateMaintenanceInput): Promise<ServiceResult<Maintenance>> {
@@ -164,6 +171,14 @@ export class MaintenanceService extends BaseService {
     }
 
     await this.cancelMaintenanceReminder(updateResult.value.id);
+
+    const progressResult = await this.riderProgressService.recordMaintenanceCompleted(updateResult.value.id);
+    if (!progressResult.ok) {
+      this.context.logger?.warn?.('Maintenance was completed, but rider progress could not be updated.', {
+        maintenanceId: updateResult.value.id,
+        error: progressResult.error,
+      });
+    }
 
     return this.success(updateResult.value);
   }

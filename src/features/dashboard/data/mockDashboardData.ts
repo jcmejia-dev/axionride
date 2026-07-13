@@ -20,6 +20,7 @@ export const mockDashboardData: DashboardData = {
     rideCondition: 'Great for a short ride',
     wind: 'Light wind',
     rainChance: '10%',
+    humidityPercent: 72,
   },
   monthlyStats: [
     {

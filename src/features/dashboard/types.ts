@@ -40,6 +40,7 @@ export type DashboardWeather = {
   rideCondition: string;
   wind: string;
   rainChance: string;
+  humidityPercent: number | null;
 };
 
 export type DashboardQuickAction = {

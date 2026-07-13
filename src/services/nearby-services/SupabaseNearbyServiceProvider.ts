@@ -39,7 +39,8 @@ function isNearbyResponse(value: unknown): value is { readonly places: readonly 
     && isRecord(place.location)
     && typeof place.location.latitude === 'number'
     && typeof place.location.longitude === 'number'
-    && typeof place.distanceMeters === 'number');
+    && typeof place.distanceMeters === 'number'
+    && (place.hoursStatus === 'available' || place.hoursStatus === 'unknown'));
 }
 
 async function mapFunctionError(error: { readonly message: string; readonly context?: unknown }): Promise<NearbySearchResult> {

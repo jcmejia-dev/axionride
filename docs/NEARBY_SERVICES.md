@@ -8,8 +8,10 @@ Nearby Services keeps the existing feature and service boundaries:
 2. `NearbyServicesService` validates the coordinate and category request.
 3. `SupabaseNearbyServiceProvider` verifies that a Supabase session exists and invokes `nearby-services` with the session access token.
 4. The authenticated Supabase Edge Function validates and rate-limits the request.
-5. The Edge Function sends an Overpass QL query to the public OpenStreetMap Overpass API.
+5. The Edge Function sends a form-encoded Overpass QL query with an identifiable User-Agent to the public OpenStreetMap Overpass API.
 6. OpenStreetMap elements are normalized to the existing `NearbyPlace` contract.
+7. The app caches successful category searches for 30 seconds at approximately the same coordinate.
+8. Directions open the in-app map, which requests a driving route from the public OSRM service.
 
 No Google Places API key, Google Cloud project, billing account, or provider secret is required.
 
@@ -40,14 +42,41 @@ Each Overpass node is mapped as follows:
 
 - `id`: `<element type>-<OSM id>`
 - `name`: `tags.name`, falling back to `Unknown`
-- `address`: `addr:full`, or a composition of house number, street, and locality
+- `address`: `addr:full`, or a composition of house number/street, barangay, and city/town/municipality; otherwise `Near your location`
 - `location`: node `lat` and `lon`
 - `distanceMeters`: Haversine distance calculated by the Edge Function
 - `phoneNumber`: `phone` or `contact:phone`, when tagged
-- `openNow`, `rating`, and `reviewCount`: `null` because Overpass does not provide normalized live/rating data
+- `hoursStatus`: `available` when an `opening_hours` tag exists, otherwise `unknown`; AxionRide does not infer a live open/closed state
+- `rating` and `reviewCount`: `null` because Overpass does not provide normalized rating data
 - `googleMapsUri`: `null`; existing app deep-link helpers build Google Maps URLs from coordinates and names
 
-Results are sorted by distance and limited to the nearest 25 nodes. An empty `elements` array is a successful empty search, not a provider error.
+Elements without valid coordinates are removed. Elements with neither a name nor tags are removed, duplicate coordinates are collapsed, and remaining results are sorted by Haversine distance and limited to the nearest 15 nodes. An empty `elements` array is a successful empty search, not a provider error.
+
+## In-App Directions
+
+The `map-navigation` route accepts `lat`, `lng`, and `name` parameters. It requests the rider's foreground location, displays rider and destination markers, then calls:
+
+```text
+GET https://router.project-osrm.org/route/v1/driving/{originLng},{originLat};{destinationLng},{destinationLat}?overview=full&geometries=geojson
+```
+
+OSRM GeoJSON coordinates arrive as `[longitude, latitude]` and are converted to React Native Maps coordinates. The resulting `LineString` is rendered as a `Polyline`, and the map fits all route coordinates with edge padding.
+
+Example route fields consumed by the app:
+
+```json
+{
+  "code": "Ok",
+  "routes": [{
+    "distance": 4210.7,
+    "duration": 612.4,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [[120.9842, 14.5995], [120.9861, 14.6012]]
+    }
+  }]
+}
+```
 
 ## Error Behavior
 
@@ -79,10 +108,12 @@ No Edge Function provider secret needs to be configured.
 - OpenStreetMap completeness and tagging vary by region.
 - The requested implementation queries nodes only; services mapped only as ways or relations are not returned.
 - Public Overpass instances are shared infrastructure and can be slow, rate-limited, or temporarily unavailable.
-- Opening-hours tags are not evaluated into a live open/closed state.
+- Opening-hours tags are not evaluated into a live open/closed state; only their presence is shown.
 - Ratings and review counts are not available from OpenStreetMap.
 - The in-memory Edge Function rate limit is best effort and resets across isolates.
-- Google Maps deep links remain navigation conveniences; Google Places is not used as a data provider.
+- The public OSRM demo server is shared infrastructure and is not an offline or guaranteed-availability routing backend.
+- Routes use OSRM's driving profile; motorcycle-specific restrictions and live traffic are not available.
+- Google Maps deep links remain a secondary fallback; Google Places is not used as a data provider.
 
 ## Manual Test Checklist
 
@@ -91,5 +122,6 @@ No Edge Function provider secret needs to be configured.
 - Fuel, repair, tires, and dealer searches return locally mapped OpenStreetMap nodes where data exists.
 - No-result searches show the existing empty state and Google Maps fallback.
 - Overpass timeout shows the timeout state rather than a generic error.
-- Name, address, distance, directions, Open in Maps, and optional phone actions render correctly.
+- Name, formatted address/fallback, distance, hours status, Directions, Open in Maps, and optional phone actions render correctly.
+- Directions opens the in-app map with rider and destination markers, a route line, distance, and estimated duration.
 - No Google Places secret is required after deployment.

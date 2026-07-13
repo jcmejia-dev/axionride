@@ -8,6 +8,8 @@ import { MotorcycleService } from './motorcycle';
 import { NotificationService } from './notifications';
 import { ProfileService } from './profile';
 import { RideService } from './ride';
+import { RiderProgressService } from './rider-progress';
+import { OsrmRoutingService } from './routing';
 import { SearchService } from './search';
 import { ServiceContext } from './ServiceContext';
 import type { ServiceDependencies } from './ServiceTypes';
@@ -98,7 +100,12 @@ export function createSearchService(overrides: Partial<ServiceDependencies> = {}
 export function createLocationService(overrides: Partial<ServiceDependencies> = {}) {
   return new LocationService(createServiceContext(overrides));
 }
+
+export function createRiderProgressService(overrides: Partial<ServiceDependencies> = {}) {
+  return new RiderProgressService(createServiceContext(overrides));
+}
 export function createNearbyServicesService() { return new NearbyServicesService(); }
+export function createOsrmRoutingService() { return new OsrmRoutingService(); }
 export function createWeatherService(overrides: Partial<ServiceDependencies> = {}) { return new WeatherService(createServiceContext(overrides)); }
 
 /**

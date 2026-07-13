@@ -14,6 +14,10 @@ Migration 1 creates `motorcycles`, `maintenance_records`, `rides`, `ride_points`
 
 Migration 2 creates `workspaces` and `app_state`, creates a stable `workspace-anonymous` workspace, and adds `workspace_id` to every owned table. It also adds `is_primary` to motorcycles, enforces one live primary motorcycle per workspace, and installs relationship guards so maintenance, rides, and ride points cannot reference records in another workspace.
 
+Migration 3 adds optional local profile customization fields to workspaces.
+
+Migration 4 adds workspace-scoped `rider_progress`, `rider_progress_events`, and `rider_achievements` tables. XP events use a workspace-and-event composite key so completion retries and repeated daily actions cannot award XP twice. Progress remains local and is not synced to Supabase.
+
 The active workspace is the local isolation boundary. Repositories resolve it for every read and write; screens never query SQLite directly. A workspace may later hold an external authentication user ID, but the local schema does not depend on a specific authentication provider.
 
 Supabase Auth user IDs are stored only as `workspaces.external_user_id` mappings. They select local isolation boundaries; they do not make Supabase a storage source and do not upload local records.

@@ -14,10 +14,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/providers";
+import { useRiderProgress } from "@/src/providers";
 import {
+  createRiderProgressService,
   createStatisticsService,
   createWeatherService,
   type CurrentWeather,
+  type RiderProgressSnapshot,
   type StatisticsDashboardSummary,
 } from "@/src/services";
 import { layout, premiumColors, spacing } from "@/src/theme";
@@ -29,6 +32,7 @@ import { MonthlyStatsCard } from "./components/MonthlyStatsCard";
 import { MotorcycleHeroSection } from "./components/MotorcycleHeroSection";
 import { NearbyServicesCard } from "./components/NearbyServicesCard";
 import { RecentRideCard } from "./components/RecentRideCard";
+import { RiderProgressCard } from "./components/RiderProgressCard";
 import { SearchSheet } from "./components/SearchSheet";
 import { WeatherRideCard } from "./components/WeatherRideCard";
 import type { DashboardWeather, WeatherCondition } from "./types";
@@ -36,6 +40,7 @@ import type { DashboardWeather, WeatherCondition } from "./types";
 type DashboardSnapshot = {
   readonly statistics: StatisticsDashboardSummary | null;
   readonly weather: DashboardWeather | null;
+  readonly riderProgress: RiderProgressSnapshot | null;
 };
 
 const dashboardSnapshotCache = new Map<string, DashboardSnapshot>();
@@ -43,6 +48,7 @@ const dashboardSnapshotCache = new Map<string, DashboardSnapshot>();
 export function DashboardScreen() {
   const greeting = getGreeting(new Date());
   const { user } = useAuth();
+  const { revision: riderProgressRevision } = useRiderProgress();
   const riderName =
     typeof user?.user_metadata.display_name === "string" &&
     user.user_metadata.display_name.trim()
@@ -52,6 +58,7 @@ export function DashboardScreen() {
   const { width } = useWindowDimensions();
   const statisticsService = useMemo(() => createStatisticsService(), []);
   const weatherService = useMemo(() => createWeatherService(), []);
+  const riderProgressService = useMemo(() => createRiderProgressService(), []);
   const cacheKey = user?.id ?? "anonymous";
   const cachedSnapshot = dashboardSnapshotCache.get(cacheKey);
   const [statisticsSummary, setStatisticsSummary] =
@@ -59,6 +66,9 @@ export function DashboardScreen() {
   const [statisticsLoading, setStatisticsLoading] = useState(() => !cachedSnapshot?.statistics);
   const [refreshing, setRefreshing] = useState(false);
   const [weather, setWeather] = useState<DashboardWeather | null>(() => cachedSnapshot?.weather ?? null);
+  const [riderProgress, setRiderProgress] = useState<RiderProgressSnapshot | null>(
+    () => cachedSnapshot?.riderProgress ?? null,
+  );
   const [searchVisible, setSearchVisible] = useState(false);
   const loadRequestId = useRef(0);
   const stackCards = width < 430;
@@ -83,13 +93,27 @@ export function DashboardScreen() {
       setWeather(nextWeather);
       updateDashboardCache(cacheKey, { weather: nextWeather });
     });
+    const progressPromise = riderProgressService.recordStatsViewed().then((result) => {
+      if (requestId !== loadRequestId.current || !result.ok) return;
+      setRiderProgress(result.value.snapshot);
+      updateDashboardCache(cacheKey, { riderProgress: result.value.snapshot });
+    });
 
-    await Promise.allSettled([statisticsPromise, weatherPromise]);
+    await Promise.allSettled([statisticsPromise, weatherPromise, progressPromise]);
     if (requestId === loadRequestId.current) {
       setStatisticsLoading(false);
       setRefreshing(false);
     }
-  }, [cacheKey, statisticsService, weatherService]);
+  }, [cacheKey, riderProgressService, statisticsService, weatherService]);
+
+  useEffect(() => {
+    if (riderProgressRevision === 0) return;
+    void riderProgressService.getSnapshot().then((result) => {
+      if (!result.ok) return;
+      setRiderProgress(result.value);
+      updateDashboardCache(cacheKey, { riderProgress: result.value });
+    });
+  }, [cacheKey, riderProgressRevision, riderProgressService]);
 
   useFocusEffect(
     useCallback(() => {
@@ -150,6 +174,12 @@ export function DashboardScreen() {
             </AnimatedEntrance>
           ) : null}
 
+          {riderProgress ? (
+            <AnimatedEntrance delay={230}>
+              <RiderProgressCard snapshot={riderProgress} />
+            </AnimatedEntrance>
+          ) : null}
+
           <AnimatedEntrance
             delay={250}
             style={[
@@ -193,6 +223,7 @@ function toDashboardWeather(weather: CurrentWeather): DashboardWeather {
     rideCondition: "Current local conditions",
     wind: `${Math.round(weather.windKmh)} km/h`,
     rainChance: `${weather.precipitationMm.toFixed(1)} mm`,
+    humidityPercent: weather.humidityPercent === null ? null : Math.round(weather.humidityPercent),
   };
 }
 function toCondition(code: number, temperature: number, windKmh: number): WeatherCondition {
@@ -205,7 +236,7 @@ function toCondition(code: number, temperature: number, windKmh: number): Weathe
 }
 
 function updateDashboardCache(cacheKey: string, patch: Partial<DashboardSnapshot>) {
-  const current = dashboardSnapshotCache.get(cacheKey) ?? { statistics: null, weather: null };
+  const current = dashboardSnapshotCache.get(cacheKey) ?? { statistics: null, weather: null, riderProgress: null };
   dashboardSnapshotCache.set(cacheKey, { ...current, ...patch });
 }
 

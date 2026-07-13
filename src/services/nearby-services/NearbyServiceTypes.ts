@@ -19,7 +19,7 @@ export type NearbyPlace = {
   readonly address: string;
   readonly location: NearbyCoordinate;
   readonly distanceMeters: number;
-  readonly openNow: boolean | null;
+  readonly hoursStatus: "available" | "unknown";
   readonly rating: number | null;
   readonly reviewCount: number | null;
   readonly phoneNumber: string | null;

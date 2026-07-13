@@ -1,6 +1,7 @@
 import type { MaintenanceRepository } from './maintenance';
 import type { MotorcycleRepository } from './motorcycle';
 import type { RideRepository } from './ride';
+import type { RiderProgressRepository } from './rider-progress';
 import type { WorkspaceRepository } from './workspace';
 
 /**
@@ -13,6 +14,7 @@ export type RepositoryProvider = {
   readonly motorcycles: MotorcycleRepository;
   readonly maintenance: MaintenanceRepository;
   readonly rides: RideRepository;
+  readonly riderProgress?: RiderProgressRepository;
   readonly workspaces: WorkspaceRepository;
 };
 

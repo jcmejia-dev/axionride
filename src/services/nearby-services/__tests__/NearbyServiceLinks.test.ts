@@ -27,7 +27,7 @@ const place: NearbyPlace = {
   address: "123 Test St",
   location: { latitude: 14.6, longitude: 121.0 },
   distanceMeters: 500,
-  openNow: true,
+  hoursStatus: "available",
   rating: 4.5,
   reviewCount: 100,
   phoneNumber: "+639123456789",

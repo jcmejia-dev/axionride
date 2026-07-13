@@ -33,6 +33,12 @@ This document defines API planning standards for AxionRide. No production API is
 - Include pagination for list endpoints.
 - Avoid leaking provider-specific details into feature UI.
 
+## Current External Integrations
+
+- Weather requests are isolated in `WeatherService` and use Open-Meteo current conditions. The normalized contract includes temperature, weather code, wind, precipitation, and relative humidity.
+- Nearby place discovery is isolated behind `NearbyServicesService` and the authenticated Supabase `nearby-services` function, which queries OpenStreetMap Overpass.
+- In-app driving directions are isolated behind `OsrmRoutingService`, which converts OSRM GeoJSON route coordinates into the app map coordinate format.
+
 ## Open Decisions
 
 - Backend platform.
@@ -40,4 +46,3 @@ This document defines API planning standards for AxionRide. No production API is
 - API transport style.
 - Sync protocol.
 - Observability and error reporting.
-

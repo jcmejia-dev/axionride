@@ -36,7 +36,7 @@ interface NearbyPlace {
   address: string;
   location: { latitude: number; longitude: number };
   distanceMeters: number;
-  openNow: boolean | null;
+  hoursStatus: "available" | "unknown";
   rating: number | null;
   reviewCount: number | null;
   phoneNumber: string | null;
@@ -58,7 +58,7 @@ const CATEGORY_CONFIG: Record<string, readonly OverpassTagFilter[]> = {
 
 const VALID_CATEGORIES = new Set(Object.keys(CATEGORY_CONFIG));
 const OVERPASS_API_URL = "https://overpass-api.de/api/interpreter";
-const DEFAULT_TIMEOUT_MS = 12_000;
+const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RADIUS_METERS = 10_000;
 const MIN_RADIUS_METERS = 250;
 const CACHE_TTL_MS = 120_000; // 2-minute in-memory TTL per user
@@ -160,9 +160,10 @@ async function searchOpenStreetMap(request: NearbySearchRequest): Promise<
       method: "POST",
       headers: {
         Accept: "application/json",
-        "Content-Type": "text/plain; charset=UTF-8",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "User-Agent": "AxionRide/1.0 nearby-services",
       },
-      body: query,
+      body: `data=${encodeURIComponent(query)}`,
       signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
     });
 
@@ -190,33 +191,41 @@ function buildOverpassQuery(request: NearbySearchRequest) {
     .map(([key, value]) => `node["${key}"="${value}"](around:${radius},${request.latitude},${request.longitude});`)
     .join("\n");
 
-  return `[out:json][timeout:10];\n(\n${selectors}\n);\nout;`;
+  return `[out:json][timeout:20];\n(\n${selectors}\n);\nout;`;
 }
 
 function mapOverpassElements(elements: readonly unknown[], request: NearbySearchRequest): NearbyPlace[] {
-  return elements
+  const mappedPlaces = elements
     .filter((element): element is OverpassElement => isRecord(element))
     .flatMap((element) => {
       if (typeof element.lat !== "number" || typeof element.lon !== "number") return [];
       const tags = isRecord(element.tags) ? element.tags : {};
+      const taggedName = getTag(tags, "name");
+      if (!taggedName && Object.keys(tags).length === 0) return [];
       const location = { latitude: element.lat, longitude: element.lon };
-      const name = getTag(tags, "name") ?? "Unknown";
 
       return [{
         id: `${typeof element.type === "string" ? element.type : "node"}-${String(element.id ?? `${element.lat}-${element.lon}`)}`,
-        name,
+        name: taggedName ?? "Unknown",
         address: composeAddress(tags),
         location,
         distanceMeters: calculateDistance(request, location),
-        openNow: null,
+        hoursStatus: getTag(tags, "opening_hours") ? "available" as const : "unknown" as const,
         rating: null,
         reviewCount: null,
         phoneNumber: getTag(tags, "phone") ?? getTag(tags, "contact:phone"),
         googleMapsUri: null,
       }];
     })
-    .sort((first, second) => first.distanceMeters - second.distanceMeters)
-    .slice(0, 25);
+    .sort((first, second) => first.distanceMeters - second.distanceMeters);
+
+  const seenCoordinates = new Set<string>();
+  return mappedPlaces.filter((place) => {
+    const key = `${place.location.latitude.toFixed(6)},${place.location.longitude.toFixed(6)}`;
+    if (seenCoordinates.has(key)) return false;
+    seenCoordinates.add(key);
+    return true;
+  }).slice(0, 15);
 }
 
 function composeAddress(tags: Record<string, unknown>) {
@@ -226,8 +235,9 @@ function composeAddress(tags: Record<string, unknown>) {
   const streetAddress = [getTag(tags, "addr:housenumber"), getTag(tags, "addr:street")]
     .filter((part): part is string => Boolean(part))
     .join(" ");
+  const barangay = getTag(tags, "addr:barangay");
   const locality = getTag(tags, "addr:city") ?? getTag(tags, "addr:town") ?? getTag(tags, "addr:municipality");
-  return [streetAddress, locality].filter((part): part is string => Boolean(part)).join(", ") || "Address unavailable";
+  return [streetAddress, barangay, locality].filter((part): part is string => Boolean(part)).join(", ") || "Near your location";
 }
 
 function getTag(tags: Record<string, unknown>, key: string) {

@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useMemo, useState } from "react";
 import {
@@ -22,7 +22,6 @@ import {
 import { useAuth } from "@/src/providers";
 import {
   NEARBY_SERVICE_CATEGORIES,
-  createGoogleMapsDirectionsUrl,
   createGoogleMapsFallbackSearchUrl,
   createGoogleMapsPlaceUrl,
   createLocationService,
@@ -352,7 +351,11 @@ export function NearbyServicesScreen() {
             <PremiumButton title="Refresh" variant="ghost" onPress={retry} />
           </View>
           {places.map((place) => (
-            <PlaceCard key={place.id} place={place} />
+            <PlaceCard
+              key={place.id}
+              place={place}
+              onDirections={() => router.push(createMapNavigationHref(place))}
+            />
           ))}
           <Text style={styles.verifyNotice}>
             Verify services, hours, and availability with the business before
@@ -364,7 +367,7 @@ export function NearbyServicesScreen() {
   );
 }
 
-function PlaceCard({ place }: { readonly place: NearbyPlace }) {
+function PlaceCard({ place, onDirections }: { readonly place: NearbyPlace; readonly onDirections: () => void }) {
   return (
     <GlassCard style={styles.placeCard}>
       <View style={styles.placeTop}>
@@ -382,20 +385,8 @@ function PlaceCard({ place }: { readonly place: NearbyPlace }) {
       </View>
       <View style={styles.meta}>
         <StatusBadge
-          label={
-            place.openNow === true
-              ? "Open"
-              : place.openNow === false
-                ? "Closed"
-                : "Hours unknown"
-          }
-          tone={
-            place.openNow === true
-              ? "success"
-              : place.openNow === false
-                ? "danger"
-                : "neutral"
-          }
+          label={place.hoursStatus === "available" ? "Hours available" : "Hours unknown"}
+          tone="neutral"
           dot
         />
         {place.rating !== null ? (
@@ -408,9 +399,7 @@ function PlaceCard({ place }: { readonly place: NearbyPlace }) {
       <View style={styles.actions}>
         <PremiumButton
           title="Directions"
-          onPress={() => {
-            void Linking.openURL(createGoogleMapsDirectionsUrl(place));
-          }}
+          onPress={onDirections}
         />
         <PremiumButton
           title="Open in Maps"
@@ -531,6 +520,15 @@ function formatDistance(meters: number) {
   return meters < 1000
     ? `${Math.round(meters)} m`
     : `${(meters / 1000).toFixed(1)} km`;
+}
+
+function createMapNavigationHref(place: NearbyPlace) {
+  const params = new URLSearchParams({
+    lat: String(place.location.latitude),
+    lng: String(place.location.longitude),
+    name: place.name,
+  });
+  return `/map-navigation?${params.toString()}` as Href;
 }
 
 const styles = StyleSheet.create({
