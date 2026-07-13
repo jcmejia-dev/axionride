@@ -47,7 +47,7 @@ type ScreenState =
 
 export function NearbyServicesScreen() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { loadingAuth, session } = useAuth();
   const params = useLocalSearchParams<{
     category?: string;
     recommended?: string;
@@ -69,10 +69,12 @@ export function NearbyServicesScreen() {
   const selected = getNearbyCategory(category);
 
   function explainAndSearch() {
+    if (loadingAuth) return;
+
     if (!session) {
       setState("auth_required");
       setError({
-        code: "authentication_required",
+        code: "auth_required",
         message: "Sign in to search for nearby services.",
       });
       return;
@@ -93,6 +95,8 @@ export function NearbyServicesScreen() {
   }
 
   async function locateAndSearch() {
+    if (loadingAuth) return;
+
     setError(null);
     setState("locating");
     const permission = await locationService.requestForegroundPermission();
@@ -123,6 +127,17 @@ export function NearbyServicesScreen() {
     coordinate: NearbyCoordinate,
     nextCategory: NearbyServiceCategory,
   ) {
+    if (loadingAuth) return;
+
+    if (!session) {
+      setState("auth_required");
+      setError({
+        code: "auth_required",
+        message: "Sign in to search for nearby services.",
+      });
+      return;
+    }
+
     setState("searching");
     setError(null);
     setPlaces([]);
@@ -132,7 +147,7 @@ export function NearbyServicesScreen() {
       radiusMeters: 5000,
     });
     if (!result.ok) {
-      setState("error");
+      setState(result.code === "auth_required" ? "auth_required" : "error");
       setError({ code: result.code, message: result.message });
       return;
     }
@@ -500,8 +515,10 @@ function CategoryIcon({
 
 function errorTitle(code: NearbySearchErrorCode | "location" | undefined) {
   if (code === "rate_limited") return "Search limit reached";
-  if (code === "network_unavailable") return "No network connection";
-  if (code === "authentication_required") return "Sign in required";
+  if (code === "network_error") return "No network connection";
+  if (code === "auth_required") return "Sign in required";
+  if (code === "timeout") return "Search timed out";
+  if (code === "invalid_response") return "No provider results";
   if (code === "location") return "Location unavailable";
   return "Nearby provider unavailable";
 }

@@ -11,6 +11,7 @@ import { PASSWORD_RECOVERY_WINDOW_SECONDS } from '@/src/features/auth/recoverySe
 
 type AuthContextValue = {
   readonly initialized: boolean;
+  readonly loadingAuth: boolean;
   readonly configured: boolean;
   readonly configurationError: string | null;
   readonly session: Session | null;
@@ -132,7 +133,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }
 
   function unavailable<T>(): AuthResult<T> { return { ok: false, error: { code: 'missing_configuration', message: clientResult.ok ? 'Authentication is unavailable.' : clientResult.message, offline: false } }; }
-  const login = (email: string, password: string) => exclusive<Session>(async () => authService ? authService.login(email, password) : unavailable<Session>());
+  const login = (email: string, password: string) => exclusive<Session>(async () => {
+    if (!authService) return unavailable<Session>();
+    const result = await authService.login(email, password);
+    if (result.ok) {
+      setSession(result.value);
+      void activateWorkspaceForUser(result.value.user);
+    }
+    return result;
+  });
   const register = (name: string, email: string, password: string) => exclusive<RegistrationResult>(async () => authService ? authService.register(name, email, password) : unavailable<RegistrationResult>());
   const requestPasswordReset = (email: string) => exclusive<void>(async () => authService ? authService.requestPasswordReset(email) : unavailable<void>());
   const updatePassword = (password: string) => exclusive(async () => {
@@ -185,7 +194,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   async function completeOnboarding() { await onboardingService.markCompleted(); setOnboardingCompleted(true); }
 
-  return <AuthContext.Provider value={{ initialized, configured: clientResult.ok, configurationError: clientResult.ok ? null : clientResult.message, session, user: session?.user ?? null, submitting, onboardingCompleted, workspaceDecisionRequired, recoveryMode, recoveryExpiresAt, login, register, requestPasswordReset, updatePassword, expirePasswordRecovery, logout, refreshSession, attachAnonymousData, startFreshWorkspace, completeOnboarding }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ initialized, loadingAuth: !initialized, configured: clientResult.ok, configurationError: clientResult.ok ? null : clientResult.message, session, user: session?.user ?? null, submitting, onboardingCompleted, workspaceDecisionRequired, recoveryMode, recoveryExpiresAt, login, register, requestPasswordReset, updatePassword, expirePasswordRecovery, logout, refreshSession, attachAnonymousData, startFreshWorkspace, completeOnboarding }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used inside AuthProvider.'); return context; }

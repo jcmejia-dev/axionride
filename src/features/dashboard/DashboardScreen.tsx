@@ -23,6 +23,7 @@ import {
 import { layout, premiumColors, spacing } from "@/src/theme";
 
 import { DashboardMetricStrip } from "./components/DashboardMetricStrip";
+import { DashboardLoadingCards } from "./components/DashboardLoadingCards";
 import { DashboardTopHeader } from "./components/DashboardTopHeader";
 import { MonthlyStatsCard } from "./components/MonthlyStatsCard";
 import { MotorcycleHeroSection } from "./components/MotorcycleHeroSection";
@@ -31,6 +32,13 @@ import { RecentRideCard } from "./components/RecentRideCard";
 import { SearchSheet } from "./components/SearchSheet";
 import { WeatherRideCard } from "./components/WeatherRideCard";
 import type { DashboardWeather, WeatherCondition } from "./types";
+
+type DashboardSnapshot = {
+  readonly statistics: StatisticsDashboardSummary | null;
+  readonly weather: DashboardWeather | null;
+};
+
+const dashboardSnapshotCache = new Map<string, DashboardSnapshot>();
 
 export function DashboardScreen() {
   const greeting = getGreeting(new Date());
@@ -44,32 +52,49 @@ export function DashboardScreen() {
   const { width } = useWindowDimensions();
   const statisticsService = useMemo(() => createStatisticsService(), []);
   const weatherService = useMemo(() => createWeatherService(), []);
+  const cacheKey = user?.id ?? "anonymous";
+  const cachedSnapshot = dashboardSnapshotCache.get(cacheKey);
   const [statisticsSummary, setStatisticsSummary] =
-    useState<StatisticsDashboardSummary | null>(null);
-  const [statisticsLoading, setStatisticsLoading] = useState(true);
-  const [weather, setWeather] = useState<DashboardWeather | null>(null);
+    useState<StatisticsDashboardSummary | null>(() => cachedSnapshot?.statistics ?? null);
+  const [statisticsLoading, setStatisticsLoading] = useState(() => !cachedSnapshot?.statistics);
+  const [refreshing, setRefreshing] = useState(false);
+  const [weather, setWeather] = useState<DashboardWeather | null>(() => cachedSnapshot?.weather ?? null);
   const [searchVisible, setSearchVisible] = useState(false);
+  const loadRequestId = useRef(0);
   const stackCards = width < 430;
 
-  const loadStatistics = useCallback(async () => {
-    setStatisticsLoading(true);
-    const result = await statisticsService.getDashboardStatistics();
-    const weatherResult = await weatherService.getCurrentWeather();
+  const loadDashboard = useCallback(async (showRefreshIndicator = false) => {
+    const requestId = ++loadRequestId.current;
+    if (!dashboardSnapshotCache.get(cacheKey)?.statistics) setStatisticsLoading(true);
+    if (showRefreshIndicator) setRefreshing(true);
 
-    if (result.ok) {
-      setStatisticsSummary(result.value);
+    const statisticsPromise = statisticsService.getDashboardStatistics().then((result) => {
+      if (requestId !== loadRequestId.current) return;
+      if (result.ok) {
+        setStatisticsSummary(result.value);
+        updateDashboardCache(cacheKey, { statistics: result.value });
+      }
+      setStatisticsLoading(false);
+      setRefreshing(false);
+    });
+    const weatherPromise = weatherService.getCurrentWeather().then((result) => {
+      if (requestId !== loadRequestId.current || !result.ok) return;
+      const nextWeather = toDashboardWeather(result.value);
+      setWeather(nextWeather);
+      updateDashboardCache(cacheKey, { weather: nextWeather });
+    });
+
+    await Promise.allSettled([statisticsPromise, weatherPromise]);
+    if (requestId === loadRequestId.current) {
+      setStatisticsLoading(false);
+      setRefreshing(false);
     }
-    setWeather(
-      weatherResult.ok ? toDashboardWeather(weatherResult.value) : null,
-    );
-
-    setStatisticsLoading(false);
-  }, [statisticsService, weatherService]);
+  }, [cacheKey, statisticsService, weatherService]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadStatistics();
-    }, [loadStatistics]),
+      void loadDashboard();
+    }, [loadDashboard]),
   );
 
   return (
@@ -79,11 +104,11 @@ export function DashboardScreen() {
       <ScrollView
         refreshControl={
           <RefreshControl
-            refreshing={statisticsLoading}
+            refreshing={refreshing}
             tintColor={premiumColors.primary}
             colors={[premiumColors.primary]}
             onRefresh={() => {
-              void loadStatistics();
+              void loadDashboard(true);
             }}
           />
         }
@@ -98,6 +123,10 @@ export function DashboardScreen() {
         />
 
         <View style={styles.stack}>
+          {statisticsLoading && !statisticsSummary ? (
+            <DashboardLoadingCards stacked={stackCards} />
+          ) : (
+            <>
           <AnimatedEntrance delay={80}>
             <MotorcycleHeroSection
               loading={statisticsLoading}
@@ -139,6 +168,9 @@ export function DashboardScreen() {
             />
           </AnimatedEntrance>
 
+            </>
+          )}
+
           <AnimatedEntrance delay={290}>
             <NearbyServicesCard
               onPress={() => router.push("/nearby-services" as Href)}
@@ -156,19 +188,25 @@ export function DashboardScreen() {
 
 function toDashboardWeather(weather: CurrentWeather): DashboardWeather {
   return {
-    condition: toCondition(weather.weatherCode, weather.temperatureCelsius),
+    condition: toCondition(weather.weatherCode, weather.temperatureCelsius, weather.windKmh),
     temperature: `${Math.round(weather.temperatureCelsius)}°C`,
     rideCondition: "Current local conditions",
     wind: `${Math.round(weather.windKmh)} km/h`,
     rainChance: `${weather.precipitationMm.toFixed(1)} mm`,
   };
 }
-function toCondition(code: number, temperature: number): WeatherCondition {
+function toCondition(code: number, temperature: number, windKmh: number): WeatherCondition {
   if (code >= 95) return "Stormy";
   if (code >= 51) return "Rainy";
+  if (windKmh >= 25) return "Windy";
   if (code >= 2) return "Cloudy";
   if (temperature >= 34) return "Hot";
   return "Sunny";
+}
+
+function updateDashboardCache(cacheKey: string, patch: Partial<DashboardSnapshot>) {
+  const current = dashboardSnapshotCache.get(cacheKey) ?? { statistics: null, weather: null };
+  dashboardSnapshotCache.set(cacheKey, { ...current, ...patch });
 }
 
 type AnimatedEntranceProps = {

@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/src/components/useColorScheme';
@@ -46,7 +47,7 @@ export default function RootLayout() {
     return <AppLoadingScreen />;
   }
 
-  return <AuthProvider><RootLayoutNav /></AuthProvider>;
+  return <GestureHandlerRootView style={{ flex: 1 }}><AuthProvider><RootLayoutNav /></AuthProvider></GestureHandlerRootView>;
 }
 
 function RootLayoutNav() {

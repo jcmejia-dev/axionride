@@ -7,12 +7,12 @@ import type {
 } from './NearbyServiceTypes';
 
 export const NEARBY_SERVICE_CATEGORIES: readonly NearbyCategoryDefinition[] = [
-  { id: 'fuel', label: 'Gas Stations', shortLabel: 'Fuel', googleNearbyType: 'gas_station', textQuery: null },
-  { id: 'motorcycle_repair', label: 'Motorcycle Repair', shortLabel: 'Repair', googleNearbyType: null, textQuery: 'motorcycle repair shop' },
-  { id: 'oil_change', label: 'Oil Change', shortLabel: 'Oil Change', googleNearbyType: null, textQuery: 'motorcycle oil change service' },
-  { id: 'tires', label: 'Tire Shops', shortLabel: 'Tires', googleNearbyType: 'tire_shop', textQuery: null },
-  { id: 'battery_electrical', label: 'Battery & Electrical', shortLabel: 'Electrical', googleNearbyType: null, textQuery: 'motorcycle battery electrical shop' },
-  { id: 'dealer', label: 'Motorcycle Dealers', shortLabel: 'Dealers', googleNearbyType: null, textQuery: 'motorcycle dealer' },
+  { id: 'fuel', label: 'Gas Stations', shortLabel: 'Fuel', textQuery: null },
+  { id: 'motorcycle_repair', label: 'Motorcycle Repair', shortLabel: 'Repair', textQuery: 'motorcycle repair shop' },
+  { id: 'oil_change', label: 'Oil Change', shortLabel: 'Oil Change', textQuery: 'motorcycle oil change service' },
+  { id: 'tires', label: 'Tire Shops', shortLabel: 'Tires', textQuery: null },
+  { id: 'battery_electrical', label: 'Battery & Electrical', shortLabel: 'Electrical', textQuery: 'motorcycle battery electrical shop' },
+  { id: 'dealer', label: 'Motorcycle Dealers', shortLabel: 'Dealers', textQuery: 'motorcycle dealer' },
 ] as const;
 
 export function getNearbyCategory(category: NearbyServiceCategory) {
