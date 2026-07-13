@@ -8,6 +8,7 @@ import {
 import { BaseService } from '@/src/services/BaseService';
 import type { ServiceContext } from '@/src/services/ServiceContext';
 import type { ServiceResult } from '@/src/services/ServiceTypes';
+import { RiderProgressService } from '@/src/services/rider-progress';
 
 import type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './RideServiceTypes';
 
@@ -28,9 +29,11 @@ type ActiveRideSession = {
 
 export class RideService extends BaseService {
   private currentSession: ActiveRideSession | null = null;
+  private readonly riderProgressService: RiderProgressService;
 
-  constructor(context: ServiceContext) {
+  constructor(context: ServiceContext, riderProgressService = new RiderProgressService(context)) {
     super(context);
+    this.riderProgressService = riderProgressService;
   }
 
   async startRide(): Promise<ServiceResult<RideSessionSnapshot>> {
@@ -164,6 +167,14 @@ export class RideService extends BaseService {
         code: 'repository_error',
         message: saveResult.error.message,
         cause: saveResult.error,
+      });
+    }
+
+    const progressResult = await this.riderProgressService.recordRideCompleted(saveResult.value.id);
+    if (!progressResult.ok) {
+      this.context.logger?.warn?.('Ride was saved, but rider progress could not be updated.', {
+        rideId: saveResult.value.id,
+        error: progressResult.error,
       });
     }
 

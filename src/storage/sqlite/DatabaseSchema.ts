@@ -9,6 +9,9 @@ export const SQLITE_TABLES = {
   rides: 'rides',
   ridePoints: 'ride_points',
   syncMetadata: 'sync_metadata',
+  riderProgress: 'rider_progress',
+  riderProgressEvents: 'rider_progress_events',
+  riderAchievements: 'rider_achievements',
 } as const;
 
 export const DEFAULT_ANONYMOUS_WORKSPACE_ID = 'workspace-anonymous';
@@ -21,6 +24,40 @@ export const BASE_SCHEMA_SQL = [
     name TEXT NOT NULL,
     applied_at TEXT NOT NULL
   );`,
+] as const;
+
+export const RIDER_PROGRESS_SCHEMA_SQL = [
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.riderProgress} (
+    workspace_id TEXT PRIMARY KEY NOT NULL,
+    total_xp INTEGER NOT NULL DEFAULT 0 CHECK (total_xp >= 0),
+    streak_count INTEGER NOT NULL DEFAULT 0 CHECK (streak_count >= 0),
+    last_active_date TEXT,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (workspace_id) REFERENCES ${SQLITE_TABLES.workspaces}(id) ON DELETE CASCADE
+  );`,
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.riderProgressEvents} (
+    id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    xp INTEGER NOT NULL CHECK (xp >= 0),
+    occurred_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, id),
+    FOREIGN KEY (workspace_id) REFERENCES ${SQLITE_TABLES.workspaces}(id) ON DELETE CASCADE
+  );`,
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.riderAchievements} (
+    workspace_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    unlocked INTEGER NOT NULL DEFAULT 0 CHECK (unlocked IN (0, 1)),
+    unlocked_at TEXT,
+    PRIMARY KEY (workspace_id, id),
+    FOREIGN KEY (workspace_id) REFERENCES ${SQLITE_TABLES.workspaces}(id) ON DELETE CASCADE
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_rider_progress_events_workspace
+    ON ${SQLITE_TABLES.riderProgressEvents}(workspace_id, occurred_at);`,
+  `CREATE INDEX IF NOT EXISTS idx_rider_achievements_workspace_unlocked
+    ON ${SQLITE_TABLES.riderAchievements}(workspace_id, unlocked);`,
 ] as const;
 
 export const DOMAIN_SCHEMA_SQL = [

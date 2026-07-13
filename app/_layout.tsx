@@ -7,7 +7,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/src/components/useColorScheme';
 import { AppLoadingScreen, useAppBootstrap } from '@/src/features/app-shell';
-import { AuthProvider, useAuth } from '@/src/providers';
+import { AuthProvider, RiderProgressProvider, useAuth } from '@/src/providers';
 import { getAuthRedirect } from '@/src/navigation/AuthRoutePolicy';
 
 export {
@@ -47,7 +47,7 @@ export default function RootLayout() {
     return <AppLoadingScreen />;
   }
 
-  return <GestureHandlerRootView style={{ flex: 1 }}><AuthProvider><RootLayoutNav /></AuthProvider></GestureHandlerRootView>;
+  return <GestureHandlerRootView style={{ flex: 1 }}><AuthProvider><RiderProgressProvider><RootLayoutNav /></RiderProgressProvider></AuthProvider></GestureHandlerRootView>;
 }
 
 function RootLayoutNav() {
@@ -67,6 +67,7 @@ function RootLayoutNav() {
         <Stack.Screen name="workspace-setup" options={{ headerShown: false }} />
         <Stack.Screen name="reset-password" options={{ headerShown: false }} />
         <Stack.Screen name="nearby-services" options={{ headerShown: false }} />
+        <Stack.Screen name="map-navigation" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'AxionRide' }} />
       </Stack>
     </ThemeProvider>

@@ -5,10 +5,12 @@ export {
   createLocationService,
   createMaintenanceService,
   createNearbyServicesService,
+  createOsrmRoutingService,
   createMotorcycleService,
   createNotificationService,
   createProfileService,
   createRideService,
+  createRiderProgressService,
   createSearchService,
   createSettingsService,
   createServiceContext,
@@ -34,6 +36,16 @@ export type {
 } from './backup';
 export { RideService } from './ride';
 export type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './ride';
+export { RiderProgressService, RIDER_XP } from './rider-progress';
+export { subscribeToRiderProgressRewards } from './rider-progress';
+export type { RiderProgressReward, RiderProgressUpdate } from './rider-progress';
+export type {
+  RiderAchievement,
+  RiderAchievementId,
+  RiderProgress,
+  RiderProgressSnapshot,
+  RiderStreak,
+} from '@/src/domain/rider-progress';
 export { MaintenanceService } from './maintenance';
 export { NearbyServicesService } from './nearby-services';
 export {
@@ -53,6 +65,13 @@ export type {
   NearbyServiceCategory,
   NearbyServiceProvider,
 } from './nearby-services';
+export { OsrmRoutingService } from './routing';
+export type {
+  DrivingRoute,
+  DrivingRouteResult,
+  RouteCoordinate,
+  RoutingService,
+} from './routing';
 export { MotorcycleService } from './motorcycle';
 export type { MotorcycleOverview } from './motorcycle';
 export { WorkspaceService } from './workspace';
