@@ -2,6 +2,7 @@ export {
   RIDER_ACHIEVEMENT_DEFINITIONS,
   calculateNextRiderStreak,
   calculateRiderProgress,
+  createInitialRiderProgressSnapshot,
   getEligibleRiderAchievementIds,
 } from "./RiderProgress";
 export type {

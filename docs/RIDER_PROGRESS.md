@@ -13,7 +13,7 @@ Rider Progress rewards consistent ownership and riding habits without introducin
 | Open AxionRide on a local calendar day | 2 | Once per day |
 | View dashboard ride statistics | 1 | Once per day |
 
-The rider level is `floor(totalXp / 100) + 1`. Current-level XP is `totalXp % 100`, so the dashboard can render a stable 0–100 progress bar without recalculating activity history.
+The rider level is `floor(totalXp / 100) + 1`. Current-level XP is `totalXp % 100`, so the dashboard header can render a stable 0–100 progress bar beside the rider greeting without recalculating activity history.
 
 ## Achievements
 
@@ -36,8 +36,8 @@ Migration 4 adds:
 - `rider_progress_events`: an idempotent local XP ledger.
 - `rider_achievements`: titles, descriptions, unlock flags, and unlock timestamps.
 
-No backend sync is performed. The service keeps a short in-memory snapshot cache, while SQLite remains the source of truth.
+No backend sync is performed. The service keeps a short in-memory snapshot cache, while SQLite remains the source of truth. Workspace seed rows use a process-wide single-flight initializer so independently created services cannot start competing SQLite transactions.
 
 ## Reward Delivery
 
-Successful new XP events and achievement unlocks publish local reward events. `RiderProgressProvider` queues these events and renders them through the existing animated bottom toast. Failure to update progress is logged but never rolls back a successfully saved ride or maintenance record.
+Successful new XP events and achievement unlocks publish local reward events. `RiderProgressProvider` owns the live snapshot, supplies an immediate Level 1 baseline while SQLite loads, and queues rewards through the animated bottom toast. Achievement notifications use a trophy mark, angular HUD frame, scan line, and short entrance glitch. The dashboard trophy button always exposes the current unlocked count and latest achievement summary. Failure to update progress never rolls back a successfully saved ride or maintenance record.

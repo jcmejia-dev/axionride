@@ -30,26 +30,28 @@ export class RiderProgressService extends BaseService {
     super(context);
   }
 
-  async getSnapshot(): Promise<ServiceResult<RiderProgressSnapshot>> {
-    try {
-      const workspaceId = await this.context.repositories.workspaces.getActiveWorkspaceId();
-      const cached = snapshotCache.get(workspaceId);
-      if (cached && Date.now() - cached.cachedAt < SNAPSHOT_CACHE_TTL_MS) {
-        return this.success(cached.snapshot);
-      }
+  getSnapshot(): Promise<ServiceResult<RiderProgressSnapshot>> {
+    return runSerialized(async () => {
+      try {
+        const workspaceId = await this.context.repositories.workspaces.getActiveWorkspaceId();
+        const cached = snapshotCache.get(workspaceId);
+        if (cached && Date.now() - cached.cachedAt < SNAPSHOT_CACHE_TTL_MS) {
+          return this.success(cached.snapshot);
+        }
 
-      const unlockedAchievements = await this.evaluateAchievements();
-      const snapshot = await this.readSnapshot();
-      cacheSnapshot(workspaceId, snapshot);
-      unlockedAchievements.forEach(emitAchievementReward);
-      return this.success(snapshot);
-    } catch (cause) {
-      return this.failure({
-        code: "repository_error",
-        message: "Rider progress could not be loaded.",
-        cause,
-      });
-    }
+        const unlockedAchievements = await this.evaluateAchievements();
+        const snapshot = await this.readSnapshot();
+        cacheSnapshot(workspaceId, snapshot);
+        unlockedAchievements.forEach(emitAchievementReward);
+        return this.success(snapshot);
+      } catch (cause) {
+        return this.failure({
+          code: "repository_error",
+          message: "Rider progress could not be loaded.",
+          cause,
+        });
+      }
+    });
   }
 
   recordRideCompleted(rideId: string) {
@@ -167,10 +169,10 @@ export class RiderProgressService extends BaseService {
   }
 
   private async readSnapshot(): Promise<RiderProgressSnapshot> {
-    const [storedProgress, achievements] = await Promise.all([
-      this.requireRepository().getProgress(),
-      this.requireRepository().getAchievements(),
-    ]);
+    // Keep the read order deterministic after the repository's single-flight
+    // workspace initialization has completed.
+    const storedProgress = await this.requireRepository().getProgress();
+    const achievements = await this.requireRepository().getAchievements();
     return {
       progress: calculateRiderProgress(storedProgress.totalXp),
       streak: {
@@ -196,7 +198,7 @@ function emitAchievementReward(achievement: RiderAchievement) {
   emitRiderProgressReward({
     id: `achievement:${achievement.id}:${achievement.unlockedAt ?? "unlocked"}`,
     kind: "achievement",
-    message: `Achievement unlocked: ${achievement.title}`,
+    message: achievement.title,
   });
 }
 

@@ -1,12 +1,14 @@
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { GlassCard } from '@/src/components/premium';
-import { iconSizes, premiumColors, radius, spacing, typography } from '@/src/theme';
+import { iconSizes, premiumColors, spacing, typography } from '@/src/theme';
 
 import type { DashboardWeather } from '../types';
 import { getWeatherRideMessage } from '../weatherMessage';
 import { WeatherAnimation } from './WeatherAnimation';
+
+const HUD_FONT = Platform.select({ android: 'sans-serif-condensed', default: undefined });
 
 type WeatherRideCardProps = {
   readonly weather: DashboardWeather;
@@ -19,7 +21,7 @@ export function WeatherRideCard({ weather }: WeatherRideCardProps) {
       <WeatherAnimation type={weather.condition} />
       <View pointerEvents="none" style={[styles.glow, getGlowTint(weather.condition)]} />
       <View style={styles.iconShell}>
-        <SymbolView name={getConditionIcon(weather.condition)} tintColor={premiumColors.primaryBright} size={iconSizes.lg} />
+        <SymbolView name={getConditionIcon(weather.condition)} tintColor="#8999A5" size={iconSizes.lg} />
       </View>
       <View style={styles.copy}>
         <Text style={styles.eyebrow}>Ride Conditions</Text>
@@ -48,7 +50,7 @@ function HumidityChip({ humidity }: { readonly humidity: number | null }) {
     <View style={styles.humidityChip}>
       <SymbolView
         name={{ ios: 'drop.fill', android: 'water_drop', web: 'water_drop' }}
-        tintColor={premiumColors.blue}
+        tintColor="#8999A5"
         size={12}
       />
       <Text style={styles.humidityText}>{label}</Text>
@@ -88,15 +90,15 @@ function getConditionIcon(condition: DashboardWeather['condition']) {
   switch (condition) {
     case 'Sunny':
     case 'Hot':
-      return { ios: 'sun.max.fill', android: 'sunny', web: 'sunny' } as const;
+      return { ios: 'sun.max', android: 'sunny', web: 'sunny' } as const;
     case 'Rainy':
-      return { ios: 'cloud.rain.fill', android: 'rainy', web: 'rainy' } as const;
+      return { ios: 'cloud.rain', android: 'rainy', web: 'rainy' } as const;
     case 'Windy':
       return { ios: 'wind', android: 'air', web: 'air' } as const;
     case 'Cloudy':
-      return { ios: 'cloud.fill', android: 'cloud', web: 'cloud' } as const;
+      return { ios: 'cloud', android: 'cloud', web: 'cloud' } as const;
     case 'Stormy':
-      return { ios: 'cloud.bolt.rain.fill', android: 'thunderstorm', web: 'thunderstorm' } as const;
+      return { ios: 'cloud.bolt.rain', android: 'thunderstorm', web: 'thunderstorm' } as const;
   }
 }
 
@@ -107,8 +109,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     padding: 16,
-    borderColor: 'rgba(255, 106, 0, 0.24)',
-    backgroundColor: 'rgba(17, 21, 28, 0.82)',
+    borderColor: 'rgba(98, 124, 143, 0.25)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(4, 10, 16, 0.94)',
   },
   backgroundTint: {
     position: 'absolute',
@@ -117,7 +120,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  backgroundWarm: { backgroundColor: 'rgba(255, 106, 0, 0.025)' },
+  backgroundWarm: { backgroundColor: 'rgba(38, 66, 83, 0.025)' },
   backgroundRain: { backgroundColor: 'rgba(45, 117, 181, 0.055)' },
   backgroundWind: { backgroundColor: 'rgba(218, 229, 239, 0.025)' },
   glow: {
@@ -128,7 +131,7 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 75,
   },
-  glowWarm: { backgroundColor: 'rgba(255, 106, 0, 0.09)' },
+  glowWarm: { backgroundColor: 'rgba(65, 98, 118, 0.07)' },
   glowRain: { backgroundColor: 'rgba(59, 130, 246, 0.07)' },
   glowWind: { backgroundColor: 'rgba(226, 232, 240, 0.055)' },
   humidityChip: {
@@ -141,11 +144,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderWidth: 1,
     borderColor: 'rgba(96, 165, 250, 0.24)',
-    borderRadius: radius.pill,
+    borderRadius: 4,
     backgroundColor: 'rgba(96, 165, 250, 0.1)',
   },
   humidityText: {
     ...typography.label,
+    fontFamily: HUD_FONT,
     color: premiumColors.textPrimary,
     fontSize: 10,
     textTransform: 'none',
@@ -157,9 +161,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: premiumColors.borderOrange,
-    borderRadius: 29,
-    backgroundColor: premiumColors.primaryMuted,
+    borderColor: 'rgba(113, 137, 153, 0.28)',
+    borderRadius: 5,
+    backgroundColor: 'rgba(105, 128, 145, 0.07)',
   },
   copy: {
     zIndex: 1,
@@ -168,16 +172,23 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...typography.label,
+    fontFamily: HUD_FONT,
+    fontWeight: '900',
+    letterSpacing: 0.8,
     color: premiumColors.textSecondary,
     textTransform: 'uppercase',
   },
   title: {
     ...typography.subtitle,
+    fontFamily: HUD_FONT,
+    fontWeight: '900',
+    fontStyle: 'italic',
     marginTop: 3,
     color: premiumColors.textPrimary,
   },
   message: {
     ...typography.caption,
+    fontFamily: HUD_FONT,
     marginTop: 3,
     color: premiumColors.textSecondary,
   },
@@ -191,16 +202,18 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderWidth: 1,
     borderColor: premiumColors.border,
-    borderRadius: radius.md,
+    borderRadius: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   chipLabel: {
     ...typography.label,
+    fontFamily: HUD_FONT,
     color: premiumColors.textTertiary,
     textTransform: 'uppercase',
   },
   chipValue: {
     ...typography.caption,
+    fontFamily: HUD_FONT,
     marginTop: 1,
     color: premiumColors.textPrimary,
     fontWeight: '800',

@@ -61,6 +61,18 @@ export function calculateRiderProgress(totalXp: number): RiderProgress {
   };
 }
 
+export function createInitialRiderProgressSnapshot(): RiderProgressSnapshot {
+  return {
+    progress: calculateRiderProgress(0),
+    streak: { streakCount: 0, lastActiveDate: null },
+    achievements: RIDER_ACHIEVEMENT_DEFINITIONS.map((achievement) => ({
+      ...achievement,
+      unlocked: false,
+      unlockedAt: null,
+    })),
+  };
+}
+
 export function calculateNextRiderStreak(
   currentStreak: number,
   lastActiveDate: string | null,

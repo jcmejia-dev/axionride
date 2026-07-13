@@ -12,12 +12,12 @@ export function DashboardLoadingCards({ stacked }: { readonly stacked: boolean }
         <SkeletonBlock height={16} width="48%" />
       </GlassCard>
       <GlassCard style={styles.metrics}>
-        {[0, 1, 2, 3].map((index) => <SkeletonBlock key={index} height={72} width="22%" />)}
+        {[0, 1, 2, 3].map((index) => <SkeletonBlock key={index} height={80} width="47%" />)}
       </GlassCard>
       <View style={[styles.grid, stacked && styles.gridStacked]}>
         <GlassCard style={styles.detailCard}>
           <SkeletonBlock height={16} width="38%" />
-          <SkeletonBlock height={168} />
+          <SkeletonBlock height={140} width="39%" />
           <SkeletonBlock height={24} width="72%" />
         </GlassCard>
         <GlassCard style={styles.detailCard}>
@@ -32,10 +32,10 @@ export function DashboardLoadingCards({ stacked }: { readonly stacked: boolean }
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: 18 },
-  hero: { minHeight: 220, justifyContent: 'flex-end', gap: spacing.md, padding: spacing.xl },
-  metrics: { minHeight: 132, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md },
-  grid: { flexDirection: 'row', alignItems: 'stretch', gap: 14 },
+  stack: { gap: 20 },
+  hero: { minHeight: 164, justifyContent: 'flex-end', gap: spacing.md, padding: spacing.lg, borderRadius: 8, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(10,14,20,0.86)' },
+  metrics: { minHeight: 194, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10, borderRadius: 8, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(10,14,20,0.86)' },
+  grid: { flexDirection: 'row', alignItems: 'stretch', gap: 16 },
   gridStacked: { flexDirection: 'column' },
-  detailCard: { flex: 1, minHeight: 300, gap: spacing.lg, padding: spacing.lg },
+  detailCard: { flex: 1, minHeight: 224, gap: spacing.lg, padding: spacing.lg, borderRadius: 8, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(10,14,20,0.86)' },
 });

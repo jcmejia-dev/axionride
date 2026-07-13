@@ -7,6 +7,7 @@ import {
 import {
   getAll,
   getFirst,
+  runStatement,
   SQLITE_TABLES,
   withDatabase,
 } from "@/src/storage/sqlite";
@@ -31,6 +32,11 @@ type AchievementRow = {
   readonly unlocked: number;
   readonly unlocked_at: string | null;
 };
+
+// Repository providers are intentionally lightweight and may be created by
+// several services. Keep workspace seeding single-flight across every instance
+// so read paths never compete by opening nested/exclusive transactions.
+const workspaceInitialization = new Map<string, Promise<void>>();
 
 export class SQLiteRiderProgressRepository implements RiderProgressRepository {
   constructor(private readonly workspaceScope: WorkspaceScope) {}
@@ -143,28 +149,39 @@ export class SQLiteRiderProgressRepository implements RiderProgressRepository {
         );
       }),
     );
+    workspaceInitialization.delete(workspaceId);
   }
 
-  private async ensureWorkspaceRows(workspaceId: string) {
+  private ensureWorkspaceRows(workspaceId: string) {
+    const pending = workspaceInitialization.get(workspaceId);
+    if (pending) return pending;
+
+    const initialization = this.seedWorkspaceRows(workspaceId).catch((error: unknown) => {
+      if (workspaceInitialization.get(workspaceId) === initialization) {
+        workspaceInitialization.delete(workspaceId);
+      }
+      throw error;
+    });
+    workspaceInitialization.set(workspaceId, initialization);
+    return initialization;
+  }
+
+  private async seedWorkspaceRows(workspaceId: string) {
     const now = new Date().toISOString();
-    await withDatabase((database) =>
-      database.withExclusiveTransactionAsync(async (transaction) => {
-        await transaction.runAsync(
-          `INSERT OR IGNORE INTO ${SQLITE_TABLES.riderProgress}
-           (workspace_id, total_xp, streak_count, last_active_date, updated_at)
-           VALUES (?, 0, 0, NULL, ?);`,
-          [workspaceId, now],
-        );
-        for (const achievement of RIDER_ACHIEVEMENT_DEFINITIONS) {
-          await transaction.runAsync(
-            `INSERT OR IGNORE INTO ${SQLITE_TABLES.riderAchievements}
-             (workspace_id, id, title, description, unlocked, unlocked_at)
-             VALUES (?, ?, ?, ?, 0, NULL);`,
-            [workspaceId, achievement.id, achievement.title, achievement.description],
-          );
-        }
-      }),
+    await runStatement(
+      `INSERT OR IGNORE INTO ${SQLITE_TABLES.riderProgress}
+       (workspace_id, total_xp, streak_count, last_active_date, updated_at)
+       VALUES (?, 0, 0, NULL, ?);`,
+      [workspaceId, now],
     );
+    for (const achievement of RIDER_ACHIEVEMENT_DEFINITIONS) {
+      await runStatement(
+        `INSERT OR IGNORE INTO ${SQLITE_TABLES.riderAchievements}
+         (workspace_id, id, title, description, unlocked, unlocked_at)
+         VALUES (?, ?, ?, ?, 0, NULL);`,
+        [workspaceId, achievement.id, achievement.title, achievement.description],
+      );
+    }
   }
 
   private async readProgress(workspaceId: string): Promise<StoredRiderProgress> {
