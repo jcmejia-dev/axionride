@@ -6,7 +6,7 @@ import { Alert, Animated, Image, Pressable, RefreshControl, ScrollView, StyleShe
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Motorcycle } from '@/src/domain/motorcycle';
-import { createMaintenanceService, createMotorcycleService, createSettingsService, type CreateMaintenanceInput, type MaintenanceListItem } from '@/src/services';
+import { createMaintenanceService, createMotorcycleService, createSettingsService, recommendCategoryForMaintenance, type CreateMaintenanceInput, type MaintenanceListItem } from '@/src/services';
 import { layout, palette, radius, spacing, typography } from '@/src/theme';
 
 import { MaintenanceCreateSheet } from './components/MaintenanceCreateSheet';
@@ -128,6 +128,10 @@ export function MaintenanceScreen() {
                     onComplete={() => {
                       void handleCompleteMaintenance(task.id);
                     }}
+                    onFindService={() => {
+                      const recommendation = recommendCategoryForMaintenance(task.type);
+                      router.push({ pathname: '/nearby-services', params: { category: recommendation.category, recommended: 'maintenance' } });
+                    }}
                   />
                 ))}
               </View>
@@ -211,6 +215,7 @@ function createMaintenanceData(
       title: item.maintenance.title,
       remainingDistance: formatRemaining(item),
       status: toDisplayStatus(item.statusLabel),
+      type: item.maintenance.type,
     })),
     timeline: maintenanceHistory.map((item) => ({
       id: item.maintenance.id,

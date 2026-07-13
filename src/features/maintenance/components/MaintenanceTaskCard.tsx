@@ -9,9 +9,10 @@ import type { MaintenanceTask } from '../types';
 type MaintenanceTaskCardProps = {
   task: MaintenanceTask;
   readonly onComplete?: () => void;
+  readonly onFindService?: () => void;
 };
 
-export function MaintenanceTaskCard({ task, onComplete }: MaintenanceTaskCardProps) {
+export function MaintenanceTaskCard({ task, onComplete, onFindService }: MaintenanceTaskCardProps) {
   return (
     <GlassCard style={styles.card}>
       <View style={styles.iconShell}>
@@ -29,6 +30,15 @@ export function MaintenanceTaskCard({ task, onComplete }: MaintenanceTaskCardPro
             onPress={onComplete}
             style={({ pressed }) => [styles.completeButton, pressed ? styles.pressed : null]}>
             <Text style={styles.completeText}>Complete</Text>
+          </Pressable>
+        ) : null}
+        {onFindService && (task.status === 'Due Soon' || task.status === 'Overdue') ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Find nearby service for ${task.title}`}
+            onPress={onFindService}
+            style={({ pressed }) => [styles.serviceButton, pressed ? styles.pressed : null]}>
+            <Text style={styles.serviceText}>Find service</Text>
           </Pressable>
         ) : null}
       </View>
@@ -97,6 +107,8 @@ const styles = StyleSheet.create({
     color: palette.text,
     textTransform: 'uppercase',
   },
+  serviceButton: { minHeight: 34, justifyContent: 'center', paddingHorizontal: spacing.md },
+  serviceText: { ...typography.label, color: palette.accentOrange, textTransform: 'uppercase' },
   pressed: {
     opacity: 0.78,
     transform: [{ scale: 0.98 }],

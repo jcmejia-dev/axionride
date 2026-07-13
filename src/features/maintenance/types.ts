@@ -1,4 +1,11 @@
-export type MaintenanceStatus = 'Due Soon' | 'Good' | 'Overdue' | 'Completed' | 'Unknown';
+import type { MaintenanceType } from "@/src/domain/maintenance";
+
+export type MaintenanceStatus =
+  | "Due Soon"
+  | "Good"
+  | "Overdue"
+  | "Completed"
+  | "Unknown";
 
 export type MaintenanceOverallStatus = {
   readonly status: MaintenanceStatus;
@@ -11,7 +18,7 @@ export type MaintenanceSummaryItem = {
   readonly label: string;
   readonly value: string;
   readonly detail: string;
-  readonly accent: 'orange' | 'success' | 'warning' | 'danger';
+  readonly accent: "orange" | "success" | "warning" | "danger";
 };
 
 export type MaintenanceTask = {
@@ -19,6 +26,7 @@ export type MaintenanceTask = {
   readonly title: string;
   readonly remainingDistance: string;
   readonly status: MaintenanceStatus;
+  readonly type: MaintenanceType;
 };
 
 export type MaintenanceTimelineItem = {

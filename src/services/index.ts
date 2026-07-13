@@ -4,6 +4,7 @@ export {
   createBackupService,
   createLocationService,
   createMaintenanceService,
+  createNearbyServicesService,
   createMotorcycleService,
   createNotificationService,
   createProfileService,
@@ -34,6 +35,24 @@ export type {
 export { RideService } from './ride';
 export type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './ride';
 export { MaintenanceService } from './maintenance';
+export { NearbyServicesService } from './nearby-services';
+export {
+  NEARBY_SERVICE_CATEGORIES,
+  createGoogleMapsDirectionsUrl,
+  createGoogleMapsFallbackSearchUrl,
+  createGoogleMapsPlaceUrl,
+  getNearbyCategory,
+  recommendCategoryForMaintenance,
+} from './nearby-services';
+export type {
+  NearbyCoordinate,
+  NearbyPlace,
+  NearbySearchErrorCode,
+  NearbySearchRequest,
+  NearbySearchResult,
+  NearbyServiceCategory,
+  NearbyServiceProvider,
+} from './nearby-services';
 export { MotorcycleService } from './motorcycle';
 export type { MotorcycleOverview } from './motorcycle';
 export { WorkspaceService } from './workspace';
