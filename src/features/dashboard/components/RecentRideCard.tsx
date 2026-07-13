@@ -1,16 +1,21 @@
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, Polyline, type LatLng, type Region } from 'react-native-maps';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GlassCard } from '@/src/components/premium';
 import type { Ride, RidePoint } from '@/src/domain/ride';
-import { iconSizes, motion, opacity, premiumColors, radius, spacing, typography } from '@/src/theme';
+import { iconSizes, motion, opacity, premiumColors, typography } from '@/src/theme';
 
 type RecentRideCardProps = {
   readonly ride: Ride | null;
   readonly loading?: boolean;
   readonly onPress?: () => void;
 };
+
+type PreviewPoint = { readonly x: number; readonly y: number };
+type RouteSegment = PreviewPoint & { readonly width: number; readonly angle: number };
+
+const HUD_FONT = Platform.select({ android: 'sans-serif-condensed', default: undefined });
+const GRID_LINES = [20, 40, 60, 80];
 
 export function RecentRideCard({ ride, loading = false, onPress }: RecentRideCardProps) {
   const hasRide = Boolean(ride);
@@ -21,130 +26,135 @@ export function RecentRideCard({ ride, loading = false, onPress }: RecentRideCar
       accessibilityRole="button"
       disabled={!onPress}
       onPress={onPress}
-      style={({ pressed }) => [pressed ? styles.pressed : null]}>
+      style={({ pressed }) => [pressed ? styles.pressed : null]}
+    >
       <GlassCard style={styles.card}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.eyebrow}>Recent Ride</Text>
+          <Text style={styles.eyebrow}>RECENT RIDE</Text>
+          <View style={styles.viewAll}>
+            <Text style={styles.viewAllText}>{hasRide ? 'VIEW ALL' : 'RIDES'}</Text>
+            <SymbolView
+              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+              size={iconSizes.xs}
+              tintColor={premiumColors.textSecondary}
+            />
+          </View>
+        </View>
+
+        <View style={styles.rideRow}>
+          <RoutePreview points={ride?.route ?? []} />
+          <View style={styles.rideDetails}>
+            <Text numberOfLines={1} style={styles.rideTitle}>
+              {loading ? 'SYNCING RIDE' : ride ? 'LATEST ACTIVITY' : 'NO RIDE YET'}
+            </Text>
             <View style={styles.dateRow}>
-              <SymbolView name={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }} size={iconSizes.xs} tintColor={premiumColors.textSecondary} />
-              <Text numberOfLines={1} style={styles.dateText}>
-                {loading ? 'Loading ride' : ride ? formatDateTime(ride.startTime) : 'No rides recorded yet'}
+              <SymbolView
+                name={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }}
+                size={14}
+                tintColor={premiumColors.textSecondary}
+              />
+              <Text numberOfLines={2} style={styles.dateText}>
+                {loading ? 'Loading local record' : ride ? formatDateTime(ride.startTime) : 'Your first completed route will appear here'}
               </Text>
             </View>
+
+            <View style={styles.metrics}>
+              <RideMetric label="DISTANCE" value={loading ? '—' : ride ? `${formatNumber(ride.distanceKm, 1)} km` : '0 km'} />
+              <RideMetric label="DURATION" value={loading ? '—' : ride ? formatDuration(ride.durationSeconds) : '0m'} />
+              <RideMetric label="AVG SPEED" value={loading ? '—' : ride ? `${formatNumber(ride.averageSpeedKmh, 0)}` : '0'} suffix="km/h" />
+            </View>
           </View>
-          <View style={styles.shareButton}>
-            <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={iconSizes.sm} tintColor={premiumColors.textPrimary} />
-          </View>
-        </View>
-
-        <RoutePreview points={ride?.route ?? []} />
-
-        <View style={styles.metrics}>
-          <RideMetric label="Distance" value={loading ? '-' : ride ? `${formatNumber(ride.distanceKm, 1)} km` : '0 km'} />
-          <RideMetric label="Duration" value={loading ? '-' : ride ? formatDuration(ride.durationSeconds) : '0m'} />
-          <RideMetric label="Avg. Speed" value={loading ? '-' : ride ? `${formatNumber(ride.averageSpeedKmh, 0)} km/h` : '0 km/h'} />
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>{hasRide ? 'View Ride Details' : 'Start your first ride'}</Text>
-          <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={iconSizes.sm} tintColor={premiumColors.primaryBright} />
         </View>
       </GlassCard>
     </Pressable>
   );
 }
 
-const DASHBOARD_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#111417' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#70777d' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#111417' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#272c31' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#14181b' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#292e33' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#0e1113' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#363c42' }] },
-  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#8b9298' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#090d10' }] },
-];
-
-const DEFAULT_PREVIEW_REGION: Region = {
-  latitude: 14.5995,
-  longitude: 120.9842,
-  latitudeDelta: 0.04,
-  longitudeDelta: 0.04,
-};
-
 function RoutePreview({ points }: { readonly points: readonly RidePoint[] }) {
-  const coordinates = points.map(toCoordinate);
-  const hasRoute = coordinates.length >= 2;
-  const region = createPreviewRegion(coordinates);
+  const previewPoints = normalizeRoute(points);
+  const segments = createSegments(previewPoints);
+  const start = previewPoints[0];
+  const end = previewPoints[previewPoints.length - 1];
 
   return (
     <View style={styles.routePreview}>
-      <MapView
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-        region={region}
-        customMapStyle={DASHBOARD_MAP_STYLE}
-        mapType="standard"
-        pitchEnabled={false}
-        rotateEnabled={false}
-        scrollEnabled={false}
-        zoomEnabled={false}
-        showsBuildings={false}
-        showsCompass={false}
-        showsIndoors={false}
-        showsPointsOfInterests={false}
-        toolbarEnabled={false}>
-        {hasRoute ? <Polyline coordinates={coordinates} strokeColor="rgba(0,0,0,.72)" strokeWidth={8} lineCap="round" lineJoin="round" /> : null}
-        {hasRoute ? <Polyline coordinates={coordinates} strokeColor={premiumColors.primaryBright} strokeWidth={4.5} lineCap="round" lineJoin="round" /> : null}
-        {hasRoute ? <Marker coordinate={coordinates[0]} anchor={{ x: 0.5, y: 0.5 }}><View style={styles.startPin} /></Marker> : null}
-        {hasRoute ? <Marker coordinate={coordinates[coordinates.length - 1]} anchor={{ x: 0.5, y: 0.5 }}><View style={styles.endPin}><View style={styles.endPinInner} /></View></Marker> : null}
-      </MapView>
-      <View pointerEvents="none" style={styles.mapVignette} />
-      {!hasRoute ? <View style={styles.emptyRoute}><View style={styles.emptyLocation}><SymbolView name={{ios:'location.fill',android:'location_on',web:'location_on'}} tintColor={premiumColors.textSecondary} size={20}/></View><Text style={styles.emptyRouteTitle}>No route recorded yet</Text><Text style={styles.emptyRouteCopy}>Your latest GPS route will appear here.</Text></View> : null}
+      {GRID_LINES.map((position) => <View key={`h-${position}`} style={[styles.gridHorizontal, { top: `${position}%` }]} />)}
+      {GRID_LINES.map((position) => <View key={`v-${position}`} style={[styles.gridVertical, { left: `${position}%` }]} />)}
+      <View style={styles.mapDiagonalOne} />
+      <View style={styles.mapDiagonalTwo} />
+      {segments.map((segment, index) => (
+        <View
+          key={`${index}-${segment.x}-${segment.y}`}
+          style={[
+            styles.routeSegment,
+            {
+              left: `${segment.x - segment.width / 2}%`,
+              top: `${segment.y}%`,
+              width: `${segment.width}%`,
+              transform: [{ rotate: `${segment.angle}deg` }],
+            },
+          ]}
+        />
+      ))}
+      {start ? <View style={[styles.startPin, { left: `${start.x}%`, top: `${start.y}%` }]} /> : null}
+      {end ? <View style={[styles.endPin, { left: `${end.x}%`, top: `${end.y}%` }]}><View style={styles.endPinCore} /></View> : null}
+      {!segments.length ? (
+        <View style={styles.emptyRoute}>
+          <SymbolView
+            name={{ ios: 'location.fill', android: 'location_on', web: 'location_on' }}
+            tintColor="#788B99"
+            size={20}
+          />
+          <Text style={styles.emptyRouteText}>ROUTE PREVIEW</Text>
+        </View>
+      ) : null}
+      <View style={styles.mapCornerTop} />
+      <View style={styles.mapCornerBottom} />
     </View>
   );
 }
 
-function toCoordinate(point: RidePoint): LatLng {
-  return { latitude: point.latitude, longitude: point.longitude };
+function normalizeRoute(points: readonly RidePoint[]): readonly PreviewPoint[] {
+  if (points.length < 2) return [];
+  const stride = Math.max(1, Math.ceil(points.length / 32));
+  const sampled = points.filter((_, index) => index % stride === 0);
+  if (sampled[sampled.length - 1] !== points[points.length - 1]) sampled.push(points[points.length - 1]);
+
+  const latitudes = sampled.map((point) => point.latitude);
+  const longitudes = sampled.map((point) => point.longitude);
+  const minLat = Math.min(...latitudes);
+  const maxLat = Math.max(...latitudes);
+  const minLng = Math.min(...longitudes);
+  const maxLng = Math.max(...longitudes);
+  const latSpan = Math.max(maxLat - minLat, 0.00001);
+  const lngSpan = Math.max(maxLng - minLng, 0.00001);
+
+  return sampled.map((point) => ({
+    x: 10 + ((point.longitude - minLng) / lngSpan) * 80,
+    y: 10 + ((maxLat - point.latitude) / latSpan) * 80,
+  }));
 }
 
-function createPreviewRegion(coordinates: readonly LatLng[]): Region {
-  if (coordinates.length === 0) return DEFAULT_PREVIEW_REGION;
-  const latitudes = coordinates.map((point) => point.latitude);
-  const longitudes = coordinates.map((point) => point.longitude);
-  const minimumLatitude = Math.min(...latitudes);
-  const maximumLatitude = Math.max(...latitudes);
-  const minimumLongitude = Math.min(...longitudes);
-  const maximumLongitude = Math.max(...longitudes);
-
-  return {
-    latitude: (minimumLatitude + maximumLatitude) / 2,
-    longitude: (minimumLongitude + maximumLongitude) / 2,
-    latitudeDelta: Math.max((maximumLatitude - minimumLatitude) * 1.45, 0.008),
-    longitudeDelta: Math.max((maximumLongitude - minimumLongitude) * 1.45, 0.008),
-  };
+function createSegments(points: readonly PreviewPoint[]): readonly RouteSegment[] {
+  return points.slice(1).map((point, index) => {
+    const previous = points[index];
+    const deltaX = point.x - previous.x;
+    const deltaY = point.y - previous.y;
+    return {
+      x: (previous.x + point.x) / 2,
+      y: (previous.y + point.y) / 2,
+      width: Math.sqrt(deltaX ** 2 + deltaY ** 2),
+      angle: Math.atan2(deltaY, deltaX) * (180 / Math.PI),
+    };
+  });
 }
 
-type RideMetricProps = {
-  readonly label: string;
-  readonly value: string;
-};
-
-function RideMetric({ label, value }: RideMetricProps) {
+function RideMetric({ label, value, suffix }: { readonly label: string; readonly value: string; readonly suffix?: string }) {
   return (
     <View style={styles.metric}>
-      <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1} style={styles.metricValue}>
-        {value}
-      </Text>
-      <Text numberOfLines={1} style={styles.metricLabel}>
-        {label}
-      </Text>
+      <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.metricValue}>{value}</Text>
+      {suffix ? <Text style={styles.metricSuffix}>{suffix}</Text> : null}
+      <Text numberOfLines={1} style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }
@@ -157,21 +167,12 @@ function formatDuration(totalSeconds: number) {
   const seconds = Math.max(0, Math.round(totalSeconds));
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-
-  return `${minutes}m`;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
 function formatDateTime(value: string) {
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
@@ -183,137 +184,64 @@ function formatDateTime(value: string) {
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 356,
-    padding: 0,
-    backgroundColor: 'rgba(17, 21, 28, 0.82)',
+    minHeight: 228,
+    padding: 14,
+    borderColor: 'rgba(98, 124, 143, 0.25)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(4, 10, 16, 0.94)',
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md,
-    padding: 18,
-    paddingBottom: 12,
+    marginBottom: 12,
   },
   eyebrow: {
     ...typography.label,
-    marginBottom: spacing.md,
-    color: premiumColors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  dateText: {
-    ...typography.caption,
-    color: premiumColors.textSecondary,
-  },
-  shareButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.09)',
-  },
-  routePreview: {
-    height: 168,
-    overflow: 'hidden',
-    marginHorizontal: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    borderRadius: 16,
-    backgroundColor: '#111417',
-  },
-  mapVignette: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
-    backgroundColor: 'rgba(3, 5, 7, 0.08)',
-  },
-  startPin: {
-    width: 13,
-    height: 13,
-    borderWidth: 3,
-    borderColor: '#F7F8FA',
-    borderRadius: radius.pill,
-    backgroundColor: '#111417',
-  },
-  endPin: {
-    width: 17,
-    height: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: '#111417',
-    backgroundColor: premiumColors.primaryBright,
-  },
-  endPinInner: {
-    width: 5,
-    height: 5,
-    borderRadius: radius.pill,
-    backgroundColor: premiumColors.textPrimary,
-  },
-  routePlaceholder: {
-    ...typography.label,
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    backgroundColor: 'rgba(7, 10, 15, 0.78)',
-    color: premiumColors.textTertiary,
-    textTransform: 'uppercase',
-  },
-  emptyRoute:{position:'absolute',top:0,right:0,bottom:0,left:0,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(7,10,15,.44)'},
-  emptyLocation:{width:42,height:42,alignItems:'center',justifyContent:'center',borderRadius:21,backgroundColor:'rgba(255,255,255,.07)',marginBottom:8},
-  emptyRouteTitle:{...typography.caption,color:premiumColors.textPrimary,fontWeight:'900'},
-  emptyRouteCopy:{...typography.label,color:premiumColors.textTertiary,marginTop:3,textTransform:'none'},
-  metrics: {
-    flexDirection: 'row',
-    padding: 18,
-    gap: 10,
-  },
-  metric: {
-    flex: 1,
-    minWidth: 0,
-  },
-  metricValue: {
-    fontSize: 20,
-    lineHeight: 25,
+    fontFamily: HUD_FONT,
     fontWeight: '900',
-    color: premiumColors.textPrimary,
+    fontStyle: 'italic',
+    letterSpacing: 1.1,
+    color: '#AEBBC4',
   },
-  metricLabel: {
-    ...typography.caption,
-    marginTop: spacing.xs,
+  viewAll: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  viewAllText: {
+    ...typography.label,
+    fontFamily: HUD_FONT,
+    fontWeight: '900',
+    letterSpacing: 0.8,
     color: premiumColors.textSecondary,
   },
-  footer: {
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: premiumColors.border,
+  rideRow: { minHeight: 166, flexDirection: 'row', gap: 14 },
+  routePreview: {
+    width: '39%',
+    minWidth: 118,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(105, 132, 150, 0.27)',
+    borderRadius: 5,
+    backgroundColor: '#050B10',
   },
-  footerText: {
-    ...typography.button,
-    color: premiumColors.primaryBright,
-  },
-  pressed: {
-    opacity: opacity.pressed,
-    transform: [{ scale: motion.scale.pressed }],
-  },
+  gridHorizontal: { position: 'absolute', right: 0, left: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(77, 105, 123, 0.14)' },
+  gridVertical: { position: 'absolute', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: 'rgba(77, 105, 123, 0.12)' },
+  mapDiagonalOne: { position: 'absolute', top: 40, left: -28, width: 190, height: 1, backgroundColor: 'rgba(86, 111, 127, 0.2)', transform: [{ rotate: '32deg' }] },
+  mapDiagonalTwo: { position: 'absolute', right: -54, bottom: 35, width: 180, height: 1, backgroundColor: 'rgba(86, 111, 127, 0.16)', transform: [{ rotate: '-48deg' }] },
+  routeSegment: { position: 'absolute', height: 3, borderRadius: 2, backgroundColor: '#FF7A1A' },
+  startPin: { position: 'absolute', width: 9, height: 9, marginLeft: -4.5, marginTop: -4.5, borderWidth: 2, borderColor: '#CAD4DB', borderRadius: 5, backgroundColor: '#071019' },
+  endPin: { position: 'absolute', width: 14, height: 14, marginLeft: -7, marginTop: -7, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FF7A1A', borderRadius: 7, backgroundColor: '#10161B' },
+  endPinCore: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#F7F8FA' },
+  mapCornerTop: { position: 'absolute', top: 0, left: 0, width: 24, height: 2, backgroundColor: 'rgba(255, 122, 26, 0.7)' },
+  mapCornerBottom: { position: 'absolute', right: 0, bottom: 0, width: 24, height: 2, backgroundColor: 'rgba(107, 139, 159, 0.55)' },
+  emptyRoute: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  emptyRouteText: { ...typography.label, fontFamily: HUD_FONT, fontWeight: '900', letterSpacing: 0.7, color: '#758692' },
+  rideDetails: { flex: 1, minWidth: 0, paddingVertical: 4 },
+  rideTitle: { fontFamily: HUD_FONT, fontSize: 20, lineHeight: 23, fontWeight: '900', fontStyle: 'italic', letterSpacing: 0.4, color: premiumColors.textPrimary },
+  dateRow: { minHeight: 39, flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 7 },
+  dateText: { ...typography.caption, flex: 1, fontFamily: HUD_FONT, lineHeight: 17, color: premiumColors.textSecondary },
+  metrics: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 5, marginTop: 12 },
+  metric: { flex: 1, minWidth: 0, paddingLeft: 7, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: 'rgba(117, 139, 154, 0.28)' },
+  metricValue: { fontFamily: HUD_FONT, fontSize: 17, lineHeight: 19, fontWeight: '900', color: premiumColors.textPrimary },
+  metricSuffix: { fontFamily: HUD_FONT, fontSize: 10, lineHeight: 12, fontWeight: '700', color: premiumColors.textSecondary },
+  metricLabel: { marginTop: 4, fontFamily: HUD_FONT, fontSize: 8, lineHeight: 10, fontWeight: '900', letterSpacing: 0.35, color: '#71818C' },
+  pressed: { opacity: opacity.pressed, transform: [{ scale: motion.scale.pressed }] },
 });

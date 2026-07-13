@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import type { ComponentProps } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { GlassCard } from '@/src/components/premium';
 import type { StatisticsDashboardSummary } from '@/src/services';
@@ -12,15 +12,17 @@ type DashboardMetricStripProps = {
 };
 
 type SymbolName = ComponentProps<typeof SymbolView>['name'];
+const HUD_ICON_COLOR = '#7F8A98';
+const HUD_FONT = Platform.select({ android: 'sans-serif-condensed', default: undefined });
 
 export function DashboardMetricStrip({ summary, loading = false }: DashboardMetricStripProps) {
   const metrics = getMetrics(summary, loading);
 
   return (
     <GlassCard style={styles.card}>
-      {metrics.map((metric, index) => (
+      {metrics.map((metric) => (
         <View key={metric.label} style={styles.metric}>
-          <View style={[styles.iconRing, { borderColor: metric.color, backgroundColor: withAlpha(metric.color, 0.1) }]}>
+          <View style={styles.iconRing}>
             <SymbolView name={metric.icon} size={iconSizes.md} tintColor={metric.color} />
           </View>
           <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.label}>
@@ -32,7 +34,6 @@ export function DashboardMetricStrip({ summary, loading = false }: DashboardMetr
           <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1} style={styles.detail}>
             {metric.detail}
           </Text>
-          {index < metrics.length - 1 ? <View style={styles.divider} /> : null}
         </View>
       ))}
     </GlassCard>
@@ -42,10 +43,10 @@ export function DashboardMetricStrip({ summary, loading = false }: DashboardMetr
 function getMetrics(summary: StatisticsDashboardSummary | null, loading: boolean) {
   if (loading) {
     return [
-      createMetric('Next Maint.', 'Loading', 'status', { ios: 'wrench.and.screwdriver.fill', android: 'build', web: 'build' }, premiumColors.primary),
-      createMetric('Fuel Level', '-', 'Not tracked', { ios: 'fuelpump.fill', android: 'local_gas_station', web: 'local_gas_station' }, premiumColors.success),
-      createMetric('Total KM', 'Loading', 'All time', { ios: 'road.lanes', android: 'route', web: 'route' }, premiumColors.blue),
-      createMetric('Ride Time', 'Loading', 'All time', { ios: 'clock.fill', android: 'schedule', web: 'schedule' }, premiumColors.purple),
+      createMetric('Next Maint.', 'Loading', 'status', { ios: 'wrench.and.screwdriver', android: 'build', web: 'build' }, HUD_ICON_COLOR),
+      createMetric('Fuel Level', '-', 'Not tracked', { ios: 'fuelpump', android: 'local_gas_station', web: 'local_gas_station' }, HUD_ICON_COLOR),
+      createMetric('Total KM', 'Loading', 'All time', { ios: 'road.lanes', android: 'route', web: 'route' }, HUD_ICON_COLOR),
+      createMetric('Ride Time', 'Loading', 'All time', { ios: 'clock', android: 'schedule', web: 'schedule' }, HUD_ICON_COLOR),
     ];
   }
 
@@ -61,12 +62,12 @@ function getMetrics(summary: StatisticsDashboardSummary | null, loading: boolean
       'Next Maint.',
       maintenance?.title ?? 'No task',
       nextKm != null ? `${formatNumber(nextKm)} km` : maintenance?.nextDueDate ? formatDateOnly(maintenance.nextDueDate) : 'remaining',
-      { ios: 'wrench.and.screwdriver.fill', android: 'build', web: 'build' },
-      premiumColors.primary,
+      { ios: 'wrench.and.screwdriver', android: 'build', web: 'build' },
+      HUD_ICON_COLOR,
     ),
-    createMetric('Fuel Level', '-', 'Not tracked', { ios: 'fuelpump.fill', android: 'local_gas_station', web: 'local_gas_station' }, premiumColors.success),
-    createMetric('Total KM', `${formatNumber(summary?.motorcycles.totalEstimatedMileageKm ?? 0)} km`, 'All time', { ios: 'road.lanes', android: 'route', web: 'route' }, premiumColors.blue),
-    createMetric('Ride Time', formatDuration(summary?.rides.totalRideTimeSeconds ?? 0), 'All time', { ios: 'clock.fill', android: 'schedule', web: 'schedule' }, premiumColors.purple),
+    createMetric('Fuel Level', '-', 'Not tracked', { ios: 'fuelpump', android: 'local_gas_station', web: 'local_gas_station' }, HUD_ICON_COLOR),
+    createMetric('Total KM', `${formatNumber(summary?.motorcycles.totalEstimatedMileageKm ?? 0)} km`, 'All time', { ios: 'road.lanes', android: 'route', web: 'route' }, HUD_ICON_COLOR),
+    createMetric('Ride Time', formatDuration(summary?.rides.totalRideTimeSeconds ?? 0), 'All time', { ios: 'clock', android: 'schedule', web: 'schedule' }, HUD_ICON_COLOR),
   ];
 }
 
@@ -106,66 +107,66 @@ function formatDateOnly(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
 }
 
-function withAlpha(hex: string, alpha: number) {
-  const normalized = hex.replace('#', '');
-  const red = parseInt(normalized.slice(0, 2), 16);
-  const green = parseInt(normalized.slice(2, 4), 16);
-  const blue = parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
 const styles = StyleSheet.create({
   card: {
+    flexWrap: 'wrap',
     flexDirection: 'row',
-    minHeight: 164,
-    paddingVertical: 16,
-    paddingHorizontal: 6,
-    backgroundColor: 'rgba(17, 21, 28, 0.82)',
+    minHeight: 210,
+    padding: 10,
+    gap: 8,
+    borderColor: 'rgba(112, 126, 141, 0.16)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(9, 14, 21, 0.88)',
   },
   metric: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'center',
+    width: '48%',
+    minHeight: 90,
+    flexGrow: 1,
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    gap: 5,
-    paddingHorizontal: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(103, 127, 144, 0.18)',
+    borderRadius: 5,
+    backgroundColor: 'rgba(5, 10, 16, 0.72)',
   },
   iconRing: {
-    width: 48,
-    height: 48,
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.4,
-    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(119, 141, 157, 0.22)',
+    borderRadius: 4,
+    backgroundColor: 'rgba(105, 128, 145, 0.06)',
   },
   label: {
     ...typography.label,
-    width: '100%',
+    maxWidth: '68%',
+    fontFamily: HUD_FONT,
+    fontWeight: '900',
+    letterSpacing: 0.7,
     color: premiumColors.textSecondary,
-    textAlign: 'center',
     textTransform: 'uppercase',
   },
   value: {
-    width: '100%',
+    maxWidth: '76%',
+    marginTop: 8,
+    fontFamily: HUD_FONT,
     fontSize: 17,
-    lineHeight: 25,
+    lineHeight: 21,
     fontWeight: '900',
     color: premiumColors.textPrimary,
-    textAlign: 'center',
+    textTransform: 'uppercase',
   },
   detail: {
-    width: '100%',
     ...typography.caption,
+    fontFamily: HUD_FONT,
     fontSize: 12,
     color: premiumColors.textSecondary,
-    textAlign: 'center',
-  },
-  divider: {
-    position: 'absolute',
-    top: 26,
-    right: 0,
-    bottom: 26,
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: premiumColors.borderStrong,
   },
 });

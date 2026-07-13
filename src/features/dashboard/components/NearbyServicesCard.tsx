@@ -1,7 +1,9 @@
 import { SymbolView } from "expo-symbols";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { palette, radius, spacing, typography } from "@/src/theme";
+import { elevation, palette, spacing, typography } from "@/src/theme";
+
+const HUD_FONT = Platform.select({ android: 'sans-serif-condensed', default: undefined });
 
 type NearbyServicesCardProps = {
   readonly onPress: () => void;
@@ -22,7 +24,7 @@ export function NearbyServicesCard({ onPress }: NearbyServicesCardProps) {
             android: "local_gas_station",
             web: "local_gas_station",
           }}
-          tintColor={palette.accentOrange}
+          tintColor="#7F919E"
           size={22}
         />
       </View>
@@ -47,22 +49,25 @@ export function NearbyServicesCard({ onPress }: NearbyServicesCardProps) {
 
 const styles = StyleSheet.create({
   card: {
+    ...elevation.soft,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: radius.xl,
-    backgroundColor: "rgba(17, 21, 28, 0.88)",
+    borderColor: "rgba(98, 124, 143, 0.25)",
+    borderRadius: 8,
+    backgroundColor: "rgba(4, 10, 16, 0.94)",
   },
   iconShell: {
     width: 46,
     height: 46,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 15,
-    backgroundColor: "rgba(255, 177, 32, 0.09)",
+    borderWidth: 1,
+    borderColor: 'rgba(113, 137, 153, 0.25)',
+    borderRadius: 4,
+    backgroundColor: "rgba(105, 128, 145, 0.06)",
   },
   copy: {
     flex: 1,
@@ -70,11 +75,15 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.subtitle,
+    fontFamily: HUD_FONT,
+    fontStyle: 'italic',
+    letterSpacing: 0.4,
     color: palette.text,
     fontWeight: "900",
   },
   subtitle: {
     ...typography.caption,
+    fontFamily: HUD_FONT,
     color: palette.textMuted,
     marginTop: 4,
   },
