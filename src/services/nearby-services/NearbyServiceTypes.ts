@@ -32,9 +32,10 @@ export type NearbySearchRequest = NearbyCoordinate & {
 };
 
 export type NearbySearchErrorCode =
-  | "authentication_required"
+  | "auth_required"
   | "invalid_request"
-  | "network_unavailable"
+  | "network_error"
+  | "timeout"
   | "provider_unavailable"
   | "rate_limited"
   | "invalid_response"
@@ -56,7 +57,6 @@ export type NearbyCategoryDefinition = {
   readonly id: NearbyServiceCategory;
   readonly label: string;
   readonly shortLabel: string;
-  readonly googleNearbyType: "gas_station" | "tire_shop" | null;
   readonly textQuery: string | null;
 };
 

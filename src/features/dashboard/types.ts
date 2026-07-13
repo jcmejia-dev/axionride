@@ -32,7 +32,7 @@ export type DashboardRide = {
   averageSpeed: string;
 };
 
-export type WeatherCondition = 'Sunny' | 'Rainy' | 'Cloudy' | 'Stormy' | 'Hot';
+export type WeatherCondition = 'Sunny' | 'Rainy' | 'Windy' | 'Cloudy' | 'Stormy' | 'Hot';
 
 export type DashboardWeather = {
   condition: WeatherCondition;

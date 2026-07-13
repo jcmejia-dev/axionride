@@ -6,6 +6,7 @@ import { iconSizes, premiumColors, radius, spacing, typography } from '@/src/the
 
 import type { DashboardWeather } from '../types';
 import { getWeatherRideMessage } from '../weatherMessage';
+import { WeatherAnimation } from './WeatherAnimation';
 
 type WeatherRideCardProps = {
   readonly weather: DashboardWeather;
@@ -14,6 +15,7 @@ type WeatherRideCardProps = {
 export function WeatherRideCard({ weather }: WeatherRideCardProps) {
   return (
     <GlassCard style={styles.card}>
+      <WeatherAnimation condition={weather.condition} />
       <View style={styles.glow} />
       <View style={styles.iconShell}>
         <SymbolView name={getConditionIcon(weather.condition)} tintColor={premiumColors.primaryBright} size={iconSizes.lg} />
@@ -58,6 +60,8 @@ function getConditionIcon(condition: DashboardWeather['condition']) {
       return { ios: 'sun.max.fill', android: 'sunny', web: 'sunny' } as const;
     case 'Rainy':
       return { ios: 'cloud.rain.fill', android: 'rainy', web: 'rainy' } as const;
+    case 'Windy':
+      return { ios: 'wind', android: 'air', web: 'air' } as const;
     case 'Cloudy':
       return { ios: 'cloud.fill', android: 'cloud', web: 'cloud' } as const;
     case 'Stormy':
@@ -85,6 +89,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 106, 0, 0.09)',
   },
   iconShell: {
+    zIndex: 1,
     width: 58,
     height: 58,
     alignItems: 'center',
@@ -95,6 +100,7 @@ const styles = StyleSheet.create({
     backgroundColor: premiumColors.primaryMuted,
   },
   copy: {
+    zIndex: 1,
     flex: 1,
     minWidth: 0,
   },
@@ -114,6 +120,7 @@ const styles = StyleSheet.create({
     color: premiumColors.textSecondary,
   },
   chips: {
+    zIndex: 1,
     width: 78,
     gap: spacing.sm,
   },

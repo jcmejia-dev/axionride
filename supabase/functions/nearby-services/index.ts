@@ -1,21 +1,22 @@
 /**
  * AxionRide Nearby Services Edge Function
  *
- * Called by authenticated Supabase clients to search Google Places API (New)
+ * Called by authenticated Supabase clients to search OpenStreetMap through
+ * the public Overpass API
  * for motorcycle-relevant nearby places.
  *
  * SECURITY
  * - Requires authenticated Supabase user (JWT verified by Supabase).
- * - GOOGLE_PLACES_API_KEY is read from environment secrets only.
- * - Never returns the API key or raw Google responses.
- * - Logs are sanitised: no coordinates, no tokens, no full provider responses.
+ * - No third-party API key is required.
+ * - Never returns raw OpenStreetMap responses.
+ * - Logs are sanitised: no coordinates, tokens, or full provider responses.
  *
  * USAGE
  *   POST /functions/v1/nearby-services
- *   Authorization: Bearer <supabase anon key>
+ *   Authorization: Bearer <signed-in user's Supabase access token>
  *   Body: { latitude: number, longitude: number, category: string, radiusMeters?: number }
  *
- * @see https://developers.google.com/maps/documentation/places-web-service
+ * @see https://wiki.openstreetmap.org/wiki/Overpass_API
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -44,32 +45,20 @@ interface NearbyPlace {
 
 // --------------- Category config ---------------
 
-interface CategoryConfig {
-  readonly googleNearbyType: string | null;
-  readonly textQuery: string | null;
-}
+type OverpassTagFilter = readonly [key: string, value: string];
 
-const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
-  fuel: { googleNearbyType: "gas_station", textQuery: null },
-  motorcycle_repair: {
-    googleNearbyType: null,
-    textQuery: "motorcycle repair shop",
-  },
-  oil_change: {
-    googleNearbyType: null,
-    textQuery: "motorcycle oil change service",
-  },
-  tires: { googleNearbyType: "tire_shop", textQuery: null },
-  battery_electrical: {
-    googleNearbyType: null,
-    textQuery: "motorcycle battery electrical shop",
-  },
-  dealer: { googleNearbyType: null, textQuery: "motorcycle dealer" },
+const CATEGORY_CONFIG: Record<string, readonly OverpassTagFilter[]> = {
+  fuel: [["amenity", "fuel"]],
+  motorcycle_repair: [["shop", "motorcycle_repair"], ["shop", "car_repair"]],
+  oil_change: [["shop", "motorcycle_repair"], ["shop", "car_repair"]],
+  tires: [["shop", "tyres"]],
+  battery_electrical: [["shop", "motorcycle_repair"], ["shop", "car_repair"]],
+  dealer: [["shop", "motorcycle"]],
 };
 
 const VALID_CATEGORIES = new Set(Object.keys(CATEGORY_CONFIG));
-const API_BASE = "https://places.googleapis.com/v1";
-const DEFAULT_TIMEOUT_MS = 8000;
+const OVERPASS_API_URL = "https://overpass-api.de/api/interpreter";
+const DEFAULT_TIMEOUT_MS = 12_000;
 const MAX_RADIUS_METERS = 10_000;
 const MIN_RADIUS_METERS = 250;
 const CACHE_TTL_MS = 120_000; // 2-minute in-memory TTL per user
@@ -150,255 +139,106 @@ function validateRequest(
   };
 }
 
-// --------------- Google Places API (New) ---------------
+// --------------- OpenStreetMap Overpass API ---------------
 
-async function searchGooglePlaces(
-  request: NearbySearchRequest,
-  apiKey: string,
-): Promise<
+type OverpassElement = {
+  readonly type?: unknown;
+  readonly id?: unknown;
+  readonly lat?: unknown;
+  readonly lon?: unknown;
+  readonly tags?: unknown;
+};
+
+async function searchOpenStreetMap(request: NearbySearchRequest): Promise<
   | { ok: true; places: NearbyPlace[] }
-  | { ok: false; code: string; message: string }
+  | { ok: false; code: "timeout" | "provider_error" }
 > {
-  const config = CATEGORY_CONFIG[request.category];
-  const timeout = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+  const query = buildOverpassQuery(request);
 
   try {
-    // Prefer Nearby Search (New) when a Google Places type exists
-    if (config.googleNearbyType) {
-      return await nearbySearch(
-        request,
-        config.googleNearbyType,
-        apiKey,
-        timeout,
-      );
+    const response = await fetch(OVERPASS_API_URL, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "text/plain; charset=UTF-8",
+      },
+      body: query,
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      return { ok: false, code: response.status === 504 ? "timeout" : "provider_error" };
     }
-    // Fall back to text search for categories without a direct type
-    if (config.textQuery) {
-      return await textSearch(request, config.textQuery, apiKey, timeout);
+
+    const data: unknown = await response.json();
+    if (!isRecord(data) || !Array.isArray(data.elements)) {
+      return { ok: true, places: [] };
     }
-    return {
-      ok: false,
-      code: "invalid_category",
-      message: "Category configuration error.",
-    };
+
+    return { ok: true, places: mapOverpassElements(data.elements, request) };
   } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      return {
-        ok: false,
-        code: "timeout",
-        message: "The nearby provider did not respond in time.",
-      };
-    }
-    // Don't expose the error details to the client
     return {
       ok: false,
-      code: "provider_error",
-      message: "The nearby provider is temporarily unavailable.",
+      code: error instanceof DOMException && error.name === "TimeoutError" ? "timeout" : "provider_error",
     };
   }
 }
 
-async function nearbySearch(
-  request: NearbySearchRequest,
-  placeType: string,
-  apiKey: string,
-  signal: AbortSignal,
-): Promise<
-  | { ok: true; places: NearbyPlace[] }
-  | { ok: false; code: string; message: string }
-> {
-  const url = `${API_BASE}/places:searchNearby`;
+function buildOverpassQuery(request: NearbySearchRequest) {
+  const radius = request.radiusMeters ?? 5000;
+  const selectors = CATEGORY_CONFIG[request.category]
+    .map(([key, value]) => `node["${key}"="${value}"](around:${radius},${request.latitude},${request.longitude});`)
+    .join("\n");
 
-  const body = {
-    includedTypes: [placeType],
-    maxResultCount: 15,
-    locationRestriction: {
-      circle: {
-        center: { latitude: request.latitude, longitude: request.longitude },
-        radius: request.radiusMeters ?? 5000,
-      },
-    },
-  };
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.regularOpeningHours,places.nationalPhoneNumber,places.googleMapsUri,places.distanceMeters",
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-
-  if (!response.ok) {
-    const status = response.status;
-    if (status === 403 || status === 401)
-      return {
-        ok: false,
-        code: "provider_auth",
-        message: "Places API authentication failed.",
-      };
-    if (status === 429)
-      return {
-        ok: false,
-        code: "provider_rate_limited",
-        message: "Places API rate limit exceeded.",
-      };
-    if (status >= 500)
-      return {
-        ok: false,
-        code: "provider_error",
-        message: "Places API server error.",
-      };
-    return {
-      ok: false,
-      code: "provider_error",
-      message: `Places API returned status ${status}.`,
-    };
-  }
-
-  const data = await response.json();
-  const places = sanitizePlaces(data.places ?? [], request);
-  return { ok: true, places };
+  return `[out:json][timeout:10];\n(\n${selectors}\n);\nout;`;
 }
 
-async function textSearch(
-  request: NearbySearchRequest,
-  textQuery: string,
-  apiKey: string,
-  signal: AbortSignal,
-): Promise<
-  | { ok: true; places: NearbyPlace[] }
-  | { ok: false; code: string; message: string }
-> {
-  const url = `${API_BASE}/places:searchText`;
+function mapOverpassElements(elements: readonly unknown[], request: NearbySearchRequest): NearbyPlace[] {
+  return elements
+    .filter((element): element is OverpassElement => isRecord(element))
+    .flatMap((element) => {
+      if (typeof element.lat !== "number" || typeof element.lon !== "number") return [];
+      const tags = isRecord(element.tags) ? element.tags : {};
+      const location = { latitude: element.lat, longitude: element.lon };
+      const name = getTag(tags, "name") ?? "Unknown";
 
-  const body = {
-    textQuery,
-    maxResultCount: 15,
-    locationBias: {
-      circle: {
-        center: { latitude: request.latitude, longitude: request.longitude },
-        radius: request.radiusMeters ?? 5000,
-      },
-    },
-  };
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.regularOpeningHours,places.nationalPhoneNumber,places.googleMapsUri,places.distanceMeters",
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-
-  if (!response.ok) {
-    const status = response.status;
-    if (status === 403 || status === 401)
-      return {
-        ok: false,
-        code: "provider_auth",
-        message: "Places API authentication failed.",
-      };
-    if (status === 429)
-      return {
-        ok: false,
-        code: "provider_rate_limited",
-        message: "Places API rate limit exceeded.",
-      };
-    if (status >= 500)
-      return {
-        ok: false,
-        code: "provider_error",
-        message: "Places API server error.",
-      };
-    return {
-      ok: false,
-      code: "provider_error",
-      message: `Places API returned status ${status}.`,
-    };
-  }
-
-  const data = await response.json();
-  const places = sanitizePlaces(data.places ?? [], request);
-  return { ok: true, places };
+      return [{
+        id: `${typeof element.type === "string" ? element.type : "node"}-${String(element.id ?? `${element.lat}-${element.lon}`)}`,
+        name,
+        address: composeAddress(tags),
+        location,
+        distanceMeters: calculateDistance(request, location),
+        openNow: null,
+        rating: null,
+        reviewCount: null,
+        phoneNumber: getTag(tags, "phone") ?? getTag(tags, "contact:phone"),
+        googleMapsUri: null,
+      }];
+    })
+    .sort((first, second) => first.distanceMeters - second.distanceMeters)
+    .slice(0, 25);
 }
 
-// --------------- Sanitisation ---------------
+function composeAddress(tags: Record<string, unknown>) {
+  const fullAddress = getTag(tags, "addr:full");
+  if (fullAddress) return fullAddress;
 
-function sanitizePlaces(
-  rawPlaces: unknown[],
-  request: NearbySearchRequest,
-): NearbyPlace[] {
-  if (!Array.isArray(rawPlaces)) return [];
-
-  return rawPlaces
-    .filter(
-      (p): p is Record<string, unknown> => typeof p === "object" && p !== null,
-    )
-    .map((p) => ({
-      id: String(p.id ?? ""),
-      name: extractDisplayName(p.displayName),
-      address: String(p.formattedAddress ?? ""),
-      location: extractLocation(p.location, request),
-      distanceMeters:
-        typeof p.distanceMeters === "number"
-          ? p.distanceMeters
-          : calculateDistance(request, p.location),
-      openNow: extractOpenNow(p.regularOpeningHours),
-      rating: typeof p.rating === "number" ? p.rating : null,
-      reviewCount:
-        typeof p.userRatingCount === "number" ? p.userRatingCount : null,
-      phoneNumber:
-        typeof p.nationalPhoneNumber === "string"
-          ? p.nationalPhoneNumber
-          : null,
-      googleMapsUri:
-        typeof p.googleMapsUri === "string" ? p.googleMapsUri : null,
-    }))
-    .filter((p) => p.id && p.name && p.address);
+  const streetAddress = [getTag(tags, "addr:housenumber"), getTag(tags, "addr:street")]
+    .filter((part): part is string => Boolean(part))
+    .join(" ");
+  const locality = getTag(tags, "addr:city") ?? getTag(tags, "addr:town") ?? getTag(tags, "addr:municipality");
+  return [streetAddress, locality].filter((part): part is string => Boolean(part)).join(", ") || "Address unavailable";
 }
 
-function extractDisplayName(displayName: unknown): string {
-  if (typeof displayName === "object" && displayName !== null) {
-    const name = (displayName as Record<string, unknown>).text;
-    if (typeof name === "string") return name;
-  }
-  return "";
-}
-
-function extractLocation(
-  location: unknown,
-  fallback: NearbySearchRequest,
-): { latitude: number; longitude: number } {
-  if (typeof location === "object" && location !== null) {
-    const loc = location as Record<string, unknown>;
-    if (typeof loc.latitude === "number" && typeof loc.longitude === "number") {
-      return { latitude: loc.latitude, longitude: loc.longitude };
-    }
-  }
-  return { latitude: fallback.latitude, longitude: fallback.longitude };
-}
-
-function extractOpenNow(hours: unknown): boolean | null {
-  if (typeof hours === "object" && hours !== null) {
-    const h = hours as Record<string, unknown>;
-    if (typeof h.openNow === "boolean") return h.openNow;
-  }
-  return null;
+function getTag(tags: Record<string, unknown>, key: string) {
+  const value = tags[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function calculateDistance(
   from: NearbySearchRequest,
-  location: unknown,
+  to: { readonly latitude: number; readonly longitude: number },
 ): number {
-  const to = extractLocation(location, from);
   // Haversine formula
   const R = 6_371_000;
   const dLat = toRad(to.latitude - from.latitude);
@@ -433,20 +273,21 @@ serve(async (req: Request) => {
   }
 
   if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed." }, 405);
+    return jsonResponse({ error: "invalid_request" }, 405, corsHeaders);
   }
 
   try {
     // Verify authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return jsonResponse({ error: "Authentication required." }, 401);
+      return jsonResponse({ error: "auth_required" }, 401, corsHeaders);
     }
 
-    // Extract user ID from JWT (Supabase Edge Functions verify JWT automatically)
-    const userId = req.headers.get("x-supabase-auth-uid") ?? "anonymous";
-    if (userId === "anonymous") {
-      return jsonResponse({ error: "Valid Supabase session required." }, 401);
+    // Default Edge Function JWT verification validates the bearer token before
+    // this handler runs. Use the verified token's subject as the caller ID.
+    const userId = getJwtSubject(authHeader);
+    if (!userId) {
+      return jsonResponse({ error: "auth_required" }, 401, corsHeaders);
     }
 
     // Rate limit
@@ -454,6 +295,7 @@ serve(async (req: Request) => {
       return jsonResponse(
         { error: "Too many requests. Try again later.", code: "rate_limited" },
         429,
+        corsHeaders,
       );
     }
 
@@ -464,76 +306,56 @@ serve(async (req: Request) => {
       return jsonResponse(
         { error: validation.message, code: "invalid_request" },
         400,
+        corsHeaders,
       );
     }
 
-    // Get Google API key from environment secrets
-    const apiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
-    if (!apiKey) {
-      console.error(
-        "GOOGLE_PLACES_API_KEY is not configured in Edge Function secrets.",
-      );
-      return jsonResponse(
-        {
-          error: "Nearby services are not configured.",
-          code: "missing_configuration",
-        },
-        500,
-      );
-    }
-
-    // Search Google Places
-    const result = await searchGooglePlaces(validation.value, apiKey);
+    const result = await searchOpenStreetMap(validation.value);
     if (!result.ok) {
-      if (result.code === "provider_auth") {
-        console.error(
-          "Google Places API authentication failed. Check your API key and enabled APIs.",
-        );
-        return jsonResponse(
-          {
-            error: "Nearby services are temporarily unavailable.",
-            code: "provider_error",
-          },
-          502,
-        );
-      }
       if (result.code === "timeout") {
         return jsonResponse(
-          { error: "Nearby services timed out.", code: "timeout" },
+          { error: "timeout" },
           504,
-        );
-      }
-      if (result.code === "provider_rate_limited") {
-        return jsonResponse(
-          {
-            error: "Nearby services are busy. Try again later.",
-            code: "provider_error",
-          },
-          502,
+          corsHeaders,
         );
       }
       return jsonResponse(
-        {
-          error: "Nearby services are temporarily unavailable.",
-          code: "provider_error",
-        },
+        { error: "provider_unavailable" },
         502,
+        corsHeaders,
       );
     }
 
-    // Return sanitized results
-    // Note: We don't log the actual places data to avoid unnecessary billing exposure
+    // Empty Overpass results are valid and return an empty places array.
     return jsonResponse({ places: result.places }, 200, corsHeaders);
   } catch (error) {
     // Never log the raw error details that might contain sensitive info
     console.error("Unexpected error in nearby-services function");
     return jsonResponse(
-      { error: "An unexpected error occurred." },
+      { error: "provider_unavailable" },
       500,
       corsHeaders,
     );
   }
 });
+
+function getJwtSubject(authHeader: string): string | null {
+  try {
+    const token = authHeader.slice("Bearer ".length);
+    const payloadSegment = token.split(".")[1];
+    if (!payloadSegment) return null;
+    const base64 = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
+    const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(paddedBase64)) as { sub?: unknown };
+    return typeof payload.sub === "string" && payload.sub.length > 0 ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 function jsonResponse(
   body: unknown,

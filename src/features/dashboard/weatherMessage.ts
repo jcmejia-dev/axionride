@@ -6,6 +6,8 @@ export function getWeatherRideMessage(condition: WeatherCondition) {
       return 'Clear skies. Looks like a good time for a ride.';
     case 'Rainy':
       return 'Roads may be slippery. Ride carefully today.';
+    case 'Windy':
+      return 'Strong crosswinds possible. Keep inputs smooth and leave extra room.';
     case 'Cloudy':
       return 'Cooler weather. Great for a relaxed cruise.';
     case 'Stormy':
