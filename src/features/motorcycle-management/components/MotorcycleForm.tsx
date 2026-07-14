@@ -107,6 +107,15 @@ export function MotorcycleForm({
           keyboardType="number-pad"
           required
         />
+        <MotorcycleField
+          label="Fuel Efficiency (km/L)"
+          value={values.fuelEfficiencyKmPerLiter}
+          onChangeText={(value) => onChangeField('fuelEfficiencyKmPerLiter', value)}
+          error={errors.fuelEfficiencyKmPerLiter}
+          helperText="Used to estimate fuel consumed after each ride."
+          keyboardType="decimal-pad"
+          required
+        />
         <MotorcycleFuelSelector value={values.fuelType} onChange={(value: FuelType) => onChangeField('fuelType', value)} />
         <MotorcycleTransmissionSelector
           value={values.transmission}

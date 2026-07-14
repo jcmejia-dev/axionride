@@ -1,5 +1,6 @@
 export {
   calculateAverageSpeed,
+  calculateConfirmedMaximumSpeed,
   calculateCoordinateDistanceKm,
   calculateCurrentSpeed,
   calculateMaximumSpeed,
@@ -12,6 +13,7 @@ export {
   estimateFuelConsumption,
   summarizeRide,
 } from './RideEngine';
+export { analyzeRideSegments } from './RideAnalytics';
 export {
   DEFAULT_FUEL_ECONOMY_KM_PER_LITER,
   DEFAULT_MOVING_SPEED_THRESHOLD_KMH,

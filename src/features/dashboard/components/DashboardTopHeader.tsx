@@ -1,10 +1,12 @@
 import { SymbolView } from "expo-symbols";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
+  interpolateColor,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withTiming,
 } from "react-native-reanimated";
 
@@ -32,16 +34,36 @@ export function DashboardTopHeader({
   const xp = riderProgress.progress.xp;
   const unlockedCount = riderProgress.achievements.filter((achievement) => achievement.unlocked).length;
   const animatedProgress = useSharedValue(xp);
+  const levelFlash = useSharedValue(0);
+  const previousLevel = useRef(level);
 
   useEffect(() => {
-    animatedProgress.value = withTiming(xp, {
-      duration: 500,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [animatedProgress, xp]);
+    const easing = Easing.out(Easing.cubic);
+    animatedProgress.value = level > previousLevel.current
+      ? withSequence(
+        withTiming(100, { duration: 180, easing }),
+        withTiming(0, { duration: 1 }),
+        withTiming(xp, { duration: 360, easing }),
+      )
+      : withTiming(xp, { duration: 500, easing });
+  }, [animatedProgress, level, xp]);
+
+  useEffect(() => {
+    if (level > previousLevel.current) {
+      levelFlash.value = withTiming(1, { duration: 140 }, () => {
+        levelFlash.value = withTiming(0, { duration: 520, easing: Easing.out(Easing.cubic) });
+      });
+    }
+    previousLevel.current = level;
+  }, [level, levelFlash]);
 
   const progressStyle = useAnimatedStyle(() => ({
     width: `${animatedProgress.value}%`,
+  }));
+  const levelBadgeStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(levelFlash.value, [0, 1], ['rgba(255,255,255,.11)', 'rgba(255,118,23,.72)']),
+    shadowOpacity: levelFlash.value * .5,
+    transform: [{ scale: 1 + levelFlash.value * .035 }],
   }));
 
   return (
@@ -100,7 +122,7 @@ export function DashboardTopHeader({
           </Text>
         </View>
 
-        <View style={styles.levelBadge}>
+        <Animated.View style={[styles.levelBadge, levelBadgeStyle]}>
           <Text style={styles.levelLabel}>LV</Text>
           <Text style={styles.levelValue}>{level}</Text>
           <View style={styles.levelDivider} />
@@ -113,7 +135,7 @@ export function DashboardTopHeader({
           >
             <Animated.View style={[styles.progressFill, progressStyle]} />
           </View>
-        </View>
+        </Animated.View>
       </View>
     </View>
   );
@@ -259,6 +281,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.11)",
     borderRadius: 18,
     backgroundColor: "rgba(255, 255, 255, 0.035)",
+    shadowColor: premiumColors.primary,
+    shadowRadius: 14,
+    elevation: 2,
   },
   levelLabel: {
     ...typography.label,

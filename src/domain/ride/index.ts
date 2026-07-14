@@ -1,5 +1,6 @@
 export { RideStatus, RideType } from './RideEnums';
-export type { ISODateTimeString as RideISODateTimeString, Ride, RideId, RideWeather } from './Ride';
+export { createDefaultRideName, getRideName } from './Ride';
+export type { ISODateTimeString as RideISODateTimeString, Ride, RideId, RideSegment, RideSegmentKind, RideWeather } from './Ride';
 export type { RidePoint, RidePointTimestamp } from './RidePoint';
 export type { RideStatistics } from './RideStatistics';
 export {

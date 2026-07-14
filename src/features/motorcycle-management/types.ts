@@ -15,6 +15,7 @@ export type MotorcycleFormField =
   | 'purchaseDate'
   | 'purchasePrice'
   | 'odometerKm'
+  | 'fuelEfficiencyKmPerLiter'
   | 'notes'
   | 'imageUri';
 
@@ -33,6 +34,7 @@ export type MotorcycleFormValues = {
   readonly purchaseDate: string;
   readonly purchasePrice: string;
   readonly odometerKm: string;
+  readonly fuelEfficiencyKmPerLiter: string;
   readonly notes: string;
   readonly imageUri: string;
 };

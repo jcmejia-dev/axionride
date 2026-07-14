@@ -1,109 +1,40 @@
-import { SymbolView } from 'expo-symbols';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { GlassCard } from '@/src/components';
-import { palette, radius, spacing, typography } from '@/src/theme';
+import type { Ride } from '@/src/domain/ride';
+import { palette, spacing, typography } from '@/src/theme';
 
-import type { RecentRide } from '../types';
+import { groupRideHistory } from '../rideHistory';
+import { RideHistoryCard } from './RideHistoryCard';
 
-type RecentRideListProps = {
-  rides: readonly RecentRide[];
+type Props = {
+  readonly rides: readonly Ride[];
+  readonly onOpenRide: (rideId: string) => void;
+  readonly onViewAll: () => void;
 };
 
-export function RecentRideList({ rides }: RecentRideListProps) {
+export function RecentRideList({ rides, onOpenRide, onViewAll }: Props) {
+  const sections = groupRideHistory(rides.slice(0, 4));
   return (
     <View style={styles.section}>
-      <View style={styles.headingRow}><Text style={styles.sectionTitle}>Ride History</Text><Text style={styles.viewAll}>View All</Text></View>
-      <View style={styles.list}>
-        {rides.map((ride) => (
-          <RideCard key={ride.id} ride={ride} />
-        ))}
+      <View style={styles.headingRow}>
+        <Text style={styles.sectionTitle}>Ride History</Text>
+        <Pressable accessibilityRole="button" onPress={onViewAll} hitSlop={10}><Text style={styles.viewAll}>VIEW ALL</Text></Pressable>
       </View>
-      <SymbolView name={{ios:'chevron.right',android:'chevron_right',web:'chevron_right'}} tintColor={palette.textMuted} size={21}/>
+      {sections.map((section) => (
+        <View key={section.title} style={styles.group}>
+          <Text style={styles.groupTitle}>{section.title}</Text>
+          {section.data.map((ride) => <RideHistoryCard key={ride.id} ride={ride} onPress={() => onOpenRide(ride.id)} />)}
+        </View>
+      ))}
     </View>
   );
 }
 
-type RideCardProps = {
-  ride: RecentRide;
-};
-
-function RideCard({ ride }: RideCardProps) {
-  return (
-    <GlassCard style={styles.card}>
-      <View style={styles.iconShell}>
-        <SymbolView name={{ ios: 'road.lanes', android: 'route', web: 'route' }} tintColor={palette.text} size={22} />
-      </View>
-      <View style={styles.copy}>
-        <Text style={styles.rideTitle}>{ride.title}</Text>
-        <Text style={styles.rideDate}>{ride.date}</Text>
-        <View style={styles.metrics}>
-          <Text style={styles.metric}>{ride.distance}</Text>
-          <Text style={styles.metric}>{ride.duration}</Text>
-          <Text style={styles.metric}>{ride.averageSpeed}</Text>
-        </View>
-      </View>
-    </GlassCard>
-  );
-}
-
 const styles = StyleSheet.create({
-  section: {
-    gap: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.subtitle,
-    color: palette.text,
-  },
-  headingRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
-  viewAll:{...typography.body,color:palette.accentOrange,fontWeight:'800'},
-  sectionSubtitle: {
-    ...typography.caption,
-    marginTop: spacing.xs,
-    color: 'rgba(248, 250, 252, 0.58)',
-  },
-  list: {
-    gap: spacing.md,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: 'rgba(17,21,28,.88)',
-    borderColor: 'rgba(255, 255, 255, 0.13)',
-  },
-  iconShell: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  copy: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.xs,
-  },
-  rideTitle: {
-    ...typography.subtitle,
-    color: palette.text,
-  },
-  rideDate: {
-    ...typography.caption,
-    color: 'rgba(248, 250, 252, 0.56)',
-  },
-  metrics: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  metric: {
-    ...typography.caption,
-    color: 'rgba(248, 250, 252, 0.78)',
-    fontWeight: '800',
-  },
+  section: { gap: spacing.lg },
+  headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { ...typography.subtitle, color: palette.text, fontWeight: '900' },
+  viewAll: { ...typography.label, color: palette.accentOrange, fontWeight: '900', letterSpacing: .8 },
+  group: { gap: spacing.sm },
+  groupTitle: { ...typography.label, color: palette.textMuted, fontWeight: '900', letterSpacing: .8, textTransform: 'uppercase' },
 });

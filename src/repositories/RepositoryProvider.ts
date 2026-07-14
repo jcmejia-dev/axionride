@@ -1,7 +1,9 @@
 import type { MaintenanceRepository } from './maintenance';
+import type { DailyChallengeRepository } from './daily-challenge';
 import type { MotorcycleRepository } from './motorcycle';
 import type { RideRepository } from './ride';
 import type { RiderProgressRepository } from './rider-progress';
+import type { RideScoreProgressRepository } from './ride-score';
 import type { WorkspaceRepository } from './workspace';
 
 /**
@@ -15,6 +17,8 @@ export type RepositoryProvider = {
   readonly maintenance: MaintenanceRepository;
   readonly rides: RideRepository;
   readonly riderProgress?: RiderProgressRepository;
+  readonly rideScoreProgress?: RideScoreProgressRepository;
+  readonly dailyChallenges?: DailyChallengeRepository;
   readonly workspaces: WorkspaceRepository;
 };
 

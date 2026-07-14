@@ -7,7 +7,6 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { SymbolView } from "expo-symbols";
 import { StyleSheet, View } from "react-native";
 
 import { Toast } from "@/src/components";
@@ -20,15 +19,13 @@ import {
   subscribeToRiderProgressRewards,
   type RiderProgressReward,
 } from "@/src/services";
-import { premiumColors } from "@/src/theme";
-
 import { useAuth } from "./AuthProvider";
 
 type RiderProgressContextValue = {
   readonly revision: number;
   readonly snapshot: RiderProgressSnapshot;
   readonly loading: boolean;
-  readonly refresh: () => Promise<void>;
+  readonly refresh: () => Promise<RiderProgressSnapshot | null>;
   readonly recordStatsViewed: () => Promise<void>;
 };
 
@@ -41,24 +38,34 @@ export function RiderProgressProvider({ children }: PropsWithChildren) {
   const [revision, setRevision] = useState(0);
   const [snapshot, setSnapshot] = useState(createInitialRiderProgressSnapshot);
   const [loading, setLoading] = useState(true);
-  const activeReward = rewards[0] ?? null;
+
+  const applySnapshot = useCallback((updated: RiderProgressSnapshot) => {
+    setSnapshot(updated);
+    console.log("XP UPDATE", {
+      totalXp: updated.progress.totalXp,
+      level: updated.progress.level,
+      xp: updated.progress.xp,
+    });
+  }, []);
 
   const refresh = useCallback(async () => {
-    const result = await riderProgressService.getSnapshot();
-    if (result.ok) setSnapshot(result.value);
-  }, [riderProgressService]);
+    const result = await riderProgressService.getSnapshot(true);
+    if (!result.ok) return null;
+    applySnapshot(result.value);
+    return result.value;
+  }, [applySnapshot, riderProgressService]);
 
   const recordStatsViewed = useCallback(async () => {
     const result = await riderProgressService.recordStatsViewed();
     if (result.ok) {
-      setSnapshot(result.value.snapshot);
+      applySnapshot(result.value.snapshot);
       return;
     }
     await refresh();
-  }, [refresh, riderProgressService]);
+  }, [applySnapshot, refresh, riderProgressService]);
 
   useEffect(() => subscribeToRiderProgressRewards((reward) => {
-    setRewards((current) => [...current, reward]);
+    setRewards((current) => [reward, ...current.filter((item) => item.id !== reward.id)].slice(0, 3));
     setRevision((current) => current + 1);
     void refresh();
   }), [refresh]);
@@ -70,7 +77,7 @@ export function RiderProgressProvider({ children }: PropsWithChildren) {
     void riderProgressService.recordDailyOpen().then(async (result) => {
       if (cancelled) return;
       if (result.ok) {
-        setSnapshot(result.value.snapshot);
+        applySnapshot(result.value.snapshot);
       } else {
         await refresh();
       }
@@ -78,27 +85,25 @@ export function RiderProgressProvider({ children }: PropsWithChildren) {
       if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [initialized, refresh, riderProgressService, user?.id]);
+  }, [applySnapshot, initialized, refresh, riderProgressService, user?.id]);
 
   return (
     <RiderProgressContext.Provider value={{ revision, snapshot, loading, refresh, recordStatsViewed }}>
       <View style={styles.root}>
         {children}
-        <Toast
-          visible={activeReward !== null}
-          message={activeReward?.message ?? ""}
-          variant="success"
-          durationMs={activeReward?.kind === "achievement" ? 3000 : 2400}
-          presentation={activeReward?.kind === "achievement" ? "achievement" : "standard"}
-          icon={activeReward?.kind === "achievement" ? (
-            <SymbolView
-              name={{ ios: "trophy.fill", android: "emoji_events", web: "emoji_events" }}
-              size={18}
-              tintColor={premiumColors.primary}
-            />
-          ) : undefined}
-          onHide={() => setRewards((current) => current.slice(1))}
-        />
+        {rewards.map((reward, stackIndex) => (
+          <Toast
+            key={reward.id}
+            visible
+            message={reward.message}
+            variant="success"
+            durationMs={reward.kind === "achievement" ? 2400 : 2000}
+            presentation={reward.kind === "achievement" ? "achievement" : "hud"}
+            contentKind={reward.kind}
+            stackIndex={stackIndex}
+            onHide={() => setRewards((current) => current.filter((item) => item.id !== reward.id))}
+          />
+        ))}
       </View>
     </RiderProgressContext.Provider>
   );

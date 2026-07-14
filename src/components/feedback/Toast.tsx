@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { SymbolView } from 'expo-symbols';
+import { useCallback, useEffect, useMemo, useRef, type ComponentProps, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type ViewProps } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
-import { elevation, layout, palette, radius, semanticColors, spacing, typography } from '@/src/theme';
+import { playSound } from '@/src/services/sound';
+import { elevation, palette, semanticColors, spacing, typography } from '@/src/theme';
 
 export type ToastVariant = 'success' | 'warning' | 'error' | 'info';
-export type ToastPresentation = 'standard' | 'achievement';
+export type ToastPresentation = 'standard' | 'hud' | 'achievement';
+export type ToastContentKind = 'xp' | 'achievement' | 'success' | 'info' | 'error';
 
 type ToastProps = ViewProps & {
   visible: boolean;
@@ -23,29 +26,46 @@ type ToastProps = ViewProps & {
   durationMs?: number;
   icon?: ReactNode;
   presentation?: ToastPresentation;
+  contentKind?: ToastContentKind;
+  stackIndex?: number;
 };
 
-/** Bottom-floating toast with UI-thread transitions and tap-to-dismiss. */
+/** Top-floating HUD toast with UI-thread transitions and tap-to-dismiss. */
 export function Toast({
   visible,
   message,
   variant = 'info',
   onHide,
-  durationMs = 2400,
+  durationMs = 2000,
   icon,
   presentation = 'standard',
+  contentKind,
+  stackIndex = 0,
   style,
   ...props
 }: ToastProps) {
   const progress = useSharedValue(0);
   const glitchOffset = useSharedValue(0);
+  const glitchOpacity = useSharedValue(1);
+  const lifetimeProgress = useSharedValue(1);
+  const depthScale = useSharedValue(getStackScale(stackIndex));
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onHideRef = useRef(onHide);
   const accentColor = toastAccent[variant];
+  const resolvedContentKind = contentKind ?? (presentation === 'achievement' ? 'achievement' : variant === 'success' ? 'success' : variant === 'error' ? 'error' : 'info');
+  const resolvedIcon = icon ?? <ToastIcon kind={resolvedContentKind} color={accentColor} />;
+  const autoDismissMs = Math.max(1800, Math.min(durationMs, 2500));
 
   useEffect(() => {
     onHideRef.current = onHide;
   }, [onHide]);
+
+  useEffect(() => {
+    depthScale.value = withTiming(getStackScale(stackIndex), {
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [depthScale, stackIndex]);
 
   const notifyHidden = useCallback(() => {
     onHideRef.current?.();
@@ -56,7 +76,7 @@ export function Toast({
       clearTimeout(hideTimer.current);
       hideTimer.current = null;
     }
-    progress.value = withTiming(0, { duration: 180 }, (finished) => {
+    progress.value = withTiming(0, { duration: 210 }, (finished) => {
       if (finished) runOnJS(notifyHidden)();
     });
   }, [notifyHidden, progress]);
@@ -65,20 +85,30 @@ export function Toast({
     if (hideTimer.current) clearTimeout(hideTimer.current);
 
     if (!visible) {
-      progress.value = withTiming(0, { duration: 160 });
+      progress.value = withTiming(0, { duration: 200 });
       return;
     }
 
-    progress.value = withSpring(1, { damping: 17, stiffness: 190, mass: 0.72 });
-    if (presentation === 'achievement') {
-      glitchOffset.value = withSequence(
-        withTiming(-5, { duration: 45 }),
-        withTiming(4, { duration: 45 }),
-        withTiming(-2, { duration: 45 }),
-        withTiming(0, { duration: 70 }),
-      );
-    }
-    hideTimer.current = setTimeout(dismiss, Math.max(2000, Math.min(durationMs, 3000)));
+    progress.value = withTiming(1, { duration: 220 });
+    lifetimeProgress.value = 1;
+    lifetimeProgress.value = withTiming(0, {
+      duration: autoDismissMs,
+      easing: Easing.linear,
+    });
+    playSound('toast');
+    glitchOffset.value = withSequence(
+      withTiming(-3, { duration: 24 }),
+      withTiming(2, { duration: 22 }),
+      withTiming(-1, { duration: 22 }),
+      withTiming(0, { duration: 32 }),
+    );
+    glitchOpacity.value = withSequence(
+      withTiming(.9, { duration: 24 }),
+      withTiming(1, { duration: 26 }),
+      withTiming(.94, { duration: 20 }),
+      withTiming(1, { duration: 30 }),
+    );
+    hideTimer.current = setTimeout(dismiss, autoDismissMs);
 
     return () => {
       if (hideTimer.current) {
@@ -86,15 +116,17 @@ export function Toast({
         hideTimer.current = null;
       }
     };
-  }, [dismiss, durationMs, glitchOffset, message, presentation, progress, visible]);
+  }, [autoDismissMs, dismiss, glitchOffset, glitchOpacity, lifetimeProgress, message, presentation, progress, visible]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
+    opacity: progress.value * glitchOpacity.value,
     transform: [
-      { translateY: (1 - progress.value) * 28 },
-      { translateX: glitchOffset.value },
-      { scale: 0.96 + progress.value * 0.04 },
+      { translateX: (1 - progress.value) * 100 + glitchOffset.value },
+      { scale: depthScale.value },
     ],
+  }));
+  const lifetimeStyle = useAnimatedStyle(() => ({
+    width: `${Math.max(0, lifetimeProgress.value) * 100}%`,
   }));
   const tapGesture = useMemo(() => Gesture.Tap().onEnd(() => {
     runOnJS(dismiss)();
@@ -107,26 +139,45 @@ export function Toast({
         accessibilityLiveRegion="polite"
         accessibilityRole="alert"
         pointerEvents={visible ? 'auto' : 'none'}
-        style={[styles.wrapper, animatedStyle, style]}
+        style={[styles.wrapper, { top: 58 + stackIndex * 84, zIndex: 100 - stackIndex }, animatedStyle, style]}
         {...props}>
-        <View style={[styles.toast, presentation === 'achievement' && styles.achievementToast, elevation.raised]}>
+        <View style={[styles.toast, presentation !== 'standard' && styles.achievementToast, elevation.raised, { shadowColor: accentColor }]}>
+          <Animated.View style={[styles.lifetimeTrack, { backgroundColor: accentColor }, lifetimeStyle]} />
           <View style={[styles.accent, { backgroundColor: accentColor }]} />
-          {presentation === 'achievement' ? (
+          {presentation !== 'standard' ? (
             <View pointerEvents="none" style={styles.glitchDecor}>
               <View style={[styles.glitchLine, styles.glitchLineTop]} />
               <View style={[styles.glitchLine, styles.glitchLineBottom]} />
               <View style={styles.scanLine} />
             </View>
           ) : null}
-          {icon ? <View style={styles.icon}>{icon}</View> : null}
+          <View style={styles.icon}>{resolvedIcon}</View>
           <View style={styles.copy}>
-            {presentation === 'achievement' ? <Text style={styles.achievementLabel}>ACHIEVEMENT // UNLOCKED</Text> : null}
-            <Text style={[styles.message, presentation === 'achievement' && styles.achievementMessage]}>{message}</Text>
+            {presentation !== 'standard' ? <Text style={styles.achievementLabel}>{presentation === 'achievement' ? 'ACHIEVEMENT // UNLOCKED' : 'AXIONRIDE // SYSTEM'}</Text> : null}
+            <Text style={[styles.message, presentation !== 'standard' && styles.achievementMessage]}>{message}</Text>
           </View>
         </View>
       </Animated.View>
     </GestureDetector>
   );
+}
+
+function ToastIcon({ kind, color }: { readonly kind: ToastContentKind; readonly color: string }) {
+  const name: ComponentProps<typeof SymbolView>['name'] = kind === 'xp'
+    ? { ios: 'bolt.fill', android: 'bolt', web: 'bolt' }
+    : kind === 'achievement'
+      ? { ios: 'trophy.fill', android: 'emoji_events', web: 'emoji_events' }
+      : kind === 'error'
+        ? { ios: 'exclamationmark.triangle.fill', android: 'warning', web: 'warning' }
+        : kind === 'info'
+          ? { ios: 'info.circle.fill', android: 'info', web: 'info' }
+          : { ios: 'checkmark', android: 'check', web: 'check' };
+  return <SymbolView name={name} size={18} tintColor={color} />;
+}
+
+function getStackScale(stackIndex: number) {
+  if (stackIndex <= 0) return 1;
+  return stackIndex === 1 ? .96 : .94;
 }
 
 const toastAccent = {
@@ -139,10 +190,9 @@ const toastAccent = {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    right: spacing.xl,
-    bottom: layout.floatingTabBarContentInset - spacing.md,
-    left: spacing.xl,
-    zIndex: 40,
+    right: spacing.lg,
+    left: 48,
+    zIndex: 100,
   },
   toast: {
     minHeight: 58,
@@ -151,18 +201,28 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: semanticColors.dark.border,
-    borderRadius: radius.lg,
-    backgroundColor: semanticColors.dark.surfaceStrong,
+    borderRadius: 18,
+    backgroundColor: 'rgba(7, 12, 18, .94)',
+    shadowOpacity: .28,
+    shadowRadius: 18,
+    elevation: 12,
   },
   achievementToast: {
     minHeight: 74,
-    borderRadius: 6,
+    borderRadius: 18,
     borderColor: 'rgba(255, 122, 26, 0.58)',
-    backgroundColor: 'rgba(4, 9, 14, 0.98)',
+    backgroundColor: 'rgba(5, 10, 16, .96)',
   },
   accent: {
     width: 4,
     alignSelf: 'stretch',
+  },
+  lifetimeTrack: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: 2,
+    opacity: .9,
   },
   icon: {
     width: 34,

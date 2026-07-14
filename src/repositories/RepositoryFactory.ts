@@ -1,8 +1,10 @@
 import { SQLiteMaintenanceRepository } from './maintenance';
+import { SQLiteDailyChallengeRepository } from './daily-challenge';
 import { SQLiteMotorcycleRepository } from './motorcycle';
 import type { RepositoryProvider, RepositoryProviderOverrides } from './RepositoryProvider';
 import { SQLiteRideRepository } from './ride';
 import { SQLiteRiderProgressRepository } from './rider-progress';
+import { SQLiteRideScoreProgressRepository } from './ride-score';
 import { SQLiteWorkspaceRepository } from './workspace';
 
 /**
@@ -16,6 +18,8 @@ export function createRepositoryProvider(overrides: RepositoryProviderOverrides 
     maintenance: new SQLiteMaintenanceRepository(workspaces),
     rides: new SQLiteRideRepository(workspaces),
     riderProgress: new SQLiteRiderProgressRepository(workspaces),
+    rideScoreProgress: new SQLiteRideScoreProgressRepository(workspaces),
+    dailyChallenges: new SQLiteDailyChallengeRepository(workspaces),
   };
 
   return {

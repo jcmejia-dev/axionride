@@ -1,169 +1,38 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
-import { palette, radius, spacing, typography } from '@/src/theme';
+import { palette, spacing, typography } from '@/src/theme';
 
 import type { CurrentRidePreview, RideInsight } from '../types';
 
-type RideStatsGridProps = {
-  currentRide: CurrentRidePreview;
-  insights: readonly RideInsight[];
-};
+type Props = { readonly currentRide: CurrentRidePreview; readonly insights: readonly RideInsight[]; readonly speedKmh: number; readonly active: boolean };
 
-export function RideStatsGrid({ currentRide, insights }: RideStatsGridProps) {
-  const currentStats = [
-    { label: 'Distance', value: currentRide.distance, detail: 'Current ride', accent: 'orange' as const },
-    { label: 'Time', value: currentRide.time, detail: 'Elapsed', accent: 'cyan' as const },
-    { label: 'Avg Speed', value: currentRide.averageSpeed, detail: 'Live preview', accent: 'success' as const },
-    { label: 'Max Speed', value: currentRide.maxSpeed, detail: 'Session max', accent: 'warning' as const },
+export function RideStatsGrid({ currentRide, speedKmh, active }: Props) {
+  const stats = [
+    { label: 'Distance', value: currentRide.distance, detail: 'Session total' },
+    { label: 'Elapsed', value: currentRide.time, detail: 'Ride time' },
+    { label: 'Avg Speed', value: currentRide.averageSpeed, detail: 'Live telemetry', reactive: true },
+    { label: 'Max Speed', value: currentRide.maxSpeed, detail: 'Session peak', reactive: true },
   ];
-
-  return (
-    <View style={styles.section}>
-      <SectionTitle title="Ride Metrics" subtitle="Live statistics from foreground GPS" />
-      <View style={styles.grid}>
-        {currentStats.map((stat, index) => (
-          <RideStatCard key={stat.label} stat={stat} index={index} />
-        ))}
-      </View>
-
-      {insights.length > 0 ? <><SectionTitle title="Ride Insights" subtitle="Your riding snapshot" /><View style={styles.grid}>{insights.map((stat,index)=><RideStatCard key={stat.label} stat={stat} index={index+currentStats.length}/>)}</View></> : null}
-    </View>
-  );
+  return <View style={styles.section}><Text style={styles.sectionTitle}>RIDE METRICS</Text><View style={styles.grid}>{stats.map((stat) => <RideStatCard key={stat.label} stat={stat} intensity={active && stat.reactive ? Math.min(speedKmh / 120, 1) : 0} />)}</View></View>;
 }
 
-type RideStat = {
-  label: string;
-  value: string;
-  detail: string;
-  accent: RideInsight['accent'];
-};
-
-type RideStatCardProps = {
-  stat: RideStat;
-  index: number;
-};
-
-function RideStatCard({ stat, index }: RideStatCardProps) {
-  const progress = useRef(new Animated.Value(0)).current;
-
+function RideStatCard({ stat, intensity }: { readonly stat: { readonly label: string; readonly value: string; readonly detail: string; readonly reactive?: boolean }; readonly intensity: number }) {
+  const scale = useSharedValue(1);
+  const glow = useSharedValue(0);
   useEffect(() => {
-    Animated.spring(progress, {
-      toValue: 1,
-      delay: 120 + index * 55,
-      friction: 8,
-      tension: 54,
-      useNativeDriver: true,
-    }).start();
-  }, [index, progress]);
-
-  return (
-    <Animated.View
-      style={[
-        styles.card,
-        {
-          opacity: progress,
-          transform: [
-            {
-              translateY: progress.interpolate({
-                inputRange: [0, 1],
-                outputRange: [16, 0],
-              }),
-            },
-          ],
-        },
-      ]}>
-      <View style={[styles.dot, { backgroundColor: accentColors[stat.accent] }]} />
-      <Text style={styles.label}>{stat.label}</Text>
-      <Text adjustsFontSizeToFit numberOfLines={1} style={styles.value}>
-        {stat.value}
-      </Text>
-      <Text style={styles.detail}>{stat.detail}</Text>
-    </Animated.View>
-  );
+    glow.value = withTiming(intensity, { duration: 420 });
+    if (stat.reactive && intensity > 0) scale.value = withSequence(withTiming(1.025, { duration: 120 }), withTiming(1, { duration: 280 }));
+  }, [glow, intensity, scale, stat.reactive, stat.value]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    borderColor: interpolateColor(glow.value, [0, 1], ['rgba(255,255,255,.08)', 'rgba(255,118,23,.55)']),
+    backgroundColor: interpolateColor(glow.value, [0, 1], ['rgba(10,14,20,.9)', 'rgba(35,18,8,.88)']),
+  }));
+  return <Animated.View style={[styles.card, animatedStyle]}><View style={[styles.signal, stat.reactive && intensity > 0 && styles.signalActive]} /><Text style={styles.label}>{stat.label}</Text><Text adjustsFontSizeToFit numberOfLines={1} style={styles.value}>{stat.value}</Text><Text style={styles.detail}>{stat.detail}</Text></Animated.View>;
 }
-
-type SectionTitleProps = {
-  title: string;
-  subtitle: string;
-};
-
-function SectionTitle({ title, subtitle }: SectionTitleProps) {
-  return (
-    <View>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionSubtitle}>{subtitle}</Text>
-    </View>
-  );
-}
-
-const accentColors = {
-  orange: palette.accentOrange,
-  cyan: palette.accentBlue,
-  success: palette.success,
-  warning: palette.warning,
-};
 
 const styles = StyleSheet.create({
-  section: {
-    gap: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.subtitle,
-    color: palette.text,
-  },
-  sectionSubtitle: {
-    ...typography.caption,
-    marginTop: spacing.xs,
-    color: 'rgba(248, 250, 252, 0.58)',
-  },
-  grid: {
-    flexDirection: 'row',
-    gap: 0,
-    marginBottom: spacing.md,
-    overflow:'hidden',
-    borderWidth:1,
-    borderColor:'rgba(255,255,255,.1)',
-    borderRadius:radius.xl,
-    backgroundColor:'rgba(17,21,28,.88)',
-  },
-  card: {
-    flex:1,
-    minWidth: 0,
-    minHeight: 112,
-    alignItems:'center',
-    paddingHorizontal: spacing.xs,
-    paddingVertical:spacing.md,
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.28,
-    shadowRadius: 22,
-    elevation: 6,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    marginBottom: spacing.sm,
-    borderRadius: 4,
-  },
-  label: {
-    ...typography.label,
-    color: 'rgba(248, 250, 252, 0.56)',
-    textTransform: 'uppercase',
-  },
-  value: {
-    ...typography.subheading,
-    marginTop: spacing.sm,
-    color: palette.text,
-    fontSize: 15,
-    lineHeight: 29,
-  },
-  detail: {
-    ...typography.caption,
-    marginTop: spacing.xs,
-    color: 'rgba(248, 250, 252, 0.58)',
-    textAlign:'center',
-  },
+  section: { gap: spacing.md }, sectionTitle: { ...typography.label, color: '#99A7B1', fontWeight: '900', letterSpacing: 1 }, grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }, card: { width: '48%', minHeight: 102, flexGrow: 1, justifyContent: 'center', padding: spacing.md, borderWidth: 1, borderRadius: 7, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: .2, shadowRadius: 18, elevation: 4 }, signal: { position: 'absolute', top: 0, left: 12, width: 26, height: 2, backgroundColor: 'rgba(145,160,170,.35)' }, signalActive: { backgroundColor: palette.accentOrange }, label: { ...typography.label, color: palette.textMuted, textTransform: 'uppercase' }, value: { marginTop: spacing.sm, color: palette.text, fontSize: 21, lineHeight: 26, fontWeight: '900' }, detail: { ...typography.caption, marginTop: 3, color: palette.textMuted },
 });

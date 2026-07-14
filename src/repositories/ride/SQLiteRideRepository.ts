@@ -267,6 +267,7 @@ function cloneRide(ride: Ride): Ride {
   return {
     ...ride,
     weather: ride.weather ? { ...ride.weather } : undefined,
+    segments: ride.segments?.map((segment) => ({ ...segment })),
     route: ride.route.map((point) => ({ ...point })),
   };
 }

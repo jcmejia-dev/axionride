@@ -2,6 +2,7 @@ export { BaseService } from './BaseService';
 export { ServiceContext } from './ServiceContext';
 export {
   createBackupService,
+  createDailyChallengeService,
   createLocationService,
   createMaintenanceService,
   createNearbyServicesService,
@@ -10,6 +11,7 @@ export {
   createNotificationService,
   createProfileService,
   createRideService,
+  createRideScoreProgressService,
   createRiderProgressService,
   createSearchService,
   createSettingsService,
@@ -20,6 +22,7 @@ export {
   createWeatherService,
 } from './ServiceFactory';
 export { BackupService } from './backup';
+export { DailyChallengeService } from './daily-challenge';
 export {
   AXIONRIDE_BACKUP_APPLICATION_ID,
   AXIONRIDE_BACKUP_SCHEMA_VERSION,
@@ -36,6 +39,8 @@ export type {
 } from './backup';
 export { RideService } from './ride';
 export type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSessionSnapshot } from './ride';
+export { RideScoreProgressService } from './ride-score';
+export type { RideScoreComparison } from './ride-score';
 export { RiderProgressService, RIDER_XP } from './rider-progress';
 export { subscribeToRiderProgressRewards } from './rider-progress';
 export type { RiderProgressReward, RiderProgressUpdate } from './rider-progress';
@@ -112,6 +117,8 @@ export type {
 } from './location';
 export { WeatherService } from './weather';
 export type { CurrentWeather } from './weather';
+export { playSound } from './sound';
+export type { SoundCue } from './sound';
 export type {
   ServiceDependencies,
   ServiceError,

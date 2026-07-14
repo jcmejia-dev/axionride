@@ -80,6 +80,9 @@ export type Motorcycle = {
   /** Current odometer reading in kilometers. */
   readonly odometerKm: number;
 
+  /** Typical fuel efficiency used for ride estimates. Defaults to 40 km/L. */
+  readonly fuelEfficiencyKmPerLiter?: number;
+
   /** Date the motorcycle was purchased, if known. */
   readonly purchaseDate?: ISODateString;
 

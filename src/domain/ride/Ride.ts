@@ -15,6 +15,20 @@ export type ISODateTimeString = string;
 /**
  * Optional weather summary captured for a ride.
  */
+export type RideSegmentKind = 'normal' | 'slow' | 'stopped';
+
+/** A contiguous speed-classified section of a recorded route. */
+export type RideSegment = {
+  readonly kind: RideSegmentKind;
+  readonly startPointIndex: number;
+  readonly endPointIndex: number;
+  readonly startTime: ISODateTimeString;
+  readonly endTime: ISODateTimeString;
+  readonly durationSeconds: number;
+  readonly distanceKm: number;
+  readonly averageSpeedKmh: number;
+};
+
 export type RideWeather = {
   /** Short condition label, such as `Sunny`, `Rainy`, or `Cloudy`. */
   readonly condition: string;
@@ -42,6 +56,9 @@ export type Ride = {
 
   /** User-facing title, such as `Morning commute` or `Mountain loop`. */
   readonly title: string;
+
+  /** Editable rider-facing name. Older stored rides fall back to `title`. */
+  readonly rideName?: string;
 
   /** Optional longer ride description. */
   readonly description?: string;
@@ -79,6 +96,12 @@ export type Ride = {
   /** Estimated or recorded fuel consumed in liters, when available. */
   readonly fuelConsumedLiters?: number;
 
+  /** Efficiency used for the ride's fuel estimate. */
+  readonly fuelEfficiencyKmPerLiter?: number;
+
+  /** Speed-classified route sections captured at ride completion. */
+  readonly segments?: readonly RideSegment[];
+
   /** Optional weather context captured for the ride. */
   readonly weather?: RideWeather;
 
@@ -94,3 +117,17 @@ export type Ride = {
   /** Timestamp for when this ride record was last updated. */
   readonly updatedAt: ISODateTimeString;
 };
+
+export function getRideName(ride: Pick<Ride, 'rideName' | 'title'>) {
+  return ride.rideName?.trim() || ride.title.trim();
+}
+
+export function createDefaultRideName(date: Date) {
+  const timestamp = new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+  return `Ride - ${timestamp}`;
+}
