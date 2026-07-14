@@ -9,6 +9,7 @@ type RideModeCardProps = {
   readonly status: 'idle' | 'active' | 'paused' | 'completed';
   readonly permissionLabel: string;
   readonly gpsActive: boolean;
+  readonly gpsAccuracyMeters?: number;
   readonly elapsedTime: string;
   readonly disabled?: boolean;
   readonly onStart: () => void;
@@ -29,8 +30,9 @@ export function RideModeCard(props: RideModeCardProps) {
 const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
-    backgroundColor: '#08090B',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    paddingVertical: spacing.xl,
+    backgroundColor: 'rgba(8, 12, 17, .95)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    paddingVertical: spacing.md,
   },
 });

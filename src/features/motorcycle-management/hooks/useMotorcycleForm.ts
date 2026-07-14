@@ -92,6 +92,7 @@ function toFormValues(motorcycle: Motorcycle): MotorcycleFormValues {
     purchaseDate: motorcycle.purchaseDate ?? '',
     purchasePrice: motorcycle.purchasePrice === undefined ? '' : String(motorcycle.purchasePrice),
     odometerKm: String(motorcycle.odometerKm),
+    fuelEfficiencyKmPerLiter: String(motorcycle.fuelEfficiencyKmPerLiter ?? 40),
     notes: motorcycle.notes ?? '',
     imageUri: motorcycle.imageUri ?? '',
   };
@@ -102,10 +103,14 @@ function validateForm(values: MotorcycleFormValues, baseMotorcycle: Motorcycle) 
   const yearValidation = validateYear(Number(values.year));
   const engineValidation = validateEngineCc(Number(values.engineCc));
   const odometerValidation = validateOdometer(Number(values.odometerKm));
+  const fuelEfficiency = Number(values.fuelEfficiencyKmPerLiter);
 
   applyFieldError(errors, 'year', yearValidation.valid ? undefined : yearValidation.issues[0]);
   applyFieldError(errors, 'engineCc', engineValidation.valid ? undefined : engineValidation.issues[0]);
   applyFieldError(errors, 'odometerKm', odometerValidation.valid ? undefined : odometerValidation.issues[0]);
+  if (!Number.isFinite(fuelEfficiency) || fuelEfficiency <= 0 || fuelEfficiency > 300) {
+    errors.fuelEfficiencyKmPerLiter = 'Fuel efficiency must be between 1 and 300 km/L.';
+  }
 
   if (values.plateNumber.trim().length > 0) {
     const plateValidation = validatePlate(values.plateNumber);
@@ -140,6 +145,7 @@ function toMotorcycle(
   const parsedEngineCc = Number(values.engineCc);
   const parsedOdometerKm = Number(values.odometerKm);
   const parsedPurchasePrice = Number(values.purchasePrice);
+  const parsedFuelEfficiency = Number(values.fuelEfficiencyKmPerLiter);
 
   return {
     ...baseMotorcycle,
@@ -157,6 +163,9 @@ function toMotorcycle(
     purchaseDate: optionalText(values.purchaseDate),
     purchasePrice: values.purchasePrice.trim().length === 0 ? undefined : parsedPurchasePrice,
     odometerKm: Number.isFinite(parsedOdometerKm) ? parsedOdometerKm : fallbackOdometerKm,
+    fuelEfficiencyKmPerLiter: Number.isFinite(parsedFuelEfficiency)
+      ? parsedFuelEfficiency
+      : baseMotorcycle.fuelEfficiencyKmPerLiter ?? 40,
     notes: optionalText(values.notes),
     imageUri: optionalText(values.imageUri),
     updatedAt: new Date().toISOString(),

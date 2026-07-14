@@ -13,7 +13,8 @@ export type RiderProgressEventType =
   | "ride_completed"
   | "maintenance_completed"
   | "daily_open"
-  | "stats_viewed";
+  | "stats_viewed"
+  | "daily_challenge_completed";
 
 export type RecordRiderProgressEventInput = {
   readonly id: string;

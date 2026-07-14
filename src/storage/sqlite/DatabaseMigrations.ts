@@ -1,4 +1,4 @@
-import { DOMAIN_SCHEMA_SQL, RIDER_PROGRESS_SCHEMA_SQL, WORKSPACE_SCHEMA_SQL } from './DatabaseSchema';
+import { DAILY_RIDE_CHALLENGE_SCHEMA_SQL, DOMAIN_SCHEMA_SQL, RIDER_PROGRESS_SCHEMA_SQL, RIDE_SCORE_PROGRESS_SCHEMA_SQL, WORKSPACE_SCHEMA_SQL } from './DatabaseSchema';
 import type { DatabaseMigration } from './SQLiteTypes';
 
 export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
@@ -24,6 +24,16 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     version: 4,
     name: 'add_local_rider_progress',
     statements: RIDER_PROGRESS_SCHEMA_SQL,
+  },
+  {
+    version: 5,
+    name: 'add_local_ride_score_progress',
+    statements: RIDE_SCORE_PROGRESS_SCHEMA_SQL,
+  },
+  {
+    version: 6,
+    name: 'add_daily_ride_challenges',
+    statements: DAILY_RIDE_CHALLENGE_SCHEMA_SQL,
   },
 ] as const;
 

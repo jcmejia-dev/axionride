@@ -12,6 +12,7 @@ Rider Progress rewards consistent ownership and riding habits without introducin
 | Complete maintenance | 10 | Once per maintenance ID |
 | Open AxionRide on a local calendar day | 2 | Once per day |
 | View dashboard ride statistics | 1 | Once per day |
+| Complete the daily ride challenge | 5 | Once per challenge ID |
 
 The rider level is `floor(totalXp / 100) + 1`. Current-level XP is `totalXp % 100`, so the dashboard header can render a stable 0–100 progress bar beside the rider greeting without recalculating activity history.
 

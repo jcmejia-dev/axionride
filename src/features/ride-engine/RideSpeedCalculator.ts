@@ -29,6 +29,28 @@ export function calculateMaximumSpeed(route?: readonly RidePoint[] | null): numb
 }
 
 /**
+ * Return a maximum speed only after it is sustained by consecutive filtered
+ * samples. Using the lowest value in each confirmation window prevents one
+ * accepted frame from becoming a permanent ride record.
+ */
+export function calculateConfirmedMaximumSpeed(
+  route?: readonly RidePoint[] | null,
+  confirmationCount = 2,
+): number {
+  const requiredSamples = Math.max(2, Math.min(3, Math.round(confirmationCount)));
+  const speeds = (route ?? []).map((point) => point.speed);
+  let confirmedMaximum = 0;
+
+  for (let index = requiredSamples - 1; index < speeds.length; index += 1) {
+    const window = speeds.slice(index - requiredSamples + 1, index + 1);
+    if (!window.every(isFilteredSpeed)) continue;
+    confirmedMaximum = Math.max(confirmedMaximum, Math.min(...window));
+  }
+
+  return roundTo(confirmedMaximum, 1);
+}
+
+/**
  * Return the latest known current speed in kilometers per hour.
  */
 export function calculateCurrentSpeed(route?: readonly RidePoint[] | null): number {
@@ -51,6 +73,10 @@ function isNonNegativeNumber(value: number | null | undefined): value is number 
 
 function isPositiveNumber(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFilteredSpeed(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 120;
 }
 
 function roundTo(value: number, decimals: number) {

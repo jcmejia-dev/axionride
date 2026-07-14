@@ -81,6 +81,9 @@ export function validateRide(ride: Ride): ValidationResult<Ride> {
   addRequiredTextIssue(issues, 'id', ride.id);
   addRequiredTextIssue(issues, 'motorcycleId', ride.motorcycleId);
   addRequiredTextIssue(issues, 'title', ride.title, MAX_TITLE_LENGTH);
+  if (ride.rideName !== undefined) {
+    addRequiredTextIssue(issues, 'rideName', ride.rideName, MAX_TITLE_LENGTH);
+  }
   collectIssue(issues, validateEnum(ride.status, RideStatus, 'status'), 'status');
   collectIssue(issues, validateEnum(ride.type, RideType, 'type'), 'type');
   collectIssue(issues, validateRideDistance(ride.distanceKm), 'distanceKm');
@@ -96,6 +99,27 @@ export function validateRide(ride: Ride): ValidationResult<Ride> {
 
   if (ride.fuelConsumedLiters !== undefined) {
     collectIssue(issues, validateFuelConsumed(ride.fuelConsumedLiters), 'fuelConsumedLiters');
+  }
+
+  if (
+    ride.fuelEfficiencyKmPerLiter !== undefined &&
+    (!Number.isFinite(ride.fuelEfficiencyKmPerLiter) || ride.fuelEfficiencyKmPerLiter <= 0 || ride.fuelEfficiencyKmPerLiter > 300)
+  ) {
+    issues.push(createIssue('fuelEfficiencyKmPerLiter', 'out_of_range', 'Fuel efficiency must be between 1 and 300 km/L.'));
+  }
+
+  for (const segment of ride.segments ?? []) {
+    if (
+      segment.startPointIndex < 0 ||
+      segment.endPointIndex < segment.startPointIndex ||
+      segment.endPointIndex >= ride.route.length ||
+      segment.durationSeconds < 0 ||
+      segment.distanceKm < 0 ||
+      segment.averageSpeedKmh < 0
+    ) {
+      issues.push(createIssue('segments', 'out_of_range', 'Ride segment indexes and metrics must match the stored route.'));
+      break;
+    }
   }
 
   if (ride.notes !== undefined && ride.notes.length > MAX_NOTES_LENGTH) {

@@ -90,6 +90,13 @@ export function validateMotorcycle(motorcycle: Motorcycle): ValidationResult<Mot
   collectIssue(issues, validateEnum(motorcycle.fuelType, FuelType, 'fuelType'), 'fuelType');
   collectIssue(issues, validateEnum(motorcycle.transmission, TransmissionType, 'transmission'), 'transmission');
 
+  if (
+    motorcycle.fuelEfficiencyKmPerLiter !== undefined &&
+    (!Number.isFinite(motorcycle.fuelEfficiencyKmPerLiter) || motorcycle.fuelEfficiencyKmPerLiter <= 0 || motorcycle.fuelEfficiencyKmPerLiter > 300)
+  ) {
+    issues.push(createIssue('fuelEfficiencyKmPerLiter', 'out_of_range', 'Fuel efficiency must be between 1 and 300 km/L.'));
+  }
+
   if (motorcycle.plateNumber !== undefined) {
     collectIssue(issues, validatePlate(motorcycle.plateNumber), 'plateNumber');
   }

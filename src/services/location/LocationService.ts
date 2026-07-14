@@ -22,6 +22,10 @@ export class LocationService extends BaseService {
   private subscription: Location.LocationSubscription | null = null;
   private previousSpeedPoint: RidePoint | null = null;
   private recentSpeedsKmh: number[] = [];
+  private lastAcceptedSpeedKph: number | null = null;
+  private lastMovementTimestampMs: number | null = null;
+  private pendingJumpSpeedKph: number | null = null;
+  private pendingJumpCount = 0;
 
   constructor(context: ServiceContext) {
     super(context);
@@ -46,7 +50,7 @@ export class LocationService extends BaseService {
     try {
       const permission = await Location.getForegroundPermissionsAsync();
       if (!permission.granted) return this.failure({ code: 'unavailable', message: 'Foreground location permission is required.' });
-      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.BestForNavigation });
       return this.success(this.toRidePoint(location));
     } catch (cause) {
       return this.failure({ code: 'unavailable', message: 'Your current location could not be determined.', cause });
@@ -66,8 +70,8 @@ export class LocationService extends BaseService {
     this.subscription?.remove();
     this.subscription = await Location.watchPositionAsync(
       {
-        accuracy: Location.Accuracy.Balanced,
-        distanceInterval: 5,
+        accuracy: Location.Accuracy.BestForNavigation,
+        distanceInterval: 1,
         timeInterval: 1000,
       },
       (location) => {
@@ -86,33 +90,76 @@ export class LocationService extends BaseService {
     this.subscription = null;
     this.previousSpeedPoint = null;
     this.recentSpeedsKmh = [];
+    this.lastAcceptedSpeedKph = null;
+    this.lastMovementTimestampMs = null;
+    this.pendingJumpSpeedKph = null;
+    this.pendingJumpCount = 0;
     return this.success(undefined);
   }
 
   toRidePoint(location: Location.LocationObject): LocationRidePoint {
     const point = toRidePoint(location);
-    const speedKph = calculateSpeedKph(this.previousSpeedPoint, point);
+    const speedSample = calculateSpeedSample(this.previousSpeedPoint, point);
     const rawSpeedKph = toValidSpeedKph(location.coords.speed);
-    const selectedSpeedKph = rawSpeedKph ?? speedKph;
+    const timestampMs = Date.parse(point.timestamp);
 
-    console.log({
-      rawSpeed: location.coords.speed,
-      computedSpeed: speedKph,
-    });
-
-    this.previousSpeedPoint = point;
-
-    if (selectedSpeedKph === undefined) {
-      this.recentSpeedsKmh = [];
-      return { ...point, speed: 0 };
+    if (!this.previousSpeedPoint) {
+      this.previousSpeedPoint = point;
+      this.lastMovementTimestampMs = timestampMs;
     }
 
-    this.recentSpeedsKmh = [...this.recentSpeedsKmh.slice(-2), selectedSpeedKph];
-    const smoothedSpeedKph = this.recentSpeedsKmh.reduce((total, speed) => total + speed, 0) / this.recentSpeedsKmh.length;
+    if (speedSample.hasSignificantMovement) {
+      this.previousSpeedPoint = point;
+      this.lastMovementTimestampMs = timestampMs;
+    }
+
+    let selectedSpeedKph = rawSpeedKph ?? speedSample.computedSpeedKph;
+
+    if (
+      selectedSpeedKph !== undefined &&
+      this.lastAcceptedSpeedKph !== null &&
+      selectedSpeedKph - this.lastAcceptedSpeedKph > MAX_INSTANT_SPEED_INCREASE_KMH
+    ) {
+      const confirmsPendingJump = this.pendingJumpSpeedKph !== null &&
+        Math.abs(selectedSpeedKph - this.pendingJumpSpeedKph) <= PENDING_JUMP_TOLERANCE_KMH;
+      this.pendingJumpCount = confirmsPendingJump ? this.pendingJumpCount + 1 : 1;
+      this.pendingJumpSpeedKph = selectedSpeedKph;
+      if (this.pendingJumpCount < REQUIRED_JUMP_CONFIRMATIONS) selectedSpeedKph = undefined;
+    } else if (selectedSpeedKph !== undefined) {
+      this.pendingJumpSpeedKph = null;
+      this.pendingJumpCount = 0;
+    }
+
+    if (
+      selectedSpeedKph === undefined &&
+      this.lastMovementTimestampMs !== null &&
+      timestampMs - this.lastMovementTimestampMs >= STOP_CONFIRMATION_MS
+    ) {
+      selectedSpeedKph = 0;
+    }
+
+    if (selectedSpeedKph === undefined) {
+      return { ...point, speed: rollingAverage(this.recentSpeedsKmh) };
+    }
+
+    if (selectedSpeedKph > 0) this.lastMovementTimestampMs = timestampMs;
+    this.lastAcceptedSpeedKph = selectedSpeedKph;
+    this.recentSpeedsKmh = selectedSpeedKph === 0
+      ? [0]
+      : [...this.recentSpeedsKmh.slice(-(SPEED_ROLLING_WINDOW - 1)), selectedSpeedKph];
+    const smoothedSpeedKph = rollingAverage(this.recentSpeedsKmh);
 
     return { ...point, speed: smoothedSpeedKph };
   }
 }
+
+export const MAX_VALID_SPEED_KMH = 120;
+const MAX_INSTANT_SPEED_INCREASE_KMH = 40;
+const SPEED_ROLLING_WINDOW = 5;
+const MIN_SIGNIFICANT_DISTANCE_METERS = 2;
+const STOP_CONFIRMATION_MS = 5_000;
+const PENDING_JUMP_TOLERANCE_KMH = 15;
+const REQUIRED_JUMP_CONFIRMATIONS = 2;
 
 function toRidePoint(location: Location.LocationObject): RidePoint {
   return {
@@ -125,25 +172,28 @@ function toRidePoint(location: Location.LocationObject): RidePoint {
   };
 }
 
-function calculateSpeedKph(previousPoint: RidePoint | null, currentPoint: RidePoint) {
+function calculateSpeedSample(previousPoint: RidePoint | null, currentPoint: RidePoint) {
   if (!previousPoint) {
-    return undefined;
+    return { computedSpeedKph: undefined, hasSignificantMovement: false };
   }
 
   const timeDeltaSeconds = (Date.parse(currentPoint.timestamp) - Date.parse(previousPoint.timestamp)) / 1000;
 
   if (!Number.isFinite(timeDeltaSeconds) || timeDeltaSeconds <= 0) {
-    return undefined;
+    return { computedSpeedKph: undefined, hasSignificantMovement: false };
   }
 
   const distanceMeters = calculateCoordinateDistanceKm(previousPoint, currentPoint) * 1000;
 
-  if (!Number.isFinite(distanceMeters) || distanceMeters < 2) {
-    return undefined;
+  if (!Number.isFinite(distanceMeters) || distanceMeters < MIN_SIGNIFICANT_DISTANCE_METERS) {
+    return { computedSpeedKph: undefined, hasSignificantMovement: false };
   }
 
   const speedKph = (distanceMeters / timeDeltaSeconds) * 3.6;
-  return speedKph <= 180 ? speedKph : undefined;
+  return {
+    computedSpeedKph: speedKph <= MAX_VALID_SPEED_KMH ? speedKph : undefined,
+    hasSignificantMovement: true,
+  };
 }
 
 function toValidSpeedKph(speedMetersPerSecond: number | null) {
@@ -152,7 +202,12 @@ function toValidSpeedKph(speedMetersPerSecond: number | null) {
   }
 
   const speedKph = speedMetersPerSecond * 3.6;
-  return speedKph <= 180 ? speedKph : undefined;
+  return speedKph <= MAX_VALID_SPEED_KMH ? speedKph : undefined;
+}
+
+function rollingAverage(speedsKmh: readonly number[]) {
+  if (speedsKmh.length === 0) return 0;
+  return speedsKmh.reduce((total, speed) => total + speed, 0) / speedsKmh.length;
 }
 
 function normalizeOptionalNumber(value: number | null) {

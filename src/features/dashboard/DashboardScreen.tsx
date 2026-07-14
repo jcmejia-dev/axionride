@@ -15,7 +15,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth, useRiderProgress } from "@/src/providers";
+import { DailyChallengeCard, type DailyRideChallenge } from "@/src/features/daily-challenge";
 import {
+  createDailyChallengeService,
   createStatisticsService,
   createWeatherService,
   type CurrentWeather,
@@ -56,6 +58,7 @@ export function DashboardScreen() {
   const { width } = useWindowDimensions();
   const statisticsService = useMemo(() => createStatisticsService(), []);
   const weatherService = useMemo(() => createWeatherService(), []);
+  const dailyChallengeService = useMemo(() => createDailyChallengeService(), []);
   const cacheKey = user?.id ?? "anonymous";
   const cachedSnapshot = dashboardSnapshotCache.get(cacheKey);
   const [statisticsSummary, setStatisticsSummary] =
@@ -64,6 +67,7 @@ export function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [weather, setWeather] = useState<DashboardWeather | null>(() => cachedSnapshot?.weather ?? null);
   const [searchVisible, setSearchVisible] = useState(false);
+  const [dailyChallenge, setDailyChallenge] = useState<DailyRideChallenge | null>(null);
   const loadRequestId = useRef(0);
   const stackCards = width < 430;
 
@@ -88,13 +92,17 @@ export function DashboardScreen() {
       updateDashboardCache(cacheKey, { weather: nextWeather });
     });
     const progressPromise = recordStatsViewed();
+    const challengePromise = dailyChallengeService.getTodayChallenge().then((result) => {
+      if (requestId !== loadRequestId.current || !result.ok) return;
+      setDailyChallenge(result.value);
+    });
 
-    await Promise.allSettled([statisticsPromise, weatherPromise, progressPromise]);
+    await Promise.allSettled([statisticsPromise, weatherPromise, progressPromise, challengePromise]);
     if (requestId === loadRequestId.current) {
       setStatisticsLoading(false);
       setRefreshing(false);
     }
-  }, [cacheKey, recordStatsViewed, statisticsService, weatherService]);
+  }, [cacheKey, dailyChallengeService, recordStatsViewed, statisticsService, weatherService]);
 
   useFocusEffect(
     useCallback(() => {
@@ -129,6 +137,7 @@ export function DashboardScreen() {
         />
 
         <View style={styles.stack}>
+          {dailyChallenge ? <AnimatedEntrance delay={50}><DailyChallengeCard challenge={dailyChallenge} /></AnimatedEntrance> : null}
           {statisticsLoading && !statisticsSummary ? (
             <DashboardLoadingCards stacked={stackCards} />
           ) : (
@@ -166,7 +175,7 @@ export function DashboardScreen() {
             <RecentRideCard
               loading={statisticsLoading}
               ride={statisticsSummary?.recentRide ?? null}
-              onPress={() => router.push("/rides")}
+              onPress={() => router.push("/ride-history" as Href)}
             />
             <MonthlyStatsCard
               loading={statisticsLoading}

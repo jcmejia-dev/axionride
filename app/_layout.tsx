@@ -59,7 +59,7 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AuthRouteGuard />
-      <Stack>
+      <Stack screenOptions={{ animation: 'fade_from_bottom', animationDuration: 300, gestureEnabled: true }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -68,6 +68,8 @@ function RootLayoutNav() {
         <Stack.Screen name="reset-password" options={{ headerShown: false }} />
         <Stack.Screen name="nearby-services" options={{ headerShown: false }} />
         <Stack.Screen name="map-navigation" options={{ headerShown: false }} />
+        <Stack.Screen name="ride-history" options={{ headerShown: false }} />
+        <Stack.Screen name="ride-details/[id]" options={{ headerShown: false, animation: 'fade_from_bottom', animationDuration: 340 }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'AxionRide' }} />
       </Stack>
     </ThemeProvider>

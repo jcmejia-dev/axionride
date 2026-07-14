@@ -1,6 +1,7 @@
 import { createRepositoryProvider, type RepositoryProviderOverrides } from '@/src/repositories';
 
 import { BackupService } from './backup';
+import { DailyChallengeService } from './daily-challenge';
 import { LocationService } from './location';
 import { MaintenanceService } from './maintenance';
 import { NearbyServicesService } from './nearby-services';
@@ -8,6 +9,7 @@ import { MotorcycleService } from './motorcycle';
 import { NotificationService } from './notifications';
 import { ProfileService } from './profile';
 import { RideService } from './ride';
+import { RideScoreProgressService } from './ride-score';
 import { RiderProgressService } from './rider-progress';
 import { OsrmRoutingService } from './routing';
 import { SearchService } from './search';
@@ -99,6 +101,14 @@ export function createSearchService(overrides: Partial<ServiceDependencies> = {}
  */
 export function createLocationService(overrides: Partial<ServiceDependencies> = {}) {
   return new LocationService(createServiceContext(overrides));
+}
+
+export function createRideScoreProgressService(overrides: Partial<ServiceDependencies> = {}) {
+  return new RideScoreProgressService(createServiceContext(overrides));
+}
+
+export function createDailyChallengeService(overrides: Partial<ServiceDependencies> = {}) {
+  return new DailyChallengeService(createServiceContext(overrides));
 }
 
 export function createRiderProgressService(overrides: Partial<ServiceDependencies> = {}) {

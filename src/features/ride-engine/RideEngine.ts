@@ -9,6 +9,7 @@ export {
 } from './RideDurationCalculator';
 export {
   calculateAverageSpeed,
+  calculateConfirmedMaximumSpeed,
   calculateCurrentSpeed,
   calculateMaximumSpeed,
 } from './RideSpeedCalculator';

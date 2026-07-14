@@ -2,7 +2,7 @@ import { SymbolView } from 'expo-symbols';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GlassCard } from '@/src/components/premium';
-import type { Ride, RidePoint } from '@/src/domain/ride';
+import { getRideName, type Ride, type RidePoint } from '@/src/domain/ride';
 import { iconSizes, motion, opacity, premiumColors, typography } from '@/src/theme';
 
 type RecentRideCardProps = {
@@ -45,7 +45,7 @@ export function RecentRideCard({ ride, loading = false, onPress }: RecentRideCar
           <RoutePreview points={ride?.route ?? []} />
           <View style={styles.rideDetails}>
             <Text numberOfLines={1} style={styles.rideTitle}>
-              {loading ? 'SYNCING RIDE' : ride ? 'LATEST ACTIVITY' : 'NO RIDE YET'}
+              {loading ? 'SYNCING RIDE' : ride ? getRideName(ride) : 'NO RIDE YET'}
             </Text>
             <View style={styles.dateRow}>
               <SymbolView

@@ -1,9 +1,17 @@
-import { RideStatus, RideType, type Ride, type RidePoint } from '@/src/domain/ride';
 import {
-  calculateMaximumSpeed,
+  createDefaultRideName,
+  RideStatus,
+  RideType,
+  type Ride,
+  type RidePoint,
+} from '@/src/domain/ride';
+import {
+  analyzeRideSegments,
+  calculateConfirmedMaximumSpeed,
   calculateRideDistance,
   calculateRideSummary,
   summarizeRide,
+  DEFAULT_FUEL_ECONOMY_KM_PER_LITER,
 } from '@/src/features/ride-engine';
 import { BaseService } from '@/src/services/BaseService';
 import type { ServiceContext } from '@/src/services/ServiceContext';
@@ -15,12 +23,15 @@ import type { CompletedRideResult, RideHistoryItem, RideRecordingStatus, RideSes
 const DEMO_SPEED_KMH = 36;
 const DEMO_ROUTE_START_LATITUDE = 14.5995;
 const DEMO_ROUTE_START_LONGITUDE = 120.9842;
+const RIDE_HISTORY_CACHE_TTL_MS = 30_000;
+const rideHistoryCache = new Map<string, { readonly cachedAt: number; readonly items: readonly RideHistoryItem[] }>();
 
 type ActiveRideSession = {
   readonly id: string;
   readonly startedAt: Date;
   readonly motorcycleId: string;
   readonly title: string;
+  readonly fuelEfficiencyKmPerLiter: number;
   pausedAt: Date | null;
   totalPausedSeconds: number;
   status: Exclude<RideRecordingStatus, 'idle' | 'completed'>;
@@ -45,13 +56,15 @@ export class RideService extends BaseService {
     }
 
     const now = new Date();
+    const rideName = createDefaultRideName(now);
     const motorcycle = await this.context.repositories.motorcycles.getPrimaryMotorcycle();
     if (!motorcycle) return this.failure({ code: 'not_found', message: 'Add a motorcycle and select it as primary before starting a ride.' });
     this.currentSession = {
       id: `ride-${now.getTime()}`,
       startedAt: now,
       motorcycleId: motorcycle.id,
-      title: `${motorcycle.nickname} ride`,
+      title: rideName,
+      fuelEfficiencyKmPerLiter: motorcycle.fuelEfficiencyKmPerLiter ?? DEFAULT_FUEL_ECONOMY_KM_PER_LITER,
       pausedAt: null,
       totalPausedSeconds: 0,
       status: 'active',
@@ -119,7 +132,7 @@ export class RideService extends BaseService {
       ? [...this.currentSession.ridePoints]
       : createDemoRoute(this.currentSession.startedAt, durationSeconds);
     const distanceKm = calculateRideDistance({ route });
-    const maximumSpeedKmh = calculateMaximumSpeed(route);
+    const maximumSpeedKmh = calculateConfirmedMaximumSpeed(route);
     const summary = calculateRideSummary({
       ride: {
         startTime: this.currentSession.startedAt.toISOString(),
@@ -128,11 +141,18 @@ export class RideService extends BaseService {
         durationSeconds,
       },
       route,
+      fuelEconomyKmPerLiter: this.currentSession.fuelEfficiencyKmPerLiter,
     });
+    const segments = analyzeRideSegments(route);
+    const stoppedTimeSeconds = Math.min(
+      durationSeconds,
+      Math.round(segments.filter((segment) => segment.kind === 'stopped').reduce((total, segment) => total + segment.durationSeconds, 0)),
+    );
     const ride: Ride = {
       id: this.currentSession.id,
       motorcycleId: this.currentSession.motorcycleId,
       title: this.currentSession.title,
+      rideName: this.currentSession.title,
       description: this.currentSession.ridePoints.length >= 2
         ? 'Recorded with foreground GPS tracking.'
         : 'Recorded with demo ride mode. GPS is not connected yet.',
@@ -144,9 +164,11 @@ export class RideService extends BaseService {
       durationSeconds: summary.duration,
       averageSpeedKmh: summary.averageSpeed,
       maximumSpeedKmh,
-      movingTimeSeconds: Math.min(summary.movingTime || summary.duration, summary.duration),
-      stoppedTimeSeconds: summary.stoppedTime,
+      movingTimeSeconds: Math.max(0, durationSeconds - stoppedTimeSeconds),
+      stoppedTimeSeconds,
       fuelConsumedLiters: summary.estimatedFuel ?? undefined,
+      fuelEfficiencyKmPerLiter: this.currentSession.fuelEfficiencyKmPerLiter,
+      segments,
       weather: {
         condition: 'Demo clear',
       },
@@ -170,6 +192,8 @@ export class RideService extends BaseService {
       });
     }
 
+    const workspaceId = await this.context.repositories.workspaces.getActiveWorkspaceId();
+    rideHistoryCache.delete(workspaceId);
     const progressResult = await this.riderProgressService.recordRideCompleted(saveResult.value.id);
     if (!progressResult.ok) {
       this.context.logger?.warn?.('Ride was saved, but rider progress could not be updated.', {
@@ -194,14 +218,51 @@ export class RideService extends BaseService {
     return this.success(this.createSnapshot(new Date()));
   }
 
-  async getRideHistory(): Promise<ServiceResult<readonly RideHistoryItem[]>> {
+  async getRideHistory(forceRefresh = false): Promise<ServiceResult<readonly RideHistoryItem[]>> {
+    const workspaceId = await this.context.repositories.workspaces.getActiveWorkspaceId();
+    const cached = rideHistoryCache.get(workspaceId);
+    if (!forceRefresh && cached && Date.now() - cached.cachedAt < RIDE_HISTORY_CACHE_TTL_MS) {
+      return this.success(cached.items);
+    }
     const rides = await this.context.repositories.rides.getAllRides();
-    return this.success(
-      rides.map((ride) => ({
+    const items = rides.map((ride) => ({
         ride,
         summary: summarizeRide(ride),
-      })),
-    );
+      })).sort((first, second) => Date.parse(second.ride.startTime) - Date.parse(first.ride.startTime));
+    rideHistoryCache.set(workspaceId, { cachedAt: Date.now(), items });
+    return this.success(items);
+  }
+
+  async getRideById(id: string): Promise<ServiceResult<Ride>> {
+    const ride = await this.context.repositories.rides.getRide(id);
+    return ride
+      ? this.success(ride)
+      : this.failure({ code: 'not_found', message: 'Ride was not found.' });
+  }
+
+  async renameRide(id: string, rideName: string): Promise<ServiceResult<Ride>> {
+    const normalizedName = rideName.trim();
+    if (!normalizedName || normalizedName.length > 120) {
+      return this.failure({
+        code: 'validation_failed',
+        message: 'Ride name must be between 1 and 120 characters.',
+      });
+    }
+    const ride = await this.context.repositories.rides.getRide(id);
+    if (!ride) return this.failure({ code: 'not_found', message: 'Ride was not found.' });
+    const updatedRide: Ride = {
+      ...ride,
+      title: normalizedName,
+      rideName: normalizedName,
+      updatedAt: new Date().toISOString(),
+    };
+    const result = await this.context.repositories.rides.updateRide(updatedRide);
+    if (!result.ok) {
+      return this.failure({ code: 'repository_error', message: result.error.message, cause: result.error });
+    }
+    const workspaceId = await this.context.repositories.workspaces.getActiveWorkspaceId();
+    rideHistoryCache.delete(workspaceId);
+    return this.success(result.value);
   }
 
   private createSnapshot(now: Date): RideSessionSnapshot {
@@ -215,7 +276,7 @@ export class RideService extends BaseService {
       ? calculateRideDistance({ route: this.currentSession.ridePoints })
       : roundTo((elapsedSeconds / 3600) * DEMO_SPEED_KMH, 2);
     const maximumSpeedKmh = hasGpsSignal
-      ? calculateMaximumSpeed(this.currentSession.ridePoints)
+      ? calculateConfirmedMaximumSpeed(this.currentSession.ridePoints)
       : elapsedSeconds > 0 ? DEMO_SPEED_KMH : 0;
     const latestGpsSpeedKmh = getLatestRidePointSpeed(this.currentSession.ridePoints);
 

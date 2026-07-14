@@ -1,47 +1,83 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { Alert, Animated, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { GlassCard } from '@/src/components';
-import type { RidePoint } from '@/src/domain/ride';
+import type { Ride, RidePoint } from '@/src/domain/ride';
+import {
+  DailyChallengeHud,
+  evaluateDailyChallenge,
+  type DailyChallengeEvaluation,
+  type DailyChallengeRideResult,
+  type DailyRideChallenge,
+} from '@/src/features/daily-challenge';
 import { RideMap } from '@/src/features/maps';
+import { useRiderProgress } from '@/src/providers';
 import {
   createLocationService,
+  createDailyChallengeService,
   createRideService,
+  createRideScoreProgressService,
   type CompletedRideResult,
   type ForegroundLocationPermissionState,
   type RideSessionSnapshot,
+  type RiderProgressSnapshot,
+  type RideScoreComparison,
 } from '@/src/services';
 import { layout, palette, spacing } from '@/src/theme';
 
 import { EmptyRidesState } from './components/EmptyRidesState';
+import { FinishRideModal } from './components/FinishRideModal';
 import { RecentRideList } from './components/RecentRideList';
+import { RideCompleteModal } from './components/RideCompleteModal';
 import { RideHeader } from './components/RideHeader';
 import { RideModeCard } from './components/RideModeCard';
 import { RideStatsGrid } from './components/RideStatsGrid';
-import type { CurrentRidePreview, RecentRide } from './types';
+import { calculateRideScoreForRide } from './rideScore';
+import type { CurrentRidePreview } from './types';
 
 export function RideScreen() {
+  const router = useRouter();
   const rideService = useMemo(() => createRideService(), []);
   const locationService = useMemo(() => createLocationService(), []);
+  const dailyChallengeService = useMemo(() => createDailyChallengeService(), []);
+  const rideScoreProgressService = useMemo(() => createRideScoreProgressService(), []);
+  const { snapshot: riderProgress, refresh: refreshRiderProgress } = useRiderProgress();
   const [currentRide, setCurrentRide] = useState<RideSessionSnapshot>(idleRideSnapshot);
   const [permissionState, setPermissionState] = useState<ForegroundLocationPermissionState>('unknown');
   const [gpsActive, setGpsActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [completedRide, setCompletedRide] = useState<CompletedRideResult | null>(null);
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  const [completionProgress, setCompletionProgress] = useState<RiderProgressSnapshot | null>(null);
+  const [scoreComparison, setScoreComparison] = useState<RideScoreComparison | null>(null);
+  const [dailyChallenge, setDailyChallenge] = useState<DailyRideChallenge | null>(null);
+  const [challengeEvaluation, setChallengeEvaluation] = useState<DailyChallengeEvaluation | null>(null);
+  const [challengeResult, setChallengeResult] = useState<DailyChallengeRideResult | null>(null);
+  const [finishConfirmVisible, setFinishConfirmVisible] = useState(false);
   const [liveRidePoints, setLiveRidePoints] = useState<readonly RidePoint[]>([]);
-  const [rideHistory, setRideHistory] = useState<readonly RecentRide[]>([]);
-  const [historyFilter, setHistoryFilter] = useState<RideHistoryFilter>('All');
+  const liveRidePointsRef = useRef<readonly RidePoint[]>([]);
+  const dailyChallengeRef = useRef<DailyRideChallenge | null>(null);
+  const lastSavedChallengeProgress = useRef(0);
+  const [rideHistory, setRideHistory] = useState<readonly Ride[]>([]);
   const [refreshing,setRefreshing]=useState(false);
-  const filteredRideHistory = useMemo(() => rideHistory.filter((ride) => isRideInFilter(ride.timestamp, historyFilter)), [historyFilter, rideHistory]);
   const currentRidePreview = toCurrentRidePreview(currentRide);
   const activeMapPoints = completedRide ? completedRide.ride.route : liveRidePoints;
   const currentMapPoint = completedRide ? null : liveRidePoints[liveRidePoints.length - 1] ?? null;
-  async function handleRefresh(){setRefreshing(true);await refreshRideHistory(rideService,setRideHistory);setRefreshing(false)}
+  async function handleRefresh(){setRefreshing(true);await refreshRideHistory(rideService,setRideHistory,true);setRefreshing(false)}
 
   useFocusEffect(useCallback(() => { void refreshRideHistory(rideService,setRideHistory); }, [rideService]));
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    void dailyChallengeService.getTodayChallenge().then((result) => {
+      if (!active || !result.ok) return;
+      dailyChallengeRef.current = result.value;
+      lastSavedChallengeProgress.current = result.value.progress;
+      setDailyChallenge(result.value);
+    });
+    return () => { active = false; };
+  }, [dailyChallengeService]));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -63,8 +99,8 @@ export function RideScreen() {
     const currentLocation = await locationService.getCurrentLocation();
 
     if (currentLocation.ok) {
-      appendLiveRidePoint(setLiveRidePoints, currentLocation.value);
       const snapshot = rideService.addRidePoint(currentLocation.value);
+      recordLiveRidePoint(currentLocation.value);
 
       if (snapshot.ok) {
         setCurrentRide(snapshot.value);
@@ -72,8 +108,8 @@ export function RideScreen() {
     }
 
     const watchResult = await locationService.watchLocation((point) => {
-      appendLiveRidePoint(setLiveRidePoints, point);
       const snapshot = rideService.addRidePoint(point);
+      recordLiveRidePoint(point);
 
       if (snapshot.ok) {
         setCurrentRide(snapshot.value);
@@ -88,7 +124,21 @@ export function RideScreen() {
 
   async function handleStartRide() {
     setCompletedRide(null);
+    setSummaryVisible(false);
+    setCompletionProgress(null);
+    setScoreComparison(null);
+    setChallengeResult(null);
+    setChallengeEvaluation(null);
+    liveRidePointsRef.current = [];
     setLiveRidePoints([]);
+    if (!dailyChallengeRef.current) {
+      const challenge = await dailyChallengeService.getTodayChallenge();
+      if (challenge.ok) {
+        dailyChallengeRef.current = challenge.value;
+        lastSavedChallengeProgress.current = challenge.value.progress;
+        setDailyChallenge(challenge.value);
+      }
+    }
     const permissionResult = await locationService.requestForegroundPermission();
     const rideResult = await rideService.startRide();
 
@@ -109,6 +159,27 @@ export function RideScreen() {
     }
 
     setGpsActive(false);
+  }
+
+  function recordLiveRidePoint(point: RidePoint) {
+    const currentPoints = liveRidePointsRef.current;
+    if (currentPoints[currentPoints.length - 1]?.timestamp === point.timestamp) return;
+    const nextPoints = [...currentPoints, point];
+    liveRidePointsRef.current = nextPoints;
+    setLiveRidePoints(nextPoints);
+    const challenge = dailyChallengeRef.current;
+    if (!challenge || challenge.completed) return;
+    const evaluation = evaluateDailyChallenge(challenge, nextPoints);
+    setChallengeEvaluation(evaluation);
+    const shouldCheckpoint = evaluation.progress >= lastSavedChallengeProgress.current + 5
+      || (evaluation.progress >= 100 && lastSavedChallengeProgress.current < 100);
+    if (!shouldCheckpoint) return;
+    lastSavedChallengeProgress.current = evaluation.progress;
+    void dailyChallengeService.saveProgress(challenge, evaluation).then((result) => {
+      if (!result.ok) return;
+      dailyChallengeRef.current = result.value;
+      setDailyChallenge(result.value);
+    });
   }
 
   async function handlePauseRide() {
@@ -136,7 +207,9 @@ export function RideScreen() {
   async function handleCancelRide() {
     await locationService.stopWatchingLocation();
     setGpsActive(false);
+    liveRidePointsRef.current = [];
     setLiveRidePoints([]);
+    setChallengeEvaluation(null);
     const result = rideService.cancelRide();
 
     if (result.ok) {
@@ -145,19 +218,13 @@ export function RideScreen() {
   }
 
   function handleFinishRide() {
-    Alert.alert('Finish ride?', 'Save this ride to local storage?', [
-      { text: 'Keep Riding', style: 'cancel' },
-      {
-        text: 'Finish',
-        onPress: () => {
-          void finishRide();
-        },
-      },
-    ]);
+    setFinishConfirmVisible(true);
   }
 
   async function finishRide() {
     setIsSaving(true);
+    const challengeRoute = liveRidePointsRef.current;
+    const activeChallenge = dailyChallengeRef.current;
     await locationService.stopWatchingLocation();
     setGpsActive(false);
     const result = await rideService.finishRide();
@@ -168,10 +235,30 @@ export function RideScreen() {
       return;
     }
 
+    let completedChallengeResult: DailyChallengeRideResult | null = null;
+    if (activeChallenge) {
+      const challengeFinish = await dailyChallengeService.finishRide(activeChallenge, challengeRoute);
+      if (challengeFinish.ok) {
+        completedChallengeResult = challengeFinish.value;
+        dailyChallengeRef.current = challengeFinish.value.challenge;
+        setDailyChallenge(challengeFinish.value.challenge);
+      }
+    }
+    const currentScore = calculateRideScoreForRide(result.value.ride);
+    const [updatedProgress, comparisonResult] = await Promise.all([
+      refreshRiderProgress(),
+      rideScoreProgressService.recordScore(currentScore.total),
+    ]);
+    setCompletionProgress(updatedProgress ?? riderProgress);
+    setScoreComparison(comparisonResult.ok ? comparisonResult.value : null);
+    setChallengeResult(completedChallengeResult);
     setCompletedRide(result.value);
+    setSummaryVisible(true);
     setLiveRidePoints([]);
+    liveRidePointsRef.current = [];
+    setChallengeEvaluation(null);
     setCurrentRide(idleRideSnapshot);
-    await refreshRideHistory(rideService, setRideHistory);
+    await refreshRideHistory(rideService, setRideHistory, true);
   }
 
   return (
@@ -179,8 +266,9 @@ export function RideScreen() {
       <View style={styles.backgroundGlowTop} />
       <View style={styles.backgroundGlowBottom} />
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} tintColor={palette.accentOrange} colors={[palette.accentOrange]} onRefresh={() => { void handleRefresh(); }}/>} style={styles.screen} contentContainerStyle={styles.content}>
-        <RideHeader onStartRide={() => { void handleStartRide(); }} />
-        <RideFilters selected={historyFilter} onSelect={setHistoryFilter} />
+        <RideHeader />
+
+        {dailyChallenge ? <DailyChallengeHud challenge={dailyChallenge} evaluation={challengeEvaluation} /> : null}
 
         <AnimatedEntrance delay={80}>
           <RideModeCard
@@ -188,6 +276,7 @@ export function RideScreen() {
             status={currentRide.status}
             permissionLabel={getPermissionLabel(permissionState, gpsActive)}
             gpsActive={gpsActive || currentRide.hasGpsSignal}
+            gpsAccuracyMeters={currentMapPoint?.accuracy}
             elapsedTime={formatDuration(currentRide.elapsedSeconds)}
             disabled={isSaving}
             onStart={handleStartRide}
@@ -204,17 +293,12 @@ export function RideScreen() {
           />
         </AnimatedEntrance>
 
-        {completedRide ? (
-          <AnimatedEntrance delay={120}>
-            <RideCompletionSummary completedRide={completedRide} />
-          </AnimatedEntrance>
-        ) : null}
-
         <AnimatedEntrance delay={160}>
           <RideMap
             title={completedRide ? 'Completed Route' : 'Live Ride Map'}
             subtitle={completedRide ? 'Saved route overview' : getMapSubtitle(permissionState, gpsActive)}
             points={activeMapPoints}
+            segments={completedRide?.ride.segments}
             currentPoint={currentMapPoint}
             completed={Boolean(completedRide)}
             distanceLabel={completedRide ? `${completedRide.summary.distance.toFixed(2)} km` : currentRidePreview.distance}
@@ -223,44 +307,32 @@ export function RideScreen() {
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={180}>
-          <RideStatsGrid currentRide={currentRidePreview} insights={[]} />
+          <RideStatsGrid currentRide={currentRidePreview} insights={[]} speedKmh={currentRide.averageSpeedKmh} active={currentRide.status === 'active'} />
         </AnimatedEntrance>
 
         <AnimatedEntrance delay={280}>
-          {filteredRideHistory.length > 0 ? <RecentRideList rides={filteredRideHistory} /> : <EmptyRidesState />}
+          {rideHistory.length > 0 ? <RecentRideList rides={rideHistory} onOpenRide={(id) => router.push(`/ride-details/${encodeURIComponent(id)}` as Href)} onViewAll={() => router.push('/ride-history' as Href)} /> : <EmptyRidesState />}
         </AnimatedEntrance>
       </ScrollView>
+      {completedRide && summaryVisible ? <RideCompleteModal completedRide={completedRide} riderProgress={completionProgress ?? riderProgress} scoreComparison={scoreComparison} challengeResult={challengeResult} onDone={() => setSummaryVisible(false)} /> : null}
+      {finishConfirmVisible ? <FinishRideModal onKeepRiding={() => setFinishConfirmVisible(false)} onFinish={() => { setFinishConfirmVisible(false); void finishRide(); }} /> : null}
     </SafeAreaView>
   );
 }
 
-function appendLiveRidePoint(
-  setLiveRidePoints: (updater: (points: readonly RidePoint[]) => readonly RidePoint[]) => void,
-  point: RidePoint,
-) {
-  setLiveRidePoints((points) => {
-    const latestPoint = points[points.length - 1];
-
-    if (latestPoint?.timestamp === point.timestamp) {
-      return points;
-    }
-
-    return [...points, point];
-  });
-}
-
 async function refreshRideHistory(
   rideService: ReturnType<typeof createRideService>,
-  setRideHistory: (rides: readonly RecentRide[]) => void,
+  setRideHistory: (rides: readonly Ride[]) => void,
+  forceRefresh = false,
 ) {
-  const result = await rideService.getRideHistory();
+  const result = await rideService.getRideHistory(forceRefresh);
 
   if (!result.ok) {
     setRideHistory([]);
     return;
   }
 
-  setRideHistory(result.value.map(({ ride }) => toRecentRide(ride)));
+  setRideHistory(result.value.map(({ ride }) => ride));
 }
 
 function toCurrentRidePreview(snapshot: RideSessionSnapshot): CurrentRidePreview {
@@ -270,47 +342,6 @@ function toCurrentRidePreview(snapshot: RideSessionSnapshot): CurrentRidePreview
     averageSpeed: `${Math.round(snapshot.averageSpeedKmh)} km/h`,
     maxSpeed: `${Math.round(snapshot.maximumSpeedKmh)} km/h`,
   };
-}
-
-function toRecentRide(ride: CompletedRideResult['ride']): RecentRide {
-  return {
-    id: ride.id,
-    title: ride.title,
-    distance: `${ride.distanceKm.toFixed(1)} km`,
-    duration: formatDuration(ride.durationSeconds),
-    averageSpeed: `${Math.round(ride.averageSpeedKmh)} km/h`,
-    date: ride.endTime ? formatDate(ride.endTime) : 'Saved locally',
-    timestamp: ride.endTime ?? ride.startTime,
-  };
-}
-
-type RideHistoryFilter = 'All' | 'This Week' | 'This Month' | 'This Year';
-const rideFilters: readonly RideHistoryFilter[] = ['All', 'This Week', 'This Month', 'This Year'];
-function RideFilters({selected,onSelect}:{readonly selected:RideHistoryFilter;readonly onSelect:(filter:RideHistoryFilter)=>void}) { return <View style={styles.filters}>{rideFilters.map((filter)=><Pressable key={filter} accessibilityRole="button" accessibilityState={{selected:filter===selected}} onPress={()=>onSelect(filter)} style={({pressed})=>[styles.filter,filter===selected&&styles.filterSelected,pressed&&styles.filterPressed]}><Text style={[styles.filterText,filter===selected&&styles.filterTextSelected]}>{filter}</Text></Pressable>)}</View> }
-function isRideInFilter(timestamp:string|undefined,filter:RideHistoryFilter) { if(filter==='All') return true; if(!timestamp)return false; const date=new Date(timestamp); const now=new Date(); if(filter==='This Year') return date.getFullYear()===now.getFullYear(); if(filter==='This Month') return date.getFullYear()===now.getFullYear()&&date.getMonth()===now.getMonth(); const start=new Date(now); start.setHours(0,0,0,0); start.setDate(start.getDate()-((start.getDay()+6)%7)); return date>=start; }
-
-function RideCompletionSummary({ completedRide }: { readonly completedRide: CompletedRideResult }) {
-  return (
-    <GlassCard style={styles.summaryCard}>
-      <Text style={styles.summaryKicker}>Ride saved</Text>
-      <Text style={styles.summaryTitle}>{completedRide.ride.title}</Text>
-      <View style={styles.summaryGrid}>
-        <SummaryMetric label="Distance" value={`${completedRide.summary.distance.toFixed(2)} km`} />
-        <SummaryMetric label="Time" value={formatDuration(completedRide.summary.duration)} />
-        <SummaryMetric label="Avg Speed" value={`${Math.round(completedRide.summary.averageSpeed)} km/h`} />
-        <SummaryMetric label="Route Points" value={String(completedRide.ride.route.length)} />
-      </View>
-    </GlassCard>
-  );
-}
-
-function SummaryMetric({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <View style={styles.summaryMetric}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
-  );
 }
 
 function getPermissionLabel(permissionState: ForegroundLocationPermissionState, gpsActive: boolean) {
@@ -353,13 +384,6 @@ function formatDuration(totalSeconds: number) {
   }
 
   return `${String(displayMinutes).padStart(2, '0')}:${String(displaySeconds).padStart(2, '0')}`;
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(value));
 }
 
 const idleRideSnapshot: RideSessionSnapshot = {
@@ -423,7 +447,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     borderRadius: 140,
-    backgroundColor: 'rgba(249, 115, 22, 0.09)',
+    backgroundColor: 'rgba(39, 70, 89, 0.085)',
   },
   backgroundGlowBottom: {
     position: 'absolute',
@@ -432,7 +456,7 @@ const styles = StyleSheet.create({
     width: 330,
     height: 330,
     borderRadius: 165,
-    backgroundColor: 'rgba(249, 115, 22, 0.04)',
+    backgroundColor: 'rgba(249, 115, 22, 0.022)',
   },
   screen: {
     flex: 1,
@@ -443,48 +467,5 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: layout.floatingTabBarContentInset,
     gap: spacing.xl,
-  },
-  filters:{minHeight:52,flexDirection:'row',alignItems:'center',padding:6,borderRadius:18,backgroundColor:'rgba(17,21,28,.88)',borderWidth:1,borderColor:'rgba(255,255,255,.06)'},filter:{flex:1,minHeight:40,alignItems:'center',justifyContent:'center',paddingHorizontal:4,borderRadius:13},filterSelected:{backgroundColor:'rgba(255,106,0,.11)'},filterText:{fontSize:12,fontWeight:'800',color:palette.textMuted,textAlign:'center'},filterTextSelected:{color:palette.accentOrange},filterPressed:{opacity:.72},
-  summaryCard: {
-    gap: spacing.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.075)',
-    borderColor: 'rgba(255, 255, 255, 0.13)',
-  },
-  summaryKicker: {
-    color: 'rgba(248, 250, 252, 0.52)',
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  summaryTitle: {
-    color: palette.text,
-    fontSize: 20,
-    lineHeight: 25,
-    fontWeight: '800',
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  summaryMetric: {
-    flexGrow: 1,
-    flexBasis: '45%',
-    minWidth: 0,
-  },
-  summaryLabel: {
-    color: 'rgba(248, 250, 252, 0.52)',
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  summaryValue: {
-    marginTop: spacing.xs,
-    color: palette.text,
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: '900',
   },
 });

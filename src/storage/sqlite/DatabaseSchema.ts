@@ -12,6 +12,8 @@ export const SQLITE_TABLES = {
   riderProgress: 'rider_progress',
   riderProgressEvents: 'rider_progress_events',
   riderAchievements: 'rider_achievements',
+  rideScoreProgress: 'ride_score_progress',
+  dailyRideChallenges: 'daily_ride_challenges',
 } as const;
 
 export const DEFAULT_ANONYMOUS_WORKSPACE_ID = 'workspace-anonymous';
@@ -58,6 +60,33 @@ export const RIDER_PROGRESS_SCHEMA_SQL = [
     ON ${SQLITE_TABLES.riderProgressEvents}(workspace_id, occurred_at);`,
   `CREATE INDEX IF NOT EXISTS idx_rider_achievements_workspace_unlocked
     ON ${SQLITE_TABLES.riderAchievements}(workspace_id, unlocked);`,
+] as const;
+
+export const RIDE_SCORE_PROGRESS_SCHEMA_SQL = [
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.rideScoreProgress} (
+    workspace_id TEXT PRIMARY KEY NOT NULL,
+    best_score INTEGER CHECK (best_score BETWEEN 0 AND 100),
+    last_score INTEGER CHECK (last_score BETWEEN 0 AND 100),
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (workspace_id) REFERENCES ${SQLITE_TABLES.workspaces}(id) ON DELETE CASCADE
+  );`,
+] as const;
+
+export const DAILY_RIDE_CHALLENGE_SCHEMA_SQL = [
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.dailyRideChallenges} (
+    workspace_id TEXT NOT NULL,
+    challenge_date TEXT NOT NULL,
+    challenge_id TEXT NOT NULL,
+    challenge_type TEXT NOT NULL CHECK (challenge_type IN ('smooth_speed', 'no_stops', 'steady_above_20', 'minimize_slow')),
+    progress INTEGER NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+    completed INTEGER NOT NULL DEFAULT 0 CHECK (completed IN (0, 1)),
+    completed_at TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, challenge_date),
+    FOREIGN KEY (workspace_id) REFERENCES ${SQLITE_TABLES.workspaces}(id) ON DELETE CASCADE
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_ride_challenge_id
+    ON ${SQLITE_TABLES.dailyRideChallenges}(workspace_id, challenge_id);`,
 ] as const;
 
 export const DOMAIN_SCHEMA_SQL = [

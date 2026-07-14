@@ -18,6 +18,10 @@ Migration 3 adds optional local profile customization fields to workspaces.
 
 Migration 4 adds workspace-scoped `rider_progress`, `rider_progress_events`, and `rider_achievements` tables. XP events use a workspace-and-event composite key so completion retries and repeated daily actions cannot award XP twice. Progress remains local and is not synced to Supabase.
 
+Migration 5 adds the workspace-scoped `ride_score_progress` table. It stores only the best and most recent 0–100 Ride Score for personal comparison. The completion flow reads the previous values and updates both values in one exclusive SQLite transaction. This state remains device-local and is not synced to Supabase or included in the current backup format.
+
+Migration 6 adds `daily_ride_challenges`, keyed by workspace and local calendar date. It stores the deterministic challenge ID/type, best progress percentage, completion state, and timestamps. Challenge completion XP uses the existing idempotent rider-progress event ledger. Challenge rows are local-only and are not included in the current backup format.
+
 The active workspace is the local isolation boundary. Repositories resolve it for every read and write; screens never query SQLite directly. A workspace may later hold an external authentication user ID, but the local schema does not depend on a specific authentication provider.
 
 Supabase Auth user IDs are stored only as `workspaces.external_user_id` mappings. They select local isolation boundaries; they do not make Supabase a storage source and do not upload local records.
@@ -28,7 +32,7 @@ Migration 2 runs inside the database migration transaction. Existing motorcycles
 
 Migration application is idempotent through `schema_migrations`: once version 2 is recorded, subsequent startup initialization skips it. If migration fails, its exclusive transaction rolls back and the version is not recorded.
 
-Before shipping a schema downgrade or replacing this migration, preserve a copy of the app database or export an AxionRide backup. SQLite `ALTER TABLE ... ADD COLUMN` is not automatically reversible. A rollback build should continue understanding schema version 2 or explicitly rebuild tables from a verified backup.
+Before shipping a schema downgrade or replacing a migration, preserve a copy of the app database or export an AxionRide backup. SQLite `ALTER TABLE ... ADD COLUMN` is not automatically reversible. A rollback build should continue understanding the existing schema version or explicitly rebuild tables from a verified backup. Migrations 5 and 6 contain only new derived-progress tables and can be reversed by dropping `ride_score_progress` and `daily_ride_challenges`; doing so intentionally resets those local comparisons and challenges.
 
 ## Backup Boundaries
 

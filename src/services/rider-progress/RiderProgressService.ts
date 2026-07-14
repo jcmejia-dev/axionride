@@ -19,6 +19,7 @@ export const RIDER_XP = {
   maintenanceCompleted: 10,
   dailyOpen: 2,
   statsViewed: 1,
+  dailyChallengeCompleted: 5,
 } as const;
 
 const SNAPSHOT_CACHE_TTL_MS = 30_000;
@@ -30,12 +31,12 @@ export class RiderProgressService extends BaseService {
     super(context);
   }
 
-  getSnapshot(): Promise<ServiceResult<RiderProgressSnapshot>> {
+  getSnapshot(forceRefresh = false): Promise<ServiceResult<RiderProgressSnapshot>> {
     return runSerialized(async () => {
       try {
         const workspaceId = await this.context.repositories.workspaces.getActiveWorkspaceId();
         const cached = snapshotCache.get(workspaceId);
-        if (cached && Date.now() - cached.cachedAt < SNAPSHOT_CACHE_TTL_MS) {
+        if (!forceRefresh && cached && Date.now() - cached.cachedAt < SNAPSHOT_CACHE_TTL_MS) {
           return this.success(cached.snapshot);
         }
 
@@ -95,9 +96,18 @@ export class RiderProgressService extends BaseService {
     });
   }
 
+  recordDailyChallengeCompleted(challengeId: string) {
+    return this.recordEvent({
+      id: `daily-challenge:${challengeId}`,
+      type: "daily_challenge_completed",
+      xp: RIDER_XP.dailyChallengeCompleted,
+      reason: "Daily challenge completed",
+    });
+  }
+
   private recordEvent(input: {
     readonly id: string;
-    readonly type: "ride_completed" | "maintenance_completed" | "daily_open" | "stats_viewed";
+    readonly type: "ride_completed" | "maintenance_completed" | "daily_open" | "stats_viewed" | "daily_challenge_completed";
     readonly xp: number;
     readonly reason: string;
     readonly activityDate?: string;
