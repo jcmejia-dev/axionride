@@ -1,33 +1,44 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 
 import {
-  validateEngineCc,
-  validateMotorcycle,
-  validateOdometer,
-  validatePlate,
-  validateYear,
-  type Motorcycle,
-  type MotorcycleValidationIssue,
-} from '@/src/domain/motorcycle';
+    validateEngineCc,
+    validateMotorcycle,
+    validateOdometer,
+    validatePlate,
+    validateYear,
+    type Motorcycle,
+    type MotorcycleValidationIssue,
+} from "@/src/domain/motorcycle";
 
-import type { MotorcycleFormErrors, MotorcycleFormField, MotorcycleFormValues } from '../types';
+import type {
+    MotorcycleFormErrors,
+    MotorcycleFormField,
+    MotorcycleFormValues,
+} from "../types";
 
 type UseMotorcycleFormOptions = {
   initialMotorcycle: Motorcycle;
 };
 
-export function useMotorcycleForm({ initialMotorcycle }: UseMotorcycleFormOptions) {
-  const initialValues = useMemo(() => toFormValues(initialMotorcycle), [initialMotorcycle]);
+export function useMotorcycleForm({
+  initialMotorcycle,
+}: UseMotorcycleFormOptions) {
+  const initialValues = useMemo(
+    () => toFormValues(initialMotorcycle),
+    [initialMotorcycle],
+  );
   const [values, setValues] = useState<MotorcycleFormValues>(initialValues);
   const [errors, setErrors] = useState<MotorcycleFormErrors>({});
   const [submitted, setSubmitted] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
 
   const previewMotorcycle = useMemo(
-    () => toMotorcycle(values, initialMotorcycle, { tolerateInvalidNumbers: true }),
+    () =>
+      toMotorcycle(values, initialMotorcycle, { tolerateInvalidNumbers: true }),
     [initialMotorcycle, values],
   );
-  const hasUnsavedChanges = JSON.stringify(values) !== JSON.stringify(initialValues);
+  const hasUnsavedChanges =
+    JSON.stringify(values) !== JSON.stringify(initialValues);
 
   function updateField(field: MotorcycleFormField, value: string) {
     setValues((currentValues) => ({
@@ -59,7 +70,9 @@ export function useMotorcycleForm({ initialMotorcycle }: UseMotorcycleFormOption
     }
 
     setErrors({});
-    return toMotorcycle(values, initialMotorcycle, { tolerateInvalidNumbers: false });
+    return toMotorcycle(values, initialMotorcycle, {
+      tolerateInvalidNumbers: false,
+    });
   }
 
   return {
@@ -87,37 +100,66 @@ function toFormValues(motorcycle: Motorcycle): MotorcycleFormValues {
     fuelType: motorcycle.fuelType,
     transmission: motorcycle.transmission,
     color: motorcycle.color,
-    plateNumber: motorcycle.plateNumber ?? '',
-    vin: motorcycle.vin ?? '',
-    purchaseDate: motorcycle.purchaseDate ?? '',
-    purchasePrice: motorcycle.purchasePrice === undefined ? '' : String(motorcycle.purchasePrice),
+    plateNumber: motorcycle.plateNumber ?? "",
+    vin: motorcycle.vin ?? "",
+    purchaseDate: motorcycle.purchaseDate ?? "",
+    purchasePrice:
+      motorcycle.purchasePrice === undefined
+        ? ""
+        : String(motorcycle.purchasePrice),
     odometerKm: String(motorcycle.odometerKm),
     fuelEfficiencyKmPerLiter: String(motorcycle.fuelEfficiencyKmPerLiter ?? 40),
-    notes: motorcycle.notes ?? '',
-    imageUri: motorcycle.imageUri ?? '',
+    notes: motorcycle.notes ?? "",
+    imageUri: motorcycle.imageUri ?? "",
   };
 }
 
-function validateForm(values: MotorcycleFormValues, baseMotorcycle: Motorcycle) {
+function validateForm(
+  values: MotorcycleFormValues,
+  baseMotorcycle: Motorcycle,
+) {
   const errors: MotorcycleFormErrors = {};
   const yearValidation = validateYear(Number(values.year));
   const engineValidation = validateEngineCc(Number(values.engineCc));
   const odometerValidation = validateOdometer(Number(values.odometerKm));
   const fuelEfficiency = Number(values.fuelEfficiencyKmPerLiter);
 
-  applyFieldError(errors, 'year', yearValidation.valid ? undefined : yearValidation.issues[0]);
-  applyFieldError(errors, 'engineCc', engineValidation.valid ? undefined : engineValidation.issues[0]);
-  applyFieldError(errors, 'odometerKm', odometerValidation.valid ? undefined : odometerValidation.issues[0]);
-  if (!Number.isFinite(fuelEfficiency) || fuelEfficiency <= 0 || fuelEfficiency > 300) {
-    errors.fuelEfficiencyKmPerLiter = 'Fuel efficiency must be between 1 and 300 km/L.';
+  applyFieldError(
+    errors,
+    "year",
+    yearValidation.valid ? undefined : yearValidation.issues[0],
+  );
+  applyFieldError(
+    errors,
+    "engineCc",
+    engineValidation.valid ? undefined : engineValidation.issues[0],
+  );
+  applyFieldError(
+    errors,
+    "odometerKm",
+    odometerValidation.valid ? undefined : odometerValidation.issues[0],
+  );
+  if (
+    !Number.isFinite(fuelEfficiency) ||
+    fuelEfficiency <= 0 ||
+    fuelEfficiency > 300
+  ) {
+    errors.fuelEfficiencyKmPerLiter =
+      "Fuel efficiency must be between 1 and 300 km/L.";
   }
 
   if (values.plateNumber.trim().length > 0) {
     const plateValidation = validatePlate(values.plateNumber);
-    applyFieldError(errors, 'plateNumber', plateValidation.valid ? undefined : plateValidation.issues[0]);
+    applyFieldError(
+      errors,
+      "plateNumber",
+      plateValidation.valid ? undefined : plateValidation.issues[0],
+    );
   }
 
-  const motorcycle = toMotorcycle(values, baseMotorcycle, { tolerateInvalidNumbers: false });
+  const motorcycle = toMotorcycle(values, baseMotorcycle, {
+    tolerateInvalidNumbers: false,
+  });
   const motorcycleValidation = validateMotorcycle(motorcycle);
 
   if (!motorcycleValidation.valid) {
@@ -130,7 +172,9 @@ function validateForm(values: MotorcycleFormValues, baseMotorcycle: Motorcycle) 
     }
   }
 
-  return Object.keys(errors).length === 0 ? { valid: true as const } : { valid: false as const, errors };
+  return Object.keys(errors).length === 0
+    ? { valid: true as const }
+    : { valid: false as const, errors };
 }
 
 function toMotorcycle(
@@ -138,9 +182,15 @@ function toMotorcycle(
   baseMotorcycle: Motorcycle,
   options: { tolerateInvalidNumbers: boolean },
 ): Motorcycle {
-  const fallbackYear = options.tolerateInvalidNumbers ? baseMotorcycle.year : Number(values.year);
-  const fallbackEngineCc = options.tolerateInvalidNumbers ? baseMotorcycle.engineCc : Number(values.engineCc);
-  const fallbackOdometerKm = options.tolerateInvalidNumbers ? baseMotorcycle.odometerKm : Number(values.odometerKm);
+  const fallbackYear = options.tolerateInvalidNumbers
+    ? baseMotorcycle.year
+    : Number(values.year);
+  const fallbackEngineCc = options.tolerateInvalidNumbers
+    ? baseMotorcycle.engineCc
+    : Number(values.engineCc);
+  const fallbackOdometerKm = options.tolerateInvalidNumbers
+    ? baseMotorcycle.odometerKm
+    : Number(values.odometerKm);
   const parsedYear = Number(values.year);
   const parsedEngineCc = Number(values.engineCc);
   const parsedOdometerKm = Number(values.odometerKm);
@@ -154,18 +204,25 @@ function toMotorcycle(
     model: values.model,
     year: Number.isFinite(parsedYear) ? parsedYear : fallbackYear,
     category: values.category,
-    engineCc: Number.isFinite(parsedEngineCc) ? parsedEngineCc : fallbackEngineCc,
+    engineCc: Number.isFinite(parsedEngineCc)
+      ? parsedEngineCc
+      : fallbackEngineCc,
     fuelType: values.fuelType,
     transmission: values.transmission,
     color: values.color,
     plateNumber: optionalText(values.plateNumber),
     vin: optionalText(values.vin),
     purchaseDate: optionalText(values.purchaseDate),
-    purchasePrice: values.purchasePrice.trim().length === 0 ? undefined : parsedPurchasePrice,
-    odometerKm: Number.isFinite(parsedOdometerKm) ? parsedOdometerKm : fallbackOdometerKm,
+    purchasePrice:
+      values.purchasePrice.trim().length === 0
+        ? undefined
+        : parsedPurchasePrice,
+    odometerKm: Number.isFinite(parsedOdometerKm)
+      ? parsedOdometerKm
+      : fallbackOdometerKm,
     fuelEfficiencyKmPerLiter: Number.isFinite(parsedFuelEfficiency)
       ? parsedFuelEfficiency
-      : baseMotorcycle.fuelEfficiencyKmPerLiter ?? 40,
+      : (baseMotorcycle.fuelEfficiencyKmPerLiter ?? 40),
     notes: optionalText(values.notes),
     imageUri: optionalText(values.imageUri),
     updatedAt: new Date().toISOString(),
@@ -187,10 +244,32 @@ function applyFieldError(
   }
 }
 
-function mapDomainFieldToFormField(field: MotorcycleValidationIssue['field']): MotorcycleFormField | undefined {
-  if (field === 'id' || field === 'createdAt' || field === 'updatedAt' || field === 'imageUri' || field === 'general') {
-    return undefined;
+function mapDomainFieldToFormField(
+  field: MotorcycleValidationIssue["field"],
+): MotorcycleFormField | undefined {
+  const allowedFields: readonly MotorcycleFormField[] = [
+    "nickname",
+    "brand",
+    "model",
+    "year",
+    "category",
+    "engineCc",
+    "fuelType",
+    "transmission",
+    "color",
+    "plateNumber",
+    "vin",
+    "purchaseDate",
+    "purchasePrice",
+    "odometerKm",
+    "fuelEfficiencyKmPerLiter",
+    "notes",
+    "imageUri",
+  ];
+
+  if (allowedFields.includes(field as MotorcycleFormField)) {
+    return field as MotorcycleFormField;
   }
 
-  return field;
+  return undefined;
 }

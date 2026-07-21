@@ -1,0 +1,9 @@
+[?25l[36m?[39m [1mSelect environment:[22m [90m»[39m [90m- Use arrow-keys. Return to submit.[39m
+[36m>[39m   [36m[4mdevelopment[39m[24m[90m[39m
+    preview[90m[39m
+    production[90m[39m
+[2K[1G[32m√[39m [1mSelect environment:[22m [90m»[39m development
+[?25h[expo-cli] --non-interactive is not supported, use $CI=1 instead
+[expo-cli] env: load .env
+[expo-cli] env: export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY NEXT_PUBLIC_SUPABASE_URL
+[expo-cli] Starting Metro Bundler

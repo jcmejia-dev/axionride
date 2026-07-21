@@ -1,0 +1,174 @@
+src/features/dashboard/components/SearchSheet.tsx(34,39): error TS2554: Expected 1 arguments, but got 0.
+src/features/dashboard/DashboardScreen.tsx(59,43): error TS2554: Expected 1 arguments, but got 0.
+src/features/dashboard/DashboardScreen.tsx(60,40): error TS2554: Expected 1 arguments, but got 0.
+src/features/dashboard/DashboardScreen.tsx(61,47): error TS2554: Expected 1 arguments, but got 0.
+src/features/dashboard/DashboardScreen.tsx(79,80): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/dashboard/DashboardScreen.tsx(88,69): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/dashboard/DashboardScreen.tsx(95,78): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/garage/GarageScreen.tsx(25,43): error TS2554: Expected 1 arguments, but got 0.
+src/features/garage/GarageScreen.tsx(49,28): error TS2339: Property 'getUpcomingMaintenance' does not exist on type 'MaintenanceService'.
+src/features/garage/GarageScreen.tsx(50,28): error TS2554: Expected 1 arguments, but got 0.
+src/features/garage/GarageScreen.tsx(87,131): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/maintenance/components/FuelSection.tsx(78,27): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/features/maintenance/components/FuelSection.tsx(96,7): error TS2345: Argument of type '"plaintext"' is not assignable to parameter of type 'AlertType | undefined'.
+src/features/maintenance/components/FuelSection.tsx(363,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/FuelSection.tsx(374,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: (text: any) => void; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: (text: any) => void; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/FuelSection.tsx(375,28): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/features/maintenance/components/FuelSection.tsx(388,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: (text: any) => void; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: (text: any) => void; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/FuelSection.tsx(389,28): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/features/maintenance/components/FuelSection.tsx(402,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: (text: any) => void; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: (text: any) => void; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/FuelSection.tsx(403,28): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/features/maintenance/components/FuelSection.tsx(454,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/FuelSection.tsx(464,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/OilChangeSection.tsx(203,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/OilChangeSection.tsx(214,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/OilChangeSection.tsx(224,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/OilChangeSection.tsx(234,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/OilChangeSection.tsx(245,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; keyboardType: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/OilChangeSection.tsx(256,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/OilChangeSection.tsx(266,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/maintenance/components/OilChangeSection.tsx(408,19): error TS2551: Property 'absoluteFillObject' does not exist on type 'typeof StyleSheet'. Did you mean 'absoluteFill'?
+src/features/maintenance/data/mockMaintenance.ts(37,5): error TS2741: Property 'type' is missing in type '{ id: string; title: string; remainingDistance: string; status: "Due Soon"; }' but required in type 'MaintenanceTask'.
+src/features/maintenance/data/mockMaintenance.ts(43,5): error TS2741: Property 'type' is missing in type '{ id: string; title: string; remainingDistance: string; status: "Good"; }' but required in type 'MaintenanceTask'.
+src/features/maintenance/data/mockMaintenance.ts(49,5): error TS2741: Property 'type' is missing in type '{ id: string; title: string; remainingDistance: string; status: "Good"; }' but required in type 'MaintenanceTask'.
+src/features/maintenance/MaintenanceScreen.tsx(23,39): error TS2554: Expected 1 arguments, but got 0.
+src/features/maintenance/MaintenanceScreen.tsx(24,37): error TS2554: Expected 1 arguments, but got 0.
+src/features/maintenance/MaintenanceScreen.tsx(39,26): error TS2339: Property 'getUpcomingMaintenance' does not exist on type 'MaintenanceService'.
+src/features/maintenance/MaintenanceScreen.tsx(40,26): error TS2554: Expected 1 arguments, but got 0.
+src/features/maintenance/MaintenanceScreen.tsx(64,63): error TS2345: Argument of type 'import("c:/Projects/axionride/src/services/maintenance/MaintenanceServiceTypes").CreateMaintenanceInput' is not assignable to parameter of type 'import("c:/Projects/axionride/src/domain/maintenance/Maintenance").CreateMaintenanceInput'.
+  Property 'status' is missing in type 'import("c:/Projects/axionride/src/services/maintenance/MaintenanceServiceTypes").CreateMaintenanceInput' but required in type 'import("c:/Projects/axionride/src/domain/maintenance/Maintenance").CreateMaintenanceInput'.
+src/features/maintenance/MaintenanceScreen.tsx(77,45): error TS2551: Property 'completeMaintenance' does not exist on type 'MaintenanceService'. Did you mean 'createMaintenance'?
+src/features/maintenance/MaintenanceScreen.tsx(133,37): error TS2322: Type '"/nearby-services"' is not assignable to type '"/" | "/login" | "/register" | "/forgot-password" | RelativePathString | ExternalPathString | "/modal" | "/motorcycle-management" | ... 20 more ... | "/+not-found"'.
+src/features/map-navigation/MapNavigationScreen.tsx(48,41): error TS2554: Expected 1 arguments, but got 0.
+src/features/map-navigation/MapNavigationScreen.tsx(49,40): error TS2554: Expected 1 arguments, but got 0.
+src/features/motorcycle-management/hooks/useMotorcycleForm.ts(195,3): error TS2322: Type '"color" | "nickname" | "transmission" | "category" | "notes" | "odometerKm" | "brand" | "model" | "year" | "engineCc" | "fuelType" | "plateNumber" | "vin" | "fuelEfficiencyKmPerLiter" | ... 4 more ... | "purchasePrice"' is not assignable to type 'MotorcycleFormField | undefined'.
+  Type '"fuelTankCapacityLiters"' is not assignable to type 'MotorcycleFormField | undefined'.
+src/features/motorcycle-management/MotorcycleManagementScreen.tsx(20,43): error TS2554: Expected 1 arguments, but got 0.
+src/features/motorcycle-management/MotorcycleManagementScreen.tsx(39,43): error TS2554: Expected 1 arguments, but got 0.
+src/features/motorcycle-management/MotorcycleManagementScreen.tsx(89,132): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/nearby-services/NearbyServicesScreen.tsx(57,41): error TS2554: Expected 1 arguments, but got 0.
+src/features/nearby-services/NearbyServicesScreen.tsx(58,39): error TS2554: Expected 1 arguments, but got 0.
+src/features/profile/components/AchievementsGrid.tsx(30,3): error TS2353: Object literal may only specify known properties, and '"smooth-rider"' does not exist in type 'Record<RiderAchievementId, SFSymbols7_0 | { ios?: SFSymbols7_0 | undefined; android?: "function" | "height" | "style" | "accessible" | ... 4051 more ... | undefined; web?: "function" | ... 4054 more ... | undefined; }>'.
+src/features/profile/components/AchievementsGrid.tsx(72,10): error TS2678: Type '"smooth-rider"' is not comparable to type 'RiderAchievementId'.
+src/features/profile/components/AchievementsGrid.tsx(74,10): error TS2678: Type '"streak-3"' is not comparable to type 'RiderAchievementId'.
+src/features/profile/components/AchievementsGrid.tsx(76,10): error TS2678: Type '"streak-7"' is not comparable to type 'RiderAchievementId'.
+src/features/profile/hooks/useProfileData.ts(4,10): error TS2305: Module '"@/src/domain/rider-progress"' has no exported member 'getLevelProgress'.
+src/features/rides/RideDetailScreen.tsx(22,33): error TS2554: Expected 1 arguments, but got 0.
+src/features/rides/RideHistoryScreen.tsx(16,33): error TS2554: Expected 1 arguments, but got 0.
+src/features/rides/RideHistoryScreen.tsx(24,47): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/features/rides/RideScreen.tsx(42,37): error TS2554: Expected 1 arguments, but got 0.
+src/features/rides/RideScreen.tsx(43,41): error TS2554: Expected 1 arguments, but got 0.
+src/features/rides/RideScreen.tsx(44,47): error TS2554: Expected 1 arguments, but got 0.
+src/features/rides/RideScreen.tsx(45,50): error TS2554: Expected 1 arguments, but got 0.
+src/features/rides/RideScreen.tsx(73,58): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/rides/RideScreen.tsx(110,62): error TS7006: Parameter 'point' implicitly has an 'any' type.
+src/features/rides/RideScreen.tsx(178,74): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/rides/RideScreen.tsx(335,38): error TS7031: Binding element 'ride' implicitly has an 'any' type.
+src/features/trip/TripPlanningScreen.tsx(175,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/trip/TripPlanningScreen.tsx(185,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TextProps): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+  Overload 2 of 2, '(props: TextProps, context: any): Text', gave the following error.
+    Type '{ style: { color: string; padding: number; borderRadius: number; backgroundColor: string; borderWidth: number; borderColor: string; fontSize: number; lineHeight: number; fontWeight: "400"; }; value: string; onChangeText: Dispatch<...>; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<Text> & Readonly<TextProps>'.
+src/features/trip/TripPlanningScreen.tsx(310,19): error TS2551: Property 'absoluteFillObject' does not exist on type 'typeof StyleSheet'. Did you mean 'absoluteFill'?
+src/providers/AuthProvider.tsx(41,42): error TS2554: Expected 1 arguments, but got 0.
+src/providers/AuthProvider.tsx(77,62): error TS7006: Parameter 'workspace' implicitly has an 'any' type.
+src/providers/RiderProgressProvider.tsx(36,46): error TS2554: Expected 1 arguments, but got 0.
+src/providers/RiderProgressProvider.tsx(77,61): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/services/__tests__/localAccountFoundation.test.ts(19,10): error TS2724: '"@/src/repositories/trip"' has no exported member named 'InMemoryPlannedTripRepository'. Did you mean 'PlannedTripRepository'?
+src/services/__tests__/localAccountFoundation.test.ts(136,29): error TS2554: Expected 2 arguments, but got 1.
+src/services/__tests__/localAccountFoundation.test.ts(139,5): error TS2820: Type '"OilChange"' is not assignable to type 'MaintenanceType'. Did you mean 'MaintenanceType.OilChange'?
+src/services/__tests__/localAccountFoundation.test.ts(140,5): error TS2322: Type '"Upcoming"' is not assignable to type 'MaintenanceStatus'.
+src/services/__tests__/localAccountFoundation.test.ts(141,5): error TS2322: Type '"Normal"' is not assignable to type 'MaintenancePriority'.
+src/services/backup/BackupService.ts(256,68): error TS2551: Property 'saveMaintenance' does not exist on type 'MaintenanceRepository'. Did you mean 'getMaintenance'?
+src/services/fuel/FuelService.ts(57,24): error TS2339: Property 'ok' does not exist on type 'Promise<{ ok: true; error?: undefined; } | { ok: false; error: { code: string; message: string; }; }>'.
+src/services/fuel/FuelService.ts(58,7): error TS2322: Type '{ ok: true; error?: undefined; } | { ok: false; error: { code: string; message: string; }; }' is not assignable to type 'ServiceResult<FuelLog>'.
+  Type '{ ok: true; error?: undefined; }' is not assignable to type 'ServiceResult<FuelLog>'.
+    Property 'value' is missing in type '{ ok: true; error?: undefined; }' but required in type 'ServiceSuccess<FuelLog>'.
+supabase/functions/nearby-services/index.ts(22,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.

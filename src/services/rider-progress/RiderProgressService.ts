@@ -40,6 +40,7 @@ export class RiderProgressService extends BaseService {
           return this.success(cached.snapshot);
         }
 
+        await this.reconcileCompletedActivity();
         const unlockedAchievements = await this.evaluateAchievements();
         const snapshot = await this.readSnapshot();
         cacheSnapshot(workspaceId, snapshot);
@@ -123,6 +124,7 @@ export class RiderProgressService extends BaseService {
           occurredAt,
           activityDate: input.activityDate,
         });
+        await this.reconcileCompletedActivity();
         const unlockedAchievements = await this.evaluateAchievements(occurredAt);
         const workspaceId = await this.context.repositories.workspaces.getActiveWorkspaceId();
         const snapshot = await this.readSnapshot();
@@ -178,11 +180,51 @@ export class RiderProgressService extends BaseService {
     );
   }
 
+  /**
+   * Backfills the XP ledger from durable completed records. Event IDs are
+   * stable and the repository uses INSERT OR IGNORE, so this is safe to run
+   * after every progress read and write without awarding duplicate XP.
+   */
+  private async reconcileCompletedActivity() {
+    const [rides, maintenance] = await Promise.all([
+      this.context.repositories.rides.getAllRides(),
+      this.context.repositories.maintenance.getAllMaintenance(),
+    ]);
+
+    for (const ride of rides) {
+      if (ride.status !== RideStatus.Completed) continue;
+      await this.requireRepository().recordEvent({
+        id: `ride:${ride.id}`,
+        type: "ride_completed",
+        xp: RIDER_XP.rideCompleted,
+        occurredAt: ride.endTime ?? ride.updatedAt,
+      });
+    }
+
+    for (const record of maintenance) {
+      if (record.status !== MaintenanceStatus.Completed) continue;
+      await this.requireRepository().recordEvent({
+        id: `maintenance:${record.id}`,
+        type: "maintenance_completed",
+        xp: RIDER_XP.maintenanceCompleted,
+        occurredAt: record.updatedAt,
+      });
+    }
+  }
+
   private async readSnapshot(): Promise<RiderProgressSnapshot> {
     // Keep the read order deterministic after the repository's single-flight
     // workspace initialization has completed.
     const storedProgress = await this.requireRepository().getProgress();
     const achievements = await this.requireRepository().getAchievements();
+    const [rides, maintenance] = await Promise.all([
+      this.context.repositories.rides.getAllRides(),
+      this.context.repositories.maintenance.getAllMaintenance(),
+    ]);
+    const completedRides = rides.filter((ride) => ride.status === RideStatus.Completed);
+    const completedMaintenance = maintenance.filter(
+      (record) => record.status === MaintenanceStatus.Completed,
+    );
     return {
       progress: calculateRiderProgress(storedProgress.totalXp),
       streak: {
@@ -190,6 +232,11 @@ export class RiderProgressService extends BaseService {
         lastActiveDate: storedProgress.lastActiveDate,
       },
       achievements,
+      achievementProgress: {
+        completedRideCount: completedRides.length,
+        totalDistanceKm: completedRides.reduce((total, ride) => total + ride.distanceKm, 0),
+        completedMaintenanceCount: completedMaintenance.length,
+      },
     };
   }
 

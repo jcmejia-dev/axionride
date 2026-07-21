@@ -1,11 +1,18 @@
-import { validateMaintenance, type Maintenance, type MaintenanceId } from '@/src/domain/maintenance';
+import {
+  validateMaintenance,
+  type CreateMaintenanceInput,
+  type Maintenance,
+  type MaintenanceId,
+  type MaintenanceListItem,
+  type UpdateMaintenanceInput,
+} from "@/src/domain/maintenance";
 
-import type { MaintenanceRepository } from './MaintenanceRepository';
+import type { MaintenanceRepository } from "./MaintenanceRepository";
 import type {
   MaintenanceDeleteResult,
   MaintenanceRepositoryError,
   MaintenanceWriteResult,
-} from './MaintenanceRepositoryTypes';
+} from "./MaintenanceRepositoryTypes";
 
 /**
  * Deterministic in-memory Maintenance repository for demos and tests.
@@ -18,7 +25,10 @@ export class InMemoryMaintenanceRepository implements MaintenanceRepository {
       const validation = validateMaintenance(maintenance);
 
       if (validation.valid && !this.maintenanceRecords.has(maintenance.id)) {
-        this.maintenanceRecords.set(maintenance.id, cloneMaintenance(maintenance));
+        this.maintenanceRecords.set(
+          maintenance.id,
+          cloneMaintenance(maintenance),
+        );
       }
     }
   }
@@ -32,41 +42,92 @@ export class InMemoryMaintenanceRepository implements MaintenanceRepository {
     return Array.from(this.maintenanceRecords.values(), cloneMaintenance);
   }
 
-  async saveMaintenance(maintenance: Maintenance): Promise<MaintenanceWriteResult> {
+  async getByMotorcycleId(
+    motorcycleId: string,
+  ): Promise<readonly MaintenanceListItem[]> {
+    const items: MaintenanceListItem[] = [];
+    for (const maintenance of this.maintenanceRecords.values()) {
+      if (maintenance.motorcycleId === motorcycleId) {
+        items.push(this.toListItem(maintenance));
+      }
+    }
+    return items;
+  }
+
+  async create(input: CreateMaintenanceInput): Promise<MaintenanceWriteResult> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const maintenance: Maintenance = {
+      id,
+      motorcycleId: input.motorcycleId,
+      title: input.title,
+      description: input.description,
+      type: input.type,
+      status: input.status,
+      priority: input.priority,
+      intervalKm: input.intervalKm,
+      intervalDays: input.intervalDays,
+      lastServiceOdometerKm: input.lastServiceOdometerKm,
+      lastServiceDate: input.lastServiceDate,
+      nextDueOdometerKm: input.nextDueOdometerKm,
+      nextDueDate: input.nextDueDate,
+      cost: input.cost,
+      notes: input.notes,
+      createdAt: now,
+      updatedAt: now,
+    };
     const validationError = validateMaintenanceForWrite(maintenance);
 
     if (validationError) {
       return failure(validationError);
     }
 
-    if (this.maintenanceRecords.has(maintenance.id)) {
-      return failure({ code: 'already_exists', message: `Maintenance ${maintenance.id} already exists.` });
-    }
-
-    const maintenanceCopy = cloneMaintenance(maintenance);
-    this.maintenanceRecords.set(maintenance.id, maintenanceCopy);
-    return { ok: true, value: cloneMaintenance(maintenanceCopy) };
+    this.maintenanceRecords.set(id, maintenance);
+    return { ok: true, value: cloneMaintenance(maintenance) };
   }
 
-  async updateMaintenance(maintenance: Maintenance): Promise<MaintenanceWriteResult> {
-    const validationError = validateMaintenanceForWrite(maintenance);
+  async update(input: UpdateMaintenanceInput): Promise<MaintenanceWriteResult> {
+    const existing = this.maintenanceRecords.get(input.id);
+    if (!existing) {
+      return failure({
+        code: "not_found",
+        message: `Maintenance ${input.id} does not exist.`,
+      });
+    }
 
+    const updated: Maintenance = {
+      ...existing,
+      ...input,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const validationError = validateMaintenanceForWrite(updated);
     if (validationError) {
       return failure(validationError);
     }
 
-    if (!this.maintenanceRecords.has(maintenance.id)) {
-      return failure({ code: 'not_found', message: `Maintenance ${maintenance.id} does not exist.` });
-    }
-
-    const maintenanceCopy = cloneMaintenance(maintenance);
-    this.maintenanceRecords.set(maintenance.id, maintenanceCopy);
-    return { ok: true, value: cloneMaintenance(maintenanceCopy) };
+    this.maintenanceRecords.set(input.id, updated);
+    return { ok: true, value: cloneMaintenance(updated) };
   }
 
-  async deleteMaintenance(id: MaintenanceId): Promise<MaintenanceDeleteResult> {
+  async saveMaintenance(
+    maintenance: Maintenance,
+  ): Promise<MaintenanceWriteResult> {
+    const validationError = validateMaintenanceForWrite(maintenance);
+    if (validationError) {
+      return failure(validationError);
+    }
+
+    this.maintenanceRecords.set(maintenance.id, cloneMaintenance(maintenance));
+    return { ok: true, value: cloneMaintenance(maintenance) };
+  }
+
+  async softDelete(id: MaintenanceId): Promise<MaintenanceDeleteResult> {
     if (!this.maintenanceRecords.has(id)) {
-      return failure({ code: 'not_found', message: `Maintenance ${id} does not exist.` });
+      return failure({
+        code: "not_found",
+        message: `Maintenance ${id} does not exist.`,
+      });
     }
 
     this.maintenanceRecords.delete(id);
@@ -80,9 +141,29 @@ export class InMemoryMaintenanceRepository implements MaintenanceRepository {
   async clear(): Promise<void> {
     this.maintenanceRecords.clear();
   }
+
+  private toListItem(maintenance: Maintenance): MaintenanceListItem {
+    return {
+      id: maintenance.id,
+      motorcycleId: maintenance.motorcycleId,
+      title: maintenance.title,
+      type: maintenance.type,
+      status: maintenance.status,
+      priority: maintenance.priority,
+      nextDueOdometerKm: maintenance.nextDueOdometerKm,
+      nextDueDate: maintenance.nextDueDate,
+      lastServiceOdometerKm: maintenance.lastServiceOdometerKm,
+      lastServiceDate: maintenance.lastServiceDate,
+      cost: maintenance.cost,
+      createdAt: maintenance.createdAt,
+      updatedAt: maintenance.updatedAt,
+    };
+  }
 }
 
-function validateMaintenanceForWrite(maintenance: Maintenance): MaintenanceRepositoryError | null {
+function validateMaintenanceForWrite(
+  maintenance: Maintenance,
+): MaintenanceRepositoryError | null {
   const validation = validateMaintenance(maintenance);
 
   if (validation.valid) {
@@ -90,8 +171,8 @@ function validateMaintenanceForWrite(maintenance: Maintenance): MaintenanceRepos
   }
 
   return {
-    code: 'validation_failed',
-    message: 'Maintenance failed domain validation.',
+    code: "validation_failed",
+    message: validation.issues[0]?.message ?? "Maintenance failed domain validation.",
     validationIssues: validation.issues,
   };
 }

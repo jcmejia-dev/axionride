@@ -1,15 +1,16 @@
-import type { RepositoryProvider } from '@/src/repositories';
+import type { RepositoryProvider } from "@/src/repositories";
 
 /**
  * Stable service error code for application-service operations.
  */
 export type ServiceErrorCode =
-  | 'validation_failed'
-  | 'not_found'
-  | 'conflict'
-  | 'unavailable'
-  | 'repository_error'
-  | 'unknown_error';
+  | "validation_failed"
+  | "not_found"
+  | "conflict"
+  | "unavailable"
+  | "repository_error"
+  | "update_failed"
+  | "unknown_error";
 
 /**
  * Generic application-service error payload.
@@ -56,10 +57,16 @@ export type ServiceResult<T> = ServiceSuccess<T> | ServiceFailure;
  * Minimal logger contract reserved for future app diagnostics.
  */
 export type ServiceLogger = {
-  readonly debug?: (message: string, metadata?: Record<string, unknown>) => void;
+  readonly debug?: (
+    message: string,
+    metadata?: Record<string, unknown>,
+  ) => void;
   readonly info?: (message: string, metadata?: Record<string, unknown>) => void;
   readonly warn?: (message: string, metadata?: Record<string, unknown>) => void;
-  readonly error?: (message: string, metadata?: Record<string, unknown>) => void;
+  readonly error?: (
+    message: string,
+    metadata?: Record<string, unknown>,
+  ) => void;
 };
 
 /**

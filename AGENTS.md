@@ -165,3 +165,7 @@ After making changes, AI assistants must summarize:
 - Remaining warnings or errors.
 
 If validation fails, distinguish between pre-existing project issues, environment issues, and issues caused by the change.
+
+## Session Handoff
+
+Before a broad repository scan, read `docs/SESSION_HANDOFF.md` when it exists. Update it after material implementation work so future sessions can resume from a compact, current checkpoint.

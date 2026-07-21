@@ -1,26 +1,30 @@
-export const DATABASE_NAME = 'axionride.db';
+export const DATABASE_NAME = "axionride.db";
 
 export const SQLITE_TABLES = {
-  schemaMigrations: 'schema_migrations',
-  workspaces: 'workspaces',
-  appState: 'app_state',
-  motorcycles: 'motorcycles',
-  maintenanceRecords: 'maintenance_records',
-  rides: 'rides',
-  ridePoints: 'ride_points',
-  syncMetadata: 'sync_metadata',
-  riderProgress: 'rider_progress',
-  riderProgressEvents: 'rider_progress_events',
-  riderAchievements: 'rider_achievements',
-  rideScoreProgress: 'ride_score_progress',
-  dailyRideChallenges: 'daily_ride_challenges',
+  schemaMigrations: "schema_migrations",
+  workspaces: "workspaces",
+  appState: "app_state",
+  motorcycles: "motorcycles",
+  maintenanceRecords: "maintenance_records",
+  oilChanges: "oil_changes",
+  rides: "rides",
+  ridePoints: "ride_points",
+  syncMetadata: "sync_metadata",
+  riderProgress: "rider_progress",
+  riderProgressEvents: "rider_progress_events",
+  riderAchievements: "rider_achievements",
+  rideScoreProgress: "ride_score_progress",
+  dailyRideChallenges: "daily_ride_challenges",
+  fuelLogs: "fuel_logs",
+  plannedTrips: "planned_trips",
+  tripWaypoints: "trip_waypoints",
 } as const;
 
-export const DEFAULT_ANONYMOUS_WORKSPACE_ID = 'workspace-anonymous';
+export const DEFAULT_ANONYMOUS_WORKSPACE_ID = "workspace-anonymous";
 
 export const BASE_SCHEMA_SQL = [
-  'PRAGMA foreign_keys = ON;',
-  'PRAGMA journal_mode = WAL;',
+  "PRAGMA foreign_keys = ON;",
+  "PRAGMA journal_mode = WAL;",
   `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.schemaMigrations} (
     version INTEGER PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
@@ -89,6 +93,32 @@ export const DAILY_RIDE_CHALLENGE_SCHEMA_SQL = [
     ON ${SQLITE_TABLES.dailyRideChallenges}(workspace_id, challenge_id);`,
 ] as const;
 
+export const OIL_CHANGES_SCHEMA_SQL = [
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.oilChanges} (
+    id TEXT PRIMARY KEY NOT NULL,
+    workspace_id TEXT NOT NULL,
+    motorcycle_id TEXT NOT NULL,
+    performed_at TEXT NOT NULL,
+    odometer_km REAL NOT NULL,
+    oil_brand TEXT,
+    oil_viscosity TEXT,
+    oil_liters REAL,
+    price REAL,
+    service_shop TEXT,
+    notes TEXT,
+    next_due_odometer_km REAL,
+    next_due_date TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    FOREIGN KEY (motorcycle_id) REFERENCES ${SQLITE_TABLES.motorcycles}(id) ON DELETE CASCADE
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_oil_changes_workspace
+    ON ${SQLITE_TABLES.oilChanges}(workspace_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_oil_changes_motorcycle
+    ON ${SQLITE_TABLES.oilChanges}(motorcycle_id, performed_at);`,
+] as const;
+
 export const DOMAIN_SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.motorcycles} (
     id TEXT PRIMARY KEY NOT NULL,
@@ -142,6 +172,73 @@ export const DOMAIN_SCHEMA_SQL = [
     ON ${SQLITE_TABLES.syncMetadata}(sync_status);`,
 ] as const;
 
+export const FUEL_LOGS_SCHEMA_SQL = [
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.fuelLogs} (
+    id TEXT PRIMARY KEY NOT NULL,
+    workspace_id TEXT NOT NULL,
+    motorcycle_id TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    odometer_km REAL NOT NULL,
+    price_per_liter REAL NOT NULL,
+    liters REAL NOT NULL,
+    total_cost REAL NOT NULL,
+    fill_type TEXT NOT NULL CHECK (fill_type IN ('full_tank', 'partial_refill')),
+    station_name TEXT,
+    latitude REAL,
+    longitude REAL,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    FOREIGN KEY (motorcycle_id) REFERENCES ${SQLITE_TABLES.motorcycles}(id) ON DELETE CASCADE
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_fuel_logs_workspace
+    ON ${SQLITE_TABLES.fuelLogs}(workspace_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_fuel_logs_motorcycle
+    ON ${SQLITE_TABLES.fuelLogs}(motorcycle_id, recorded_at);`,
+] as const;
+
+export const TRIP_SCHEMA_SQL = [
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.plannedTrips} (
+    id TEXT PRIMARY KEY NOT NULL,
+    workspace_id TEXT NOT NULL,
+    motorcycle_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    notes TEXT,
+    start_latitude REAL NOT NULL,
+    start_longitude REAL NOT NULL,
+    start_label TEXT,
+    destination_latitude REAL NOT NULL,
+    destination_longitude REAL NOT NULL,
+    destination_label TEXT,
+    route_distance_meters REAL,
+    route_duration_seconds REAL,
+    route_geometry_json TEXT,
+    status TEXT NOT NULL CHECK (status IN ('draft', 'planned', 'in_progress', 'completed', 'cancelled')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    FOREIGN KEY (motorcycle_id) REFERENCES ${SQLITE_TABLES.motorcycles}(id) ON DELETE CASCADE
+  );`,
+  `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.tripWaypoints} (
+    id TEXT PRIMARY KEY NOT NULL,
+    trip_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    label TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (trip_id) REFERENCES ${SQLITE_TABLES.plannedTrips}(id) ON DELETE CASCADE
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_planned_trips_workspace
+    ON ${SQLITE_TABLES.plannedTrips}(workspace_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_planned_trips_motorcycle
+    ON ${SQLITE_TABLES.plannedTrips}(motorcycle_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_trip_waypoints_trip
+    ON ${SQLITE_TABLES.tripWaypoints}(trip_id, sequence);`,
+] as const;
+
 export const WORKSPACE_SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLES.workspaces} (
     id TEXT PRIMARY KEY NOT NULL,
@@ -163,7 +260,11 @@ export const WORKSPACE_SCHEMA_SQL = [
     VALUES (1, '${DEFAULT_ANONYMOUS_WORKSPACE_ID}');`,
   `ALTER TABLE ${SQLITE_TABLES.motorcycles} ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_ANONYMOUS_WORKSPACE_ID}';`,
   `ALTER TABLE ${SQLITE_TABLES.motorcycles} ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1));`,
+  `ALTER TABLE ${SQLITE_TABLES.motorcycles} ADD COLUMN fuel_tank_capacity_liters REAL;`,
+  `ALTER TABLE ${SQLITE_TABLES.motorcycles} ADD COLUMN estimated_fuel_liters REAL;`,
+  `ALTER TABLE ${SQLITE_TABLES.motorcycles} ADD COLUMN estimated_fuel_updated_at TEXT;`,
   `ALTER TABLE ${SQLITE_TABLES.maintenanceRecords} ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_ANONYMOUS_WORKSPACE_ID}';`,
+  `ALTER TABLE ${SQLITE_TABLES.oilChanges} ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_ANONYMOUS_WORKSPACE_ID}';`,
   `ALTER TABLE ${SQLITE_TABLES.rides} ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_ANONYMOUS_WORKSPACE_ID}';`,
   `ALTER TABLE ${SQLITE_TABLES.ridePoints} ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_ANONYMOUS_WORKSPACE_ID}';`,
   `ALTER TABLE ${SQLITE_TABLES.syncMetadata} ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_ANONYMOUS_WORKSPACE_ID}';`,
@@ -176,11 +277,14 @@ export const WORKSPACE_SCHEMA_SQL = [
     ON ${SQLITE_TABLES.motorcycles}(workspace_id, id);`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_maintenance_workspace_id_id
     ON ${SQLITE_TABLES.maintenanceRecords}(workspace_id, id);`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_oil_changes_workspace_id_id
+    ON ${SQLITE_TABLES.oilChanges}(workspace_id, id);`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_rides_workspace_id_id
     ON ${SQLITE_TABLES.rides}(workspace_id, id);`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_primary_motorcycle_per_workspace
     ON ${SQLITE_TABLES.motorcycles}(workspace_id) WHERE is_primary = 1 AND deleted_at IS NULL;`,
   `CREATE INDEX IF NOT EXISTS idx_maintenance_workspace ON ${SQLITE_TABLES.maintenanceRecords}(workspace_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_oil_changes_workspace ON ${SQLITE_TABLES.oilChanges}(workspace_id);`,
   `CREATE INDEX IF NOT EXISTS idx_rides_workspace ON ${SQLITE_TABLES.rides}(workspace_id);`,
   `CREATE INDEX IF NOT EXISTS idx_ride_points_workspace ON ${SQLITE_TABLES.ridePoints}(workspace_id);`,
   `CREATE INDEX IF NOT EXISTS idx_sync_metadata_workspace ON ${SQLITE_TABLES.syncMetadata}(workspace_id);`,
@@ -194,6 +298,16 @@ export const WORKSPACE_SCHEMA_SQL = [
     WHEN NOT EXISTS (SELECT 1 FROM ${SQLITE_TABLES.motorcycles} m
       WHERE m.id = NEW.motorcycle_id AND m.workspace_id = NEW.workspace_id AND m.deleted_at IS NULL)
     BEGIN SELECT RAISE(ABORT, 'maintenance motorcycle workspace mismatch'); END;`,
+  `CREATE TRIGGER IF NOT EXISTS oil_change_workspace_insert_guard
+    BEFORE INSERT ON ${SQLITE_TABLES.oilChanges}
+    WHEN NOT EXISTS (SELECT 1 FROM ${SQLITE_TABLES.motorcycles} m
+      WHERE m.id = NEW.motorcycle_id AND m.workspace_id = NEW.workspace_id AND m.deleted_at IS NULL)
+    BEGIN SELECT RAISE(ABORT, 'oil change motorcycle workspace mismatch'); END;`,
+  `CREATE TRIGGER IF NOT EXISTS oil_change_workspace_update_guard
+    BEFORE UPDATE OF motorcycle_id, workspace_id ON ${SQLITE_TABLES.oilChanges}
+    WHEN NOT EXISTS (SELECT 1 FROM ${SQLITE_TABLES.motorcycles} m
+      WHERE m.id = NEW.motorcycle_id AND m.workspace_id = NEW.workspace_id AND m.deleted_at IS NULL)
+    BEGIN SELECT RAISE(ABORT, 'oil change motorcycle workspace mismatch'); END;`,
   `CREATE TRIGGER IF NOT EXISTS ride_workspace_insert_guard
     BEFORE INSERT ON ${SQLITE_TABLES.rides}
     WHEN NOT EXISTS (SELECT 1 FROM ${SQLITE_TABLES.motorcycles} m

@@ -1,20 +1,29 @@
-import { DAILY_RIDE_CHALLENGE_SCHEMA_SQL, DOMAIN_SCHEMA_SQL, RIDER_PROGRESS_SCHEMA_SQL, RIDE_SCORE_PROGRESS_SCHEMA_SQL, WORKSPACE_SCHEMA_SQL } from './DatabaseSchema';
-import type { DatabaseMigration } from './SQLiteTypes';
+import {
+  DAILY_RIDE_CHALLENGE_SCHEMA_SQL,
+  DOMAIN_SCHEMA_SQL,
+  FUEL_LOGS_SCHEMA_SQL,
+  OIL_CHANGES_SCHEMA_SQL,
+  RIDER_PROGRESS_SCHEMA_SQL,
+  RIDE_SCORE_PROGRESS_SCHEMA_SQL,
+  TRIP_SCHEMA_SQL,
+  WORKSPACE_SCHEMA_SQL,
+} from "./DatabaseSchema";
+import type { DatabaseMigration } from "./SQLiteTypes";
 
 export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   {
     version: 1,
-    name: 'create_offline_foundation_tables',
+    name: "create_offline_foundation_tables",
     statements: DOMAIN_SCHEMA_SQL,
   },
   {
     version: 2,
-    name: 'add_local_workspace_isolation',
+    name: "add_local_workspace_isolation",
     statements: WORKSPACE_SCHEMA_SQL,
   },
   {
     version: 3,
-    name: 'add_local_profile_customization',
+    name: "add_local_profile_customization",
     statements: [
       `ALTER TABLE workspaces ADD COLUMN profile_nickname TEXT;`,
       `ALTER TABLE workspaces ADD COLUMN profile_image_uri TEXT;`,
@@ -22,18 +31,33 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   },
   {
     version: 4,
-    name: 'add_local_rider_progress',
+    name: "add_local_rider_progress",
     statements: RIDER_PROGRESS_SCHEMA_SQL,
   },
   {
     version: 5,
-    name: 'add_local_ride_score_progress',
+    name: "add_local_ride_score_progress",
     statements: RIDE_SCORE_PROGRESS_SCHEMA_SQL,
   },
   {
     version: 6,
-    name: 'add_daily_ride_challenges',
+    name: "add_daily_ride_challenges",
     statements: DAILY_RIDE_CHALLENGE_SCHEMA_SQL,
+  },
+  {
+    version: 7,
+    name: "add_fuel_logs_and_motorcycle_fuel_info",
+    statements: FUEL_LOGS_SCHEMA_SQL,
+  },
+  {
+    version: 8,
+    name: "add_oil_changes",
+    statements: OIL_CHANGES_SCHEMA_SQL,
+  },
+  {
+    version: 9,
+    name: "add_trip_planning",
+    statements: TRIP_SCHEMA_SQL,
   },
 ] as const;
 

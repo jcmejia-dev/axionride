@@ -24,6 +24,11 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
+AxionRide uses `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+for new environments. Existing local setups using `NEXT_PUBLIC_SUPABASE_URL`
+and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are bridged through Expo config for
+backward compatibility.
+
 Required names:
 
 ```text
