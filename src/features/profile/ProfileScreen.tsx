@@ -25,11 +25,11 @@ import {
 import type { RiderAchievementId } from "@/src/domain/rider-progress";
 import { useAuth } from "@/src/providers";
 import {
-  createBackupService,
-  createNotificationService,
-  createProfileService,
+  BackupService,
+  NotificationService,
+  ProfileService,
+  SettingsService,
   createServiceContext,
-  createSettingsService,
   subscribeToRiderProgressRewards,
   type BackupExportResult,
   type BackupImportConfirmation,
@@ -57,11 +57,23 @@ import { useProfileData } from "./hooks/useProfileData";
 export function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const profileService = useMemo(() => createProfileService(), []);
-  const settingsService = useMemo(() => createSettingsService(), []);
-  const notificationService = useMemo(() => createNotificationService(), []);
-  const backupService = useMemo(() => createBackupService(), []);
   const serviceContext = useMemo(() => createServiceContext(), []);
+  const profileService = useMemo(
+    () => new ProfileService(serviceContext),
+    [serviceContext],
+  );
+  const settingsService = useMemo(
+    () => new SettingsService(serviceContext),
+    [serviceContext],
+  );
+  const notificationService = useMemo(
+    () => new NotificationService(serviceContext),
+    [serviceContext],
+  );
+  const backupService = useMemo(
+    () => new BackupService(serviceContext),
+    [serviceContext],
+  );
   const [profileOverview, setProfileOverview] =
     useState<ProfileOverview | null>(null);
   const [settingsOverview, setSettingsOverview] =
@@ -71,6 +83,7 @@ export function ProfileScreen() {
   const [backupBusy, setBackupBusy] = useState(false);
   const [lastBackupResult, setLastBackupResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
   const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [nickname, setNickname] = useState("");
@@ -114,37 +127,59 @@ export function ProfileScreen() {
     let active = true;
 
     async function loadProfile() {
-      const [profileResult, settingsResult] = await Promise.all([
-        profileService.getProfileOverview({
-          email: user?.email ?? "",
-          displayName:
-            typeof user?.user_metadata.display_name === "string"
-              ? user.user_metadata.display_name
-              : undefined,
-        }),
-        Promise.resolve(settingsService.getSettingsOverview()),
-      ]);
-      const permissionResult = await notificationService.getPermissionStatus();
+      setProfileLoadError(null);
+      try {
+        const [profileResult, settingsResult] = await withTimeout(
+          Promise.all([
+            profileService.getProfileOverview({
+              email: user?.email ?? "",
+              displayName:
+                typeof user?.user_metadata.display_name === "string"
+                  ? user.user_metadata.display_name
+                  : undefined,
+            }),
+            Promise.resolve(settingsService.getSettingsOverview()),
+          ]),
+          10_000,
+          "Local profile loading timed out.",
+        );
 
-      if (!active) {
-        return;
+        if (!active) return;
+        if (!profileResult.ok) {
+          setProfileLoadError(profileResult.error.message);
+        } else {
+          setProfileOverview(profileResult.value);
+          setNickname(profileResult.value.profile.riderName);
+          setProfileImageUri(profileResult.value.profile.imageUri);
+        }
+
+        if (!settingsResult.ok) {
+          setProfileLoadError(settingsResult.error.message);
+        } else {
+          setSettingsOverview(settingsResult.value);
+        }
+      } catch (cause) {
+        if (active) {
+          setProfileLoadError(
+            cause instanceof Error
+              ? cause.message
+              : "Local profile data could not be loaded.",
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
       }
 
-      if (profileResult.ok) {
-        setProfileOverview(profileResult.value);
-        setNickname(profileResult.value.profile.riderName);
-        setProfileImageUri(profileResult.value.profile.imageUri);
-      }
-
-      if (settingsResult.ok) {
-        setSettingsOverview(settingsResult.value);
-      }
-
-      if (permissionResult.ok) {
-        setNotificationPermission(permissionResult.value);
-      }
-
-      setLoading(false);
+      // Notification APIs are optional device integrations and must never
+      // block the local profile from rendering.
+      void notificationService
+        .getPermissionStatus()
+        .then((permissionResult) => {
+          if (active && permissionResult.ok) {
+            setNotificationPermission(permissionResult.value);
+          }
+        })
+        .catch(() => undefined);
     }
 
     void loadProfile();
@@ -376,30 +411,6 @@ export function ProfileScreen() {
         style={styles.screen}
         contentContainerStyle={styles.content}
       >
-        <View
-          style={{
-            alignSelf: "stretch",
-            width: "100%",
-            marginBottom: 4,
-            paddingHorizontal: 12,
-            paddingVertical: 4,
-            backgroundColor: "rgba(255,0,0,0.2)",
-            borderRadius: 4,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 11,
-              fontWeight: "900",
-              color: "#FF4444",
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              textAlign: "center",
-            }}
-          >
-            PROFILE FIX ACTIVE — ProfileScreen.tsx rendering
-          </Text>
-        </View>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <View style={styles.headerAccent} />
@@ -467,8 +478,21 @@ export function ProfileScreen() {
           <GlassCard style={styles.card}>
             <Text style={styles.cardTitle}>Profile unavailable</Text>
             <Text style={styles.mutedText}>
-              Local profile data could not be loaded.
+              {profileLoadError ?? "Local profile data could not be loaded."}
             </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setLoading(true);
+                setProfileRefreshKey((key) => key + 1);
+              }}
+              style={({ pressed }) => [
+                styles.retryButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.retryButtonText}>Retry profile</Text>
+            </Pressable>
           </GlassCard>
         )}
       </ScrollView>
@@ -495,6 +519,24 @@ export function ProfileScreen() {
       />
     </SafeAreaView>
   );
+}
+
+async function withTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 function LogoutButton({ onLogout }: { readonly onLogout: () => void }) {
@@ -1300,8 +1342,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: layout.floatingTabBarContentInset,
     gap: 20,
-    borderWidth: 2,
-    borderColor: "red",
   },
   header: {
     gap: spacing.xs,
@@ -1339,16 +1379,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     width: "100%",
-    borderWidth: 2,
-    borderColor: "blue",
   },
   heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.lg,
     width: "100%",
-    borderWidth: 1,
-    borderColor: "green",
   },
   heroGlow: {
     position: "absolute",
@@ -1669,6 +1705,22 @@ const styles = StyleSheet.create({
     ...typography.caption,
     marginTop: spacing.xs,
     color: "rgba(248, 250, 252, 0.58)",
+  },
+  retryButton: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255,106,0,.42)",
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,106,0,.1)",
+  },
+  retryButtonText: {
+    ...typography.button,
+    color: palette.accentOrange,
   },
   settingsRows: {
     gap: spacing.sm,

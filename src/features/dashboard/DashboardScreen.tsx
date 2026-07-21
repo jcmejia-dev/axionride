@@ -2,7 +2,6 @@ import { useFocusEffect, useRouter, type Href } from "expo-router";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   RefreshControl,
   ScrollView,
@@ -16,12 +15,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth, useRiderProgress } from "@/src/providers";
 import { DailyChallengeCard, type DailyRideChallenge } from "@/src/features/daily-challenge";
+import { AchievementsShowcaseModal } from "@/src/features/rider-progress";
 import {
   createDailyChallengeService,
   createStatisticsService,
   createWeatherService,
   type CurrentWeather,
-  type RiderProgressSnapshot,
   type StatisticsDashboardSummary,
 } from "@/src/services";
 import { layout, premiumColors, spacing } from "@/src/theme";
@@ -67,6 +66,7 @@ export function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [weather, setWeather] = useState<DashboardWeather | null>(() => cachedSnapshot?.weather ?? null);
   const [searchVisible, setSearchVisible] = useState(false);
+  const [achievementsVisible, setAchievementsVisible] = useState(false);
   const [dailyChallenge, setDailyChallenge] = useState<DailyRideChallenge | null>(null);
   const loadRequestId = useRef(0);
   const stackCards = width < 430;
@@ -132,7 +132,7 @@ export function DashboardScreen() {
           greeting={greeting}
           riderName={riderName}
           riderProgress={riderProgress}
-          onOpenAchievements={() => showAchievementSummary(riderProgress)}
+          onOpenAchievements={() => setAchievementsVisible(true)}
           onOpenSearch={() => setSearchVisible(true)}
         />
 
@@ -196,6 +196,11 @@ export function DashboardScreen() {
       <SearchSheet
         visible={searchVisible}
         onClose={() => setSearchVisible(false)}
+      />
+      <AchievementsShowcaseModal
+        onClose={() => setAchievementsVisible(false)}
+        snapshot={riderProgress}
+        visible={achievementsVisible}
       />
     </SafeAreaView>
   );
@@ -284,19 +289,6 @@ function getGreeting(date: Date) {
   }
 
   return "Good evening";
-}
-
-function showAchievementSummary(snapshot: RiderProgressSnapshot) {
-  const unlocked = snapshot.achievements.filter((achievement) => achievement.unlocked);
-  const latest = [...unlocked].sort((first, second) =>
-    Date.parse(second.unlockedAt ?? "") - Date.parse(first.unlockedAt ?? ""),
-  )[0];
-  Alert.alert(
-    "Rider achievements",
-    latest
-      ? `${unlocked.length} of ${snapshot.achievements.length} unlocked\n\nLatest: ${latest.title}\n${latest.description}`
-      : `0 of ${snapshot.achievements.length} unlocked\n\nComplete rides and maintenance to build your rider record.`,
-  );
 }
 
 const styles = StyleSheet.create({

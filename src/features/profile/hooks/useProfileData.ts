@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { RiderProgressSnapshot } from "@/src/domain/rider-progress";
-import { getLevelProgress } from "@/src/domain/rider-progress";
 import type { RideStatisticsSummary, ServiceContext } from "@/src/services";
 import {
-  createRiderProgressService,
-  createStatisticsService,
+    createRiderProgressService,
+    createStatisticsService,
 } from "@/src/services";
 
 import type { RideMetrics } from "../components/StatsSummary";
@@ -116,13 +115,18 @@ export function useProfileData(
   const snapshot = cachedProfileData.snapshot;
   const metrics = cachedProfileData.metrics;
 
-  const levelProgress = useMemo(
-    () =>
-      snapshot
-        ? getLevelProgress(snapshot.progress.totalXp)
-        : { current: 0, next: 100, progress: 0 },
-    [snapshot],
-  );
+  const levelProgress = useMemo(() => {
+    if (!snapshot) {
+      return { current: 0, next: 100, progress: 0 };
+    }
+
+    const current = snapshot.progress.xp;
+    return {
+      current,
+      next: 100,
+      progress: current / 100,
+    };
+  }, [snapshot]);
 
   return useMemo(
     () => ({

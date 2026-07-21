@@ -1,5 +1,5 @@
-import type { ServiceContext } from './ServiceContext';
-import type { ServiceError, ServiceResult } from './ServiceTypes';
+import type { ServiceContext } from "./ServiceContext";
+import type { ServiceError, ServiceResult } from "./ServiceTypes";
 
 /**
  * Shared abstract base for future application services.
@@ -18,7 +18,9 @@ export abstract class BaseService {
     return { ok: true, value };
   }
 
-  protected failure<T = never>(error: ServiceError): ServiceResult<T> {
-    return { ok: false, error };
+  protected failure<T = never>(
+    error: ServiceError | { readonly code: string; readonly message: string },
+  ): ServiceResult<T> {
+    return { ok: false, error: error as ServiceError };
   }
 }

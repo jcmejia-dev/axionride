@@ -8,6 +8,7 @@ export {
 export type {
   RiderAchievement,
   RiderAchievementId,
+  RiderAchievementProgress,
   RiderProgress,
   RiderProgressSnapshot,
   RiderStreak,

@@ -1,3 +1,4 @@
+export { InMemoryRiderProgressRepository } from "./InMemoryRiderProgressRepository";
 export { SQLiteRiderProgressRepository } from "./SQLiteRiderProgressRepository";
 export type {
   RecordRiderProgressEventInput,

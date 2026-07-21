@@ -1,6 +1,9 @@
-import type { RepositoryProvider } from '@/src/repositories';
+import type { RepositoryProvider } from "@/src/repositories";
 
-import type { ServiceDependencies, ServiceLogger } from './ServiceTypes';
+import type {
+  ServiceDependencies,
+  ServiceLogger
+} from "./ServiceTypes";
 
 /**
  * Shared dependency container for application services.
@@ -22,3 +25,24 @@ export class ServiceContext {
     this.logger = dependencies.logger;
   }
 }
+
+export function createServiceContext(
+  repositories?: RepositoryProvider,
+  logger?: ServiceLogger,
+): ServiceContext {
+  return new ServiceContext({
+    repositories: repositories || ({} as RepositoryProvider),
+    logger,
+  });
+}
+
+export function createServiceContextWithRepositories(
+  repositories?: RepositoryProvider,
+): ServiceContext {
+  return new ServiceContext({
+    repositories: repositories || ({} as RepositoryProvider),
+  });
+}
+
+export { ServiceResult } from "./ServiceTypes";
+

@@ -27,6 +27,13 @@ export type RiderProgressSnapshot = {
   readonly progress: RiderProgress;
   readonly streak: RiderStreak;
   readonly achievements: readonly RiderAchievement[];
+  readonly achievementProgress: RiderAchievementProgress;
+};
+
+export type RiderAchievementProgress = {
+  readonly completedRideCount: number;
+  readonly totalDistanceKm: number;
+  readonly completedMaintenanceCount: number;
 };
 
 export const RIDER_ACHIEVEMENT_DEFINITIONS = [
@@ -65,6 +72,11 @@ export function createInitialRiderProgressSnapshot(): RiderProgressSnapshot {
   return {
     progress: calculateRiderProgress(0),
     streak: { streakCount: 0, lastActiveDate: null },
+    achievementProgress: {
+      completedRideCount: 0,
+      totalDistanceKm: 0,
+      completedMaintenanceCount: 0,
+    },
     achievements: RIDER_ACHIEVEMENT_DEFINITIONS.map((achievement) => ({
       ...achievement,
       unlocked: false,

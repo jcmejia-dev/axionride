@@ -60,6 +60,7 @@ export type FuelSummary = {
 export type MotorcycleFuelInfo = {
   readonly fuelTankCapacityLiters?: number;
   readonly estimatedFuelRemaining?: number; // manual override
+  readonly estimatedFuelUpdatedAt?: string;
 };
 
 /**

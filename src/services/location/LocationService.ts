@@ -40,6 +40,9 @@ export class LocationService extends BaseService {
   private consecutiveStationarySamples = 0;
   private lastStationaryTimestampMs: number | null = null;
 
+  /** Movement confirmation buffer — tracks recent samples to confirm real movement */
+  private recentMovementDisplacements: number[] = [];
+
   constructor(context: ServiceContext) {
     super(context);
   }
@@ -140,6 +143,7 @@ export class LocationService extends BaseService {
     this.pendingJumpCount = 0;
     this.consecutiveStationarySamples = 0;
     this.lastStationaryTimestampMs = null;
+    this.recentMovementDisplacements = [];
   }
 
   toRidePoint(location: Location.LocationObject): LocationRidePoint {
@@ -189,12 +193,60 @@ export class LocationService extends BaseService {
       if (this.lastStationaryTimestampMs === null) {
         this.lastStationaryTimestampMs = timestampMs;
       }
-    } else {
-      // Meaningful movement detected - reset stationary tracking
-      if (speedSample.hasSignificantMovement) {
-        this.consecutiveStationarySamples = 0;
-        this.lastStationaryTimestampMs = null;
+    }
+
+    // --- Movement confirmation ---
+    // Do not treat a single 2m jump as real movement when accuracy is poor.
+    // Require multiple consistent samples showing real displacement.
+    let isRealMovement = false;
+
+    // Criterion 1: native GPS speed clearly above stationary threshold
+    if (
+      rawSpeedKph !== undefined &&
+      rawSpeedKph >= CONFIRMED_MOVEMENT_SPEED_KMH
+    ) {
+      isRealMovement = true;
+    }
+    // Criterion 2: computed speed above threshold with good accuracy
+    else if (
+      speedSample.computedSpeedKph !== undefined &&
+      speedSample.computedSpeedKph >= CONFIRMED_MOVEMENT_SPEED_KMH &&
+      !isPoorAccuracy
+    ) {
+      isRealMovement = true;
+    }
+    // Criterion 3: multiple consistent displacement samples above drift threshold
+    else if (speedSample.hasSignificantMovement) {
+      this.recentMovementDisplacements.push(speedSample.displacementMeters);
+      // Keep a short buffer
+      if (
+        this.recentMovementDisplacements.length > MOVEMENT_CONFIRMATION_SAMPLES
+      ) {
+        this.recentMovementDisplacements.shift();
       }
+      // Require most samples in buffer to show meaningful displacement
+      const samplesAboveThreshold = this.recentMovementDisplacements.filter(
+        (d) => d >= MIN_SIGNIFICANT_DISTANCE_METERS * 2,
+      ).length;
+      const requiredCount = Math.ceil(MOVEMENT_CONFIRMATION_SAMPLES * 0.6);
+      if (
+        this.recentMovementDisplacements.length >=
+          MOVEMENT_CONFIRMATION_SAMPLES &&
+        samplesAboveThreshold >= requiredCount
+      ) {
+        isRealMovement = true;
+        this.recentMovementDisplacements = [];
+      }
+    }
+
+    if (isRealMovement) {
+      // Real movement detected - reset all stationary tracking
+      this.consecutiveStationarySamples = 0;
+      this.lastStationaryTimestampMs = null;
+      this.recentMovementDisplacements = [];
+    } else if (!isLikelyStationary && speedSample.hasSignificantMovement) {
+      // Single displacement event but not yet confirmed - don't reset stationary
+      // but don't increment it either. Just track it for confirmation buffer.
     }
 
     devLog(
@@ -207,8 +259,12 @@ export class LocationService extends BaseService {
         ? timestampMs - this.lastStationaryTimestampMs
         : 0,
     );
+    devLog("isRealMovement:", isRealMovement);
+    devLog("movement buffer:", this.recentMovementDisplacements.slice(-5));
 
-    if (speedSample.hasSignificantMovement) {
+    // Only update previousSpeedPoint and movement timestamp on confirmed real movement.
+    // GPS drift with hasSignificantMovement alone must NOT reset the stop timeout.
+    if (isRealMovement) {
       this.previousSpeedPoint = point;
       this.lastMovementTimestampMs = timestampMs;
     }
@@ -248,7 +304,6 @@ export class LocationService extends BaseService {
       this.pendingJumpSpeedKph = null;
       this.pendingJumpCount = 0;
 
-      // Keep stationary sample count so we don't immediately revert
       devLog("final displayed speed: 0 km/h (STATIONARY)");
       return { ...point, speed: 0 };
     }
@@ -335,6 +390,10 @@ const REQUIRED_STATIONARY_SAMPLES = 3;
 const STATIONARY_DURATION_MS = 2_500;
 /** Accuracy threshold in meters – above this, GPS is considered poor */
 const POOR_ACCURACY_THRESHOLD_METERS = 20;
+/** Speed that confirms real movement (native GPS or computed with good accuracy) */
+const CONFIRMED_MOVEMENT_SPEED_KMH = 5;
+/** Number of displacement samples needed to confirm real movement */
+const MOVEMENT_CONFIRMATION_SAMPLES = 3;
 
 function toRidePoint(location: Location.LocationObject): RidePoint {
   return {

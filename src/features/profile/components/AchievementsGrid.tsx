@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import { useState, type ComponentProps, type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { GlassCard } from "@/src/components";
@@ -7,47 +7,11 @@ import type {
   RiderAchievement,
   RiderAchievementId,
 } from "@/src/domain/rider-progress";
+import {
+  ACHIEVEMENT_ICONS,
+  type AchievementSymbolName,
+} from "@/src/features/rider-progress/achievementPresentation";
 import { palette, radius, spacing, typography } from "@/src/theme";
-
-type SymbolName = ComponentProps<typeof SymbolView>["name"];
-
-const ACHIEVEMENT_ICONS: Record<RiderAchievementId, SymbolName> = {
-  "first-ride": {
-    ios: "flag.checkered",
-    android: "sports_score",
-    web: "sports_score",
-  } as SymbolName,
-  "ten-rides": {
-    ios: "10.circle.fill",
-    android: "looks_two",
-    web: "looks_two",
-  } as SymbolName,
-  "hundred-km-rider": {
-    ios: "gauge.high",
-    android: "speed",
-    web: "speed",
-  } as SymbolName,
-  "smooth-rider": {
-    ios: "wind",
-    android: "air",
-    web: "air",
-  } as SymbolName,
-  "streak-3": {
-    ios: "flame",
-    android: "local_fire_department",
-    web: "local_fire_department",
-  } as SymbolName,
-  "streak-7": {
-    ios: "flame.fill",
-    android: "whatshot",
-    web: "whatshot",
-  } as SymbolName,
-  "maintenance-master": {
-    ios: "wrench.and.screwdriver.fill",
-    android: "build",
-    web: "build",
-  } as SymbolName,
-};
 
 export type AchievementsGridProps = {
   readonly achievements: readonly RiderAchievement[];
@@ -69,12 +33,6 @@ function getProgressForAchievement(
       return { current: 0, target: 10 };
     case "hundred-km-rider":
       return { current: 0, target: 100 };
-    case "smooth-rider":
-      return { current: 0, target: 85 };
-    case "streak-3":
-      return { current: 0, target: 3 };
-    case "streak-7":
-      return { current: 0, target: 7 };
     case "maintenance-master":
       return { current: 0, target: 5 };
     default:
@@ -228,7 +186,7 @@ function AchievementDetailModal({
                       ios: "xmark",
                       android: "close",
                       web: "close",
-                    } as SymbolName
+                    } as AchievementSymbolName
                   }
                   tintColor={palette.text}
                   size={18}

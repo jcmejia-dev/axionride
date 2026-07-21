@@ -1,4 +1,8 @@
-import type { FuelType, MotorcycleCategory, TransmissionType } from './MotorcycleEnums';
+import type {
+  FuelType,
+  MotorcycleCategory,
+  TransmissionType,
+} from "./MotorcycleEnums";
 
 /**
  * Stable unique identifier for a motorcycle record.
@@ -82,6 +86,15 @@ export type Motorcycle = {
 
   /** Typical fuel efficiency used for ride estimates. Defaults to 40 km/L. */
   readonly fuelEfficiencyKmPerLiter?: number;
+
+  /** Fuel tank capacity in liters, if known. */
+  readonly fuelTankCapacityLiters?: number;
+
+  /** Estimated remaining fuel in liters, maintained by the fuel service. */
+  readonly estimatedFuelRemaining?: number;
+
+  /** Timestamp when estimated fuel was last recalculated. */
+  readonly estimatedFuelUpdatedAt?: string;
 
   /** Date the motorcycle was purchased, if known. */
   readonly purchaseDate?: ISODateString;
